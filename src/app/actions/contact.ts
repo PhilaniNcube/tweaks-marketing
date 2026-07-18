@@ -4,7 +4,7 @@ import { Resend } from "resend";
 import { contactSchema } from "@/lib/validations/contact";
 import { ContactNotificationEmail } from "@/components/emails/contact-notification";
 import { ContactConfirmationEmail } from "@/components/emails/contact-confirmation";
-import { createElement } from "react";
+import { render } from "@react-email/render";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -81,11 +81,16 @@ export async function submitContactForm(
     }
 
     // Send notification to tweaks.co.za
+    const notificationHtml = await render(
+      ContactNotificationEmail({ data: parsedData }),
+      { pretty: false }
+    );
+
     const notificationResult = await resend.emails.send({
       from: 'Tweaks Notifications <hello@tweaks.co.za>',
       to: ['hello@tweaks.co.za'],
       subject: `New Editing Brief from ${parsedData.name}`,
-      react: createElement(ContactNotificationEmail, { data: parsedData }),
+      html: notificationHtml,
       attachments,
     });
 
@@ -95,11 +100,16 @@ export async function submitContactForm(
     }
 
     // Send confirmation to customer
+    const confirmationHtml = await render(
+      ContactConfirmationEmail({ data: parsedData }),
+      { pretty: false }
+    );
+
     const confirmationResult = await resend.emails.send({
       from: 'Tweaks <hello@tweaks.co.za>',
       to: [parsedData.email],
       subject: 'We have received your editing brief',
-      react: createElement(ContactConfirmationEmail, { data: parsedData }),
+      html: confirmationHtml,
     });
 
     if (confirmationResult.error) {

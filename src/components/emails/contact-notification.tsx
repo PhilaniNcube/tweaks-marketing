@@ -17,16 +17,16 @@ interface ContactNotificationEmailProps {
   data: ContactFormData;
 }
 
-export const ContactNotificationEmail: React.FC<Readonly<ContactNotificationEmailProps>> = ({
+export function ContactNotificationEmail({
   data,
-}) => {
+}: Readonly<ContactNotificationEmailProps>) {
   const previewText = `New Brief: ${data.name} - ${data.documentTypes.join(', ')}`;
 
   return (
     <Html>
-      <Head />
-      <Preview>{previewText}</Preview>
       <Tailwind>
+        <Head />
+        <Preview>{previewText}</Preview>
         <Body className="bg-slate-50 my-auto mx-auto font-sans">
           <Container className="border border-solid border-slate-200 rounded my-[40px] mx-auto p-[20px] max-w-[600px] bg-white shadow-sm">
             {/* Header Banner */}

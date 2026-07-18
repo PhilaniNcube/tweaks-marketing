@@ -18,16 +18,16 @@ interface ContactConfirmationEmailProps {
   data: ContactFormData;
 }
 
-export const ContactConfirmationEmail: React.FC<Readonly<ContactConfirmationEmailProps>> = ({
+export function ContactConfirmationEmail({
   data,
-}) => {
+}: Readonly<ContactConfirmationEmailProps>) {
   const previewText = `We have received your editing brief, ${data.name}!`;
 
   return (
     <Html>
-      <Head />
-      <Preview>{previewText}</Preview>
       <Tailwind>
+        <Head />
+        <Preview>{previewText}</Preview>
         <Body className="bg-slate-50 my-auto mx-auto font-sans">
           <Container className="border border-solid border-slate-200 rounded my-[40px] mx-auto p-[20px] max-w-[600px] bg-white shadow-sm">
             {/* Header Banner */}
@@ -158,7 +158,7 @@ export const ContactConfirmationEmail: React.FC<Readonly<ContactConfirmationEmai
               <Text className="text-[#1B0ABD] text-[15px] font-bold mt-[4px] mb-0">
                 The Tweaks Team
               </Text>
-              <Link href="https://tweaks.co.za" className="text-[12px] text-slate-400 mt-[6px] inline-block hover:underline">
+              <Link href="https://tweaks.co.za" className="text-[12px] text-slate-400 mt-[6px] inline-block underline">
                 tweaks.co.za
               </Link>
             </Section>
@@ -167,6 +167,6 @@ export const ContactConfirmationEmail: React.FC<Readonly<ContactConfirmationEmai
       </Tailwind>
     </Html>
   );
-};
+}
 
 export default ContactConfirmationEmail;
