@@ -4,6 +4,8 @@ import "./globals.css";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import { GoogleTagManager } from '@next/third-parties/google';
+import PageViewTracker from '@/components/page-view-tracker';
+import { Suspense } from 'react';
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -58,6 +60,9 @@ export default function RootLayout({
     >
       <GoogleTagManager gtmId="GTM-TPP8GGMS" />
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
+        <Suspense fallback={null}>
+          <PageViewTracker />
+        </Suspense>
         <Navbar />
         <main className="flex-1 flex flex-col">{children}</main>
         <Footer />
