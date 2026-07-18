@@ -1,12 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import {
-  PenTool,
-  Mail,
-  Phone,
-  MapPin,
-  BookOpen
-} from "lucide-react";
+import { Mail } from "lucide-react";
+import Image from "next/image";
 
 const LinkedinIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -65,8 +60,13 @@ export default function Footer() {
           {/* Brand Info */}
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2 font-bold text-xl text-white tracking-tight">
-              <PenTool className="h-5 w-5 text-indigo-400" />
-              <span>Tweaks<span className="text-indigo-400">Academic</span></span>
+              <Image
+                src="/images/tweaks_logo.png"
+                width={128}
+                height={128}
+                alt="TweaksAcademic"
+                className="object-contain"
+              />
             </Link>
             <p className="text-sm text-slate-400 max-w-xs">
               Premium editorial solutions designed for researchers, graduate students, and academic institutions worldwide. Elevate your research.
