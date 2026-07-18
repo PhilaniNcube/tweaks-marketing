@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 
 function ContactForm() {
   const searchParams = useSearchParams();
-  
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -67,37 +67,37 @@ function ContactForm() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Your Name *</Label>
-          <Input 
-            id="name" 
-            type="text" 
-            required 
-            placeholder="Jane Doe" 
-            value={form.name} 
+          <Input
+            id="name"
+            type="text"
+            required
+            placeholder="Jane Doe"
+            value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Email Address *</Label>
-          <Input 
-            id="email" 
-            type="email" 
-            required 
-            placeholder="jane.doe@university.edu" 
-            value={form.email} 
+          <Input
+            id="email"
+            type="email"
+            required
+            placeholder="jane.doe@university.edu"
+            value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="service" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Service Required</Label>
-          <select 
-            id="service" 
+          <select
+            id="service"
             className="flex h-10 w-full rounded-none border border-slate-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-tweaks-blue transition-colors"
-            value={form.service} 
+            value={form.service}
             onChange={(e) => setForm({ ...form, service: e.target.value })}
           >
             <option value="">Select a service...</option>
@@ -111,24 +111,14 @@ function ContactForm() {
           </select>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="pages" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Quantity (Pages/Minutes/Words)</Label>
-          <Input 
-            id="pages" 
-            type="text" 
-            placeholder="e.g. 50 pages or 15000 words" 
-            value={form.pages} 
-            onChange={(e) => setForm({ ...form, pages: e.target.value })}
-            className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
-          />
-        </div>
+
 
         <div className="space-y-2">
           <Label htmlFor="speed" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Delivery Speed</Label>
-          <select 
-            id="speed" 
+          <select
+            id="speed"
             className="flex h-10 w-full rounded-none border border-slate-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-3 py-2 text-sm focus-visible:outline-none focus-visible:border-tweaks-blue transition-colors"
-            value={form.speed} 
+            value={form.speed}
             onChange={(e) => setForm({ ...form, speed: e.target.value })}
           >
             <option value="">Select delivery...</option>
@@ -137,14 +127,24 @@ function ContactForm() {
           </select>
         </div>
       </div>
-
+      <div className="space-y-2">
+        <Label htmlFor="pages" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Quantity (Pages/Minutes/Words)</Label>
+        <Input
+          id="pages"
+          type="text"
+          placeholder="e.g. 50 pages or 15000 words"
+          value={form.pages}
+          onChange={(e) => setForm({ ...form, pages: e.target.value })}
+          className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
+        />
+      </div>
       <div className="space-y-2">
         <Label htmlFor="message" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Message / Details</Label>
-        <Textarea 
-          id="message" 
-          rows={5} 
-          placeholder="Please provide any instructions, formatting guide requirements, or specific requests..." 
-          value={form.message} 
+        <Textarea
+          id="message"
+          rows={5}
+          placeholder="Please provide any instructions, formatting guide requirements, or specific requests..."
+          value={form.message}
           onChange={(e) => setForm({ ...form, message: e.target.value })}
           className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950 resize-none"
         />
@@ -154,18 +154,18 @@ function ContactForm() {
       <div className="space-y-2">
         <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Upload Draft (optional)</Label>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <Label 
-            htmlFor="file-upload" 
+          <Label
+            htmlFor="file-upload"
             className="flex items-center justify-center gap-2 px-5 py-2.5 border border-dashed border-slate-300 dark:border-zinc-700 rounded-none cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-900 hover:border-tweaks-blue transition-all text-sm font-semibold"
           >
             <Paperclip className="h-4 w-4 text-slate-400" />
             <span>Select Document</span>
           </Label>
-          <input 
-            id="file-upload" 
-            type="file" 
-            accept=".docx,.doc,.pdf,.txt" 
-            className="hidden" 
+          <input
+            id="file-upload"
+            type="file"
+            accept=".docx,.doc,.pdf,.txt"
+            className="hidden"
             onChange={(e) => {
               if (e.target.files && e.target.files.length > 0) {
                 setFileName(e.target.files[0].name);
@@ -189,7 +189,7 @@ function ContactForm() {
 export default function Contact() {
   return (
     <div className="flex flex-col w-full min-h-screen bg-white dark:bg-zinc-950 text-slate-900 dark:text-zinc-100">
-      
+
       {/* Contact Header */}
       <section className="py-16 sm:py-24 bg-slate-50 dark:bg-zinc-900 border-b border-slate-100 dark:border-zinc-800">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl space-y-4">
@@ -206,7 +206,7 @@ export default function Contact() {
       <section className="py-16 sm:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
-            
+
             {/* Left Column: Info Cards */}
             <div className="lg:col-span-4 space-y-8 text-left">
               <div className="space-y-3">
@@ -236,7 +236,7 @@ export default function Contact() {
                   <div>
                     <h4 className="font-bold text-sm text-slate-900 dark:text-white">Working Hours</h4>
                     <p className="text-sm font-light text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
-                      Monday to Saturday<br/>8:00 AM - 8:00 PM
+                      Monday to Saturday<br />8:00 AM - 8:00 PM
                     </p>
                   </div>
                 </div>
