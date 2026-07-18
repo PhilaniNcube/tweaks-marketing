@@ -1,11 +1,11 @@
 import React from "react";
 import Link from "next/link";
-import { 
-  PenTool, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  BookOpen 
+import {
+  PenTool,
+  Mail,
+  Phone,
+  MapPin,
+  BookOpen
 } from "lucide-react";
 
 const LinkedinIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -52,11 +52,9 @@ const footerServices = [
 ];
 
 const companyLinks = [
-  { name: "About Us", href: "#" },
+
   { name: "Contact", href: "/contact" },
-  { name: "Careers", href: "#" },
-  { name: "Privacy Policy", href: "#" },
-  { name: "Terms of Service", href: "#" },
+  { name: "Privacy Policy", href: "/privacy-policy" },
 ];
 
 export default function Footer() {
@@ -68,7 +66,7 @@ export default function Footer() {
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2 font-bold text-xl text-white tracking-tight">
               <PenTool className="h-5 w-5 text-indigo-400" />
-              <span>Tweak<span className="text-indigo-400">Academic</span></span>
+              <span>Tweaks<span className="text-indigo-400">Academic</span></span>
             </Link>
             <p className="text-sm text-slate-400 max-w-xs">
               Premium editorial solutions designed for researchers, graduate students, and academic institutions worldwide. Elevate your research.
@@ -115,17 +113,10 @@ export default function Footer() {
           <div className="space-y-4">
             <h3 className="font-bold text-sm text-white uppercase tracking-wider">Get in Touch</h3>
             <ul className="space-y-3">
-              <li className="flex items-start gap-3 text-sm text-slate-400">
-                <MapPin className="h-5 w-5 shrink-0 text-indigo-400" />
-                <span>100 Innovation Way, Suite 400, Boston, MA 02108</span>
-              </li>
-              <li className="flex items-center gap-3 text-sm text-slate-400">
-                <Phone className="h-4 w-4 shrink-0 text-indigo-400" />
-                <span>+1 (555) 321-4820</span>
-              </li>
+
               <li className="flex items-center gap-3 text-sm text-slate-400">
                 <Mail className="h-4 w-4 shrink-0 text-indigo-400" />
-                <span>support@tweakacademic.com</span>
+                <span>chengetai@conceptafrika.com</span>
               </li>
             </ul>
           </div>
