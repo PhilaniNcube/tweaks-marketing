@@ -45,12 +45,12 @@ const services = [
     description: "Prepare for high-impact publication",
     icon: BookOpen,
   },
-  {
-    name: "Transcription Services",
-    href: "/transcription",
-    description: "Convert audio & video to precise text",
-    icon: Headphones,
-  },
+  // { // temporarily disabled
+  //   name: "Transcription Services",
+  //   href: "/transcription",
+  //   description: "Convert audio & video to precise text",
+  //   icon: Headphones,
+  // },
   {
     name: "Reference Checking",
     href: "/reference-checking",

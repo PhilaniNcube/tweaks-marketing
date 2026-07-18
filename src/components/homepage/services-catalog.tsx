@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -22,13 +22,13 @@ const products = [
     img: "https://conceptafrika.com/wp-content/uploads/2021/08/journal-article-editing-300x300.jpg",
     description: "Prepare your paper for international, peer-reviewed journal submission."
   },
-  {
-    name: "Transcription",
-    price: "R12.00",
-    href: "/transcription",
-    img: "https://conceptafrika.com/wp-content/uploads/2021/09/transcription-300x300.jpg",
-    description: "Accurate conversion of research interviews and focus group audio to text."
-  },
+  // {
+  //   name: "Transcription",
+  //   price: "R12.00",
+  //   href: "/transcription",
+  //   img: "https://conceptafrika.com/wp-content/uploads/2021/09/transcription-300x300.jpg",
+  //   description: "Accurate conversion of research interviews and focus group audio to text."
+  // },
   {
     name: "Reference Checking",
     price: "R7.50",
@@ -60,10 +60,19 @@ const products = [
 ];
 
 export default function ServicesCatalog() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [hasScrolled, setHasScrolled] = useState(false);
+
+  const handleScroll = () => {
+    if (!hasScrolled && scrollRef.current && scrollRef.current.scrollLeft > 10) {
+      setHasScrolled(true);
+    }
+  };
+
   return (
     <section id="academicshop" className="py-20 bg-slate-50 dark:bg-zinc-950/60 scroll-mt-16">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
           <motion.h2
@@ -81,8 +90,36 @@ export default function ServicesCatalog() {
           </p>
         </div>
 
-        {/* Product Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        {/* Mobile swipe hint — hidden once user scrolls or on sm+ */}
+        <div
+          className={`sm:hidden flex items-center justify-center gap-2 mb-6 transition-all duration-500 ${
+            hasScrolled ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
+        >
+          <span className="text-xs text-slate-400 dark:text-zinc-500 font-medium tracking-wide">
+            Swipe to explore
+          </span>
+          <motion.div
+            className="flex items-center text-indigo-500"
+            animate={{ x: [0, 6, 0] }}
+            transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
+          >
+            <ChevronRight className="w-4 h-4 -mr-2" />
+            <ChevronRight className="w-4 h-4" />
+          </motion.div>
+        </div>
+
+        {/* Product Cards — horizontal scroll carousel on mobile, grid on sm+ */}
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="
+          sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-8
+          flex overflow-x-auto gap-5 snap-x snap-mandatory scroll-smooth
+          pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:pb-0
+          [scrollbar-width:none] [&::-webkit-scrollbar]:hidden
+        ">
+
           {products.map((product, index) => (
             <motion.div
               key={product.name}
@@ -90,10 +127,10 @@ export default function ServicesCatalog() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.5, delay: index * 0.05 }}
-              className="flex"
+              className="flex flex-none w-[75vw] sm:w-auto snap-start"
             >
               <div className="flex flex-col w-full bg-white dark:bg-zinc-900 rounded-none border border-slate-100 dark:border-zinc-800/80 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-                
+
                 {/* Product Thumbnail */}
                 <div className="relative aspect-square w-full overflow-hidden bg-slate-50 dark:bg-zinc-950 border-b border-slate-100 dark:border-zinc-800/80">
                   <Image

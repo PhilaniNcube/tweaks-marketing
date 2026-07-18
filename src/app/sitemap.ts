@@ -11,7 +11,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/journal-article-proposal-editing",
     "/reference-checking",
     "/reference-list-editing",
-    "/transcription",
+    // "/transcription", // temporarily disabled
     "/contact",
     "/privacy-policy",
   ];

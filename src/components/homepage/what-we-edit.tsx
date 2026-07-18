@@ -20,7 +20,8 @@ const shortServicesList = [
   { name: "Journal Article Editing", href: "/journal-article-proposal-editing" },
   { name: "Reference Checking", href: "/reference-checking" },
   { name: "Reference List Editing", href: "/reference-list-editing" },
-  { name: "Transcription Services", href: "/transcription" }
+  { name: "Formatting", href: "/formatting" },
+  // { name: "Transcription Services", href: "/transcription" }
 ];
 
 export default function WhatWeEdit() {
@@ -32,7 +33,7 @@ export default function WhatWeEdit() {
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-16 items-center">
-          
+
           {/* Left Column: What We Edit Checklist */}
           <div className="space-y-8 text-left">
             <div className="space-y-4">

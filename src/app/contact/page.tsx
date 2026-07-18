@@ -77,7 +77,7 @@ function ContactForm() {
       toast.success("Brief submitted successfully!", {
         description: "We have received your project details. A member of our editorial team will reply shortly.",
       });
-      sendGTMEvent({ 
+      sendGTMEvent({
         event: 'contact_form_submission',
         services: searchParams.get("service") || "custom"
       });
@@ -341,11 +341,11 @@ function ContactForm() {
               <Paperclip className="h-4 w-4 text-slate-400" />
               <span>Select Document</span>
             </Label>
-            <input 
-              id="file-upload" 
-              type="file" 
-              accept=".docx,.doc,.pdf,.txt" 
-              className="hidden" 
+            <input
+              id="file-upload"
+              type="file"
+              accept=".docx,.doc,.pdf,.txt"
+              className="hidden"
               {...register("file")}
               onChange={(e) => {
                 register("file").onChange(e);
@@ -462,10 +462,10 @@ export default function Contact() {
                 </h1>
                 <div className="space-y-4 text-base text-slate-600 dark:text-zinc-400 font-light leading-relaxed">
                   <p>
-                    We are always happy to hear from you. Whether you have a relatively straight-forward project, or if you have a few questions you’d like to ask before you decide on the direction you would like to go, we are always keen to listen and offer advise and guidance.
+                    We are always happy to hear from you. Whether you have a straightforward project or would like to ask a few questions before deciding on the best approach, we are always happy to listen and offer advice and guidance.
                   </p>
                   <p>
-                    We are available by sending us an email directly, or you can reach us via the contact form on this page.
+                    Complete the project briefing form with as much detail as possible, and we'll review your requirements before sending you a formal quotation, together with a proposed timeline. If you have any questions, you're also welcome to contact us directly by email.
                   </p>
                 </div>
 
