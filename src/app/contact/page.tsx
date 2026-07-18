@@ -20,13 +20,15 @@ function ContactForm() {
   
   const [state, formAction, isPending] = useActionState(submitContactForm, { success: false });
 
+  type ContactFormValues = ContactFormData & { file?: FileList };
+
   const {
     register,
     handleSubmit,
     setValue,
     watch,
     formState: { errors }
-  } = useForm<ContactFormData>({
+  } = useForm<ContactFormValues>({
     resolver: zodResolver(contactSchema),
     defaultValues: {
       name: "",
@@ -49,7 +51,8 @@ function ContactForm() {
       trackedChangesOther: "",
       certificate: "",
       funding: "",
-      additionalInfo: ""
+      additionalInfo: "",
+      file: undefined
     }
   });
 
@@ -86,9 +89,23 @@ function ContactForm() {
     }
   }, [state.error]);
 
-  const onSubmit = (data: ContactFormData) => {
+  const onSubmit = (data: ContactFormValues) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, val]) => {
+      if (key === "file") return;
+      if (Array.isArray(val)) {
+        val.forEach(item => formData.append(key, item));
+      } else if (val !== undefined && val !== null) {
+        formData.append(key, String(val));
+      }
+    });
+
+    if (data.file && data.file.length > 0) {
+      formData.append("file", data.file[0]);
+    }
+
     startTransition(() => {
-      formAction(data);
+      formAction(formData);
     });
   };
 
@@ -311,11 +328,18 @@ function ContactForm() {
               <Paperclip className="h-4 w-4 text-slate-400" />
               <span>Select Document</span>
             </Label>
-            <input id="file-upload" type="file" accept=".docx,.doc,.pdf,.txt" className="hidden" onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) {
-                setFileName(e.target.files[0].name);
-              }
-            }}
+            <input 
+              id="file-upload" 
+              type="file" 
+              accept=".docx,.doc,.pdf,.txt" 
+              className="hidden" 
+              {...register("file")}
+              onChange={(e) => {
+                register("file").onChange(e);
+                if (e.target.files && e.target.files.length > 0) {
+                  setFileName(e.target.files[0].name);
+                }
+              }}
             />
             <span className="text-xs text-slate-500 truncate max-w-xs">
               {fileName || "No file selected"}
