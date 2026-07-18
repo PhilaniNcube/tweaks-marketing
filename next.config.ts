@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverExternalPackages: ["prettier"],
+  serverExternalPackages: [],
 };
 
 export default nextConfig;
