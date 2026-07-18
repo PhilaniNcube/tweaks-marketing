@@ -11,8 +11,38 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "TweakAcademic | Professional Academic Editing & Transcription",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://tweaks.co.za"),
+  title: {
+    default: "Tweaks Academic | Professional Academic Editing & Transcription",
+    template: "%s | Tweaks Academic",
+  },
   description: "Premium academic editing, journal article proposal editing, transcription, formatting, and reference list editing services for researchers, students, and academics.",
+  keywords: [
+    "academic editing",
+    "transcription services",
+    "journal article editing",
+    "proposal editing",
+    "reference list editing",
+    "formatting",
+    "abstract editing",
+    "proofreading",
+    "South Africa",
+  ],
+  authors: [{ name: "Tweaks Academic" }],
+  creator: "Tweaks Academic",
+  openGraph: {
+    type: "website",
+    locale: "en_ZA",
+    url: "/",
+    title: "Tweaks Academic | Professional Academic Editing & Transcription",
+    description: "Premium academic editing, journal article proposal editing, transcription, formatting, and reference list editing services.",
+    siteName: "Tweaks Academic",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tweaks Academic | Professional Academic Editing & Transcription",
+    description: "Premium academic editing, journal article proposal editing, transcription, formatting, and reference list editing services.",
+  },
 };
 
 export default function RootLayout({
