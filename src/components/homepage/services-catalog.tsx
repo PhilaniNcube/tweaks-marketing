@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -62,14 +62,6 @@ const products = [
 export default function ServicesCatalog() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
 
   const handleScroll = () => {
     if (!hasScrolled && scrollRef.current && scrollRef.current.scrollLeft > 10) {
@@ -131,10 +123,7 @@ export default function ServicesCatalog() {
           {products.map((product, index) => (
             <motion.div
               key={product.name}
-              initial={{ opacity: isMobile ? 1 : 0, y: isMobile ? 0 : 20 }}
-              whileInView={isMobile ? undefined : { opacity: 1, y: 0 }}
-              viewport={isMobile ? undefined : { once: true, margin: "-100px" }}
-              transition={{ duration: 0.5, delay: isMobile ? 0 : index * 0.05 }}
+              initial={{ opacity: 1, y: 0 }}
               className="flex flex-none w-[75vw] sm:w-auto snap-start"
             >
               <div className="flex flex-col w-full bg-white dark:bg-zinc-900 rounded-none border border-slate-100 dark:border-zinc-800/80 overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
