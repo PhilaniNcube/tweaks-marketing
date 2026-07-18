@@ -331,7 +331,7 @@ matches the journal&apos;s standards.
                   className="w-full bg-tweaks-red hover:bg-tweaks-blue text-white font-bold cursor-pointer rounded-none py-6 shadow-md transition-colors"
                 >
                   <Link
-                    href={`/journal-article-proposal-editing?service=journal-article-editing&articles=${articles}&speed=${deliverySpeed}`}
+                    href={`/contact?service=journal-article-proposal-editing&articles=${articles}&speed=${deliverySpeed}`}
                   >
                     Submit Manuscript for Review
                     <ArrowRight className="ml-2 h-4 w-4" />
