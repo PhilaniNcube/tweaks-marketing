@@ -26,7 +26,8 @@ export async function submitContactForm(
 
     // Send notification to tweaks.co.za
     const notificationHtml = await render(
-      <ContactNotificationEmail data={parsedData} />
+      <ContactNotificationEmail data={parsedData} />,
+      { pretty: false }
     );
 
     const notificationResult = await resend.emails.send({
@@ -43,7 +44,8 @@ export async function submitContactForm(
 
     // Send confirmation to customer
     const confirmationHtml = await render(
-      <ContactConfirmationEmail data={parsedData} />
+      <ContactConfirmationEmail data={parsedData} />,
+      { pretty: false }
     );
 
     const confirmationResult = await resend.emails.send({
