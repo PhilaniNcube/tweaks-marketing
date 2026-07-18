@@ -6,6 +6,7 @@ import Footer from "@/components/footer";
 import { GoogleTagManager } from '@next/third-parties/google';
 import PageViewTracker from '@/components/page-view-tracker';
 import { Suspense } from 'react';
+import { Toaster } from "sonner";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -66,6 +67,7 @@ export default function RootLayout({
         <Navbar />
         <main className="flex-1 flex flex-col">{children}</main>
         <Footer />
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );

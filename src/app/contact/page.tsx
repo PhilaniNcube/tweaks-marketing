@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { contactSchema, ContactFormData } from "@/lib/validations/contact";
 import { submitContactForm } from "@/app/actions/contact";
 import { sendGTMEvent } from '@next/third-parties/google';
+import { toast } from "sonner";
 
 function ContactForm() {
   const searchParams = useSearchParams();
@@ -67,12 +68,23 @@ function ContactForm() {
 
   useEffect(() => {
     if (state.success) {
+      toast.success("Brief submitted successfully!", {
+        description: "We have received your project details. A member of our editorial team will reply shortly.",
+      });
       sendGTMEvent({ 
         event: 'contact_form_submission',
         services: searchParams.get("service") || "custom"
       });
     }
   }, [state.success, searchParams]);
+
+  useEffect(() => {
+    if (state.error) {
+      toast.error("Submission failed", {
+        description: state.error,
+      });
+    }
+  }, [state.error]);
 
   const onSubmit = (data: ContactFormData) => {
     startTransition(() => {
@@ -115,8 +127,25 @@ function ContactForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 text-left">
       {state.error && (
-        <div className="p-4 bg-red-50 text-red-600 border border-red-200 text-sm">
-          {state.error}
+        <div className="flex items-start gap-3 p-4 bg-red-50 text-red-600 border border-red-200 text-sm">
+          <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />
+          <span>{state.error}</span>
+        </div>
+      )}
+
+      {state.errors && Object.keys(state.errors).length > 0 && (
+        <div className="flex items-start gap-3 p-4 bg-red-50 text-red-600 border border-red-200 text-sm">
+          <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold mb-1">Please fix the following errors:</p>
+            <ul className="list-disc list-inside space-y-0.5">
+              {Object.entries(state.errors).map(([field, messages]) =>
+                messages?.map((msg, i) => (
+                  <li key={`${field}-${i}`}>{msg}</li>
+                ))
+              )}
+            </ul>
+          </div>
         </div>
       )}
 

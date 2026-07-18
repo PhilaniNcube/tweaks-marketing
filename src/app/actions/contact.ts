@@ -7,7 +7,10 @@ import { ContactConfirmationEmail } from "@/components/emails/contact-confirmati
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-export async function submitContactForm(prevState: any, data: any) {
+export async function submitContactForm(
+  prevState: { success: boolean; error?: string; errors?: Record<string, string[]> },
+  data: unknown
+) {
   try {
     const validatedFields = contactSchema.safeParse(data);
 
