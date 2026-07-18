@@ -11,6 +11,8 @@ import Testimonials from "@/components/homepage/testimonials";
 import StepGuide from "@/components/homepage/step-guide";
 import ServicesCatalog from "@/components/homepage/services-catalog";
 import FAQSection from "@/components/homepage/faq-section";
+import Values from "@/components/homepage/values";
+import GetInTouch from "@/components/homepage/get-in-touch";
 
 export default function Home() {
   return (
@@ -25,6 +27,8 @@ export default function Home() {
       <StepGuide />
       <ServicesCatalog />
       <FAQSection />
+      <Values />
+      <GetInTouch />
     </div>
   );
 }
