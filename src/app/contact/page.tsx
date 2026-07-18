@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense, useEffect, useActionState, startTransition } from "react";
+import React, { useState, Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Mail, Send, CheckCircle2, Paperclip, AlertCircle, Phone, Clock, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,15 +10,18 @@ import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { contactSchema, ContactFormData } from "@/lib/validations/contact";
-import { submitContactForm } from "@/app/actions/contact";
 import { sendGTMEvent } from '@next/third-parties/google';
 import { toast } from "sonner";
 
 function ContactForm() {
   const searchParams = useSearchParams();
   const [fileName, setFileName] = useState("");
-  
-  const [state, formAction, isPending] = useActionState(submitContactForm, { success: false });
+  const [isPending, setIsPending] = useState(false);
+  const [state, setState] = useState<{
+    success: boolean;
+    error?: string;
+    errors?: Record<string, string[]>;
+  }>({ success: false });
 
   type ContactFormValues = ContactFormData & { file?: FileList };
 
@@ -89,7 +92,7 @@ function ContactForm() {
     }
   }, [state.error]);
 
-  const onSubmit = (data: ContactFormValues) => {
+  const onSubmit = async (data: ContactFormValues) => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, val]) => {
       if (key === "file") return;
@@ -104,9 +107,19 @@ function ContactForm() {
       formData.append("file", data.file[0]);
     }
 
-    startTransition(() => {
-      formAction(formData);
-    });
+    setIsPending(true);
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      setState(result);
+    } catch {
+      setState({ success: false, error: "Network error. Please try again." });
+    } finally {
+      setIsPending(false);
+    }
   };
 
   if (state.success) {
