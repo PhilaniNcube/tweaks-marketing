@@ -42,7 +42,7 @@ export default function GetInTouch() {
           >
             <Link
               href="/contact"
-              className="inline-flex items-center gap-3 bg-tweaks-red text-white font-bold text-sm sm:text-base px-8 py-4 hover:bg-blue-50 transition-colors duration-200 group"
+              className="inline-flex items-center gap-3 bg-tweaks-red text-white font-bold text-sm sm:text-base px-8 py-4 hover:bg-tweaks-blue transition-colors duration-200 group"
             >
               <span>Get In Touch</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
