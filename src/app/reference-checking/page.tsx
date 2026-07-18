@@ -72,6 +72,8 @@ const relatedServices = [
   },
 ];
 
+import { sendGTMEvent } from '@next/third-parties/google';
+
 export default function ReferenceChecking() {
   const [pages, setPages] = useState<number>(10);
   const [deliverySpeed, setDeliverySpeed] = useState<"standard" | "express">(
@@ -80,6 +82,10 @@ export default function ReferenceChecking() {
   const [activeTab, setActiveTab] = useState<
     "overview" | "support" | "delivery"
   >("overview");
+
+  React.useEffect(() => {
+    sendGTMEvent({ event: 'service_viewed', service: 'reference-checking' });
+  }, []);
 
   const basePricePerPage = 7.5;
   const expressAddon = 3.0;

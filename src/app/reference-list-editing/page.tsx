@@ -73,6 +73,8 @@ const relatedServices = [
   },
 ];
 
+import { sendGTMEvent } from '@next/third-parties/google';
+
 export default function ReferenceListEditing() {
   const [pages, setPages] = useState<number>(5);
   const [deliverySpeed, setDeliverySpeed] = useState<"standard" | "express">(
@@ -81,6 +83,10 @@ export default function ReferenceListEditing() {
   const [activeTab, setActiveTab] = useState<
     "overview" | "support" | "delivery"
   >("overview");
+
+  React.useEffect(() => {
+    sendGTMEvent({ event: 'service_viewed', service: 'reference-list-editing' });
+  }, []);
 
   const basePricePerPage = 50.0;
   const expressAddon = 25.0;

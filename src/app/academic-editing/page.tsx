@@ -70,10 +70,16 @@ const relatedServices = [
   }
 ];
 
+import { sendGTMEvent } from '@next/third-parties/google';
+
 export default function AcademicEditing() {
   const [pages, setPages] = useState<number>(10);
   const [deliverySpeed, setDeliverySpeed] = useState<"standard" | "express">("standard");
   const [activeTab, setActiveTab] = useState<"overview" | "integrity" | "delivery">("overview");
+
+  React.useEffect(() => {
+    sendGTMEvent({ event: 'service_viewed', service: 'academic-editing' });
+  }, []);
 
   const basePricePerPage = 45.00;
   const expressAddon = 15.00;

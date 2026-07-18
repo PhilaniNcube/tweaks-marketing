@@ -76,6 +76,8 @@ const relatedServices = [
   },
 ];
 
+import { sendGTMEvent } from '@next/third-parties/google';
+
 export default function JournalEditing() {
   const [articles, setArticles] = useState<number>(1);
   const [deliverySpeed, setDeliverySpeed] = useState<"standard" | "express">(
@@ -84,6 +86,10 @@ export default function JournalEditing() {
   const [activeTab, setActiveTab] = useState<
     "overview" | "support" | "delivery"
   >("overview");
+
+  React.useEffect(() => {
+    sendGTMEvent({ event: 'service_viewed', service: 'journal-article-proposal-editing' });
+  }, []);
 
   const basePrice = 2200.0;
   const expressAddon = 1500.0;

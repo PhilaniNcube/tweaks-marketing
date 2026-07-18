@@ -72,6 +72,8 @@ const relatedServices = [
   },
 ];
 
+import { sendGTMEvent } from '@next/third-parties/google';
+
 export default function Formatting() {
   const [documents, setDocuments] = useState<number>(1);
   const [deliverySpeed, setDeliverySpeed] = useState<"standard" | "express">(
@@ -80,6 +82,10 @@ export default function Formatting() {
   const [activeTab, setActiveTab] = useState<
     "overview" | "support" | "delivery"
   >("overview");
+
+  React.useEffect(() => {
+    sendGTMEvent({ event: 'service_viewed', service: 'formatting' });
+  }, []);
 
   const baseFee = 1500.0;
   const expressAddon = 800.0;

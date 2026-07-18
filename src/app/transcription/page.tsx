@@ -72,6 +72,8 @@ const relatedServices = [
   },
 ];
 
+import { sendGTMEvent } from '@next/third-parties/google';
+
 export default function Transcription() {
   const [minutes, setMinutes] = useState<number>(60);
   const [deliverySpeed, setDeliverySpeed] = useState<"standard" | "express">(
@@ -80,6 +82,10 @@ export default function Transcription() {
   const [activeTab, setActiveTab] = useState<
     "overview" | "support" | "delivery"
   >("overview");
+
+  React.useEffect(() => {
+    sendGTMEvent({ event: 'service_viewed', service: 'transcription' });
+  }, []);
 
   const baseRatePerMinute = 12.0;
   const expressAddon = 5.0;

@@ -61,8 +61,14 @@ const relatedServices = [
   }
 ];
 
+import { sendGTMEvent } from '@next/third-parties/google';
+
 export default function AbstractEditing() {
   const [activeTab, setActiveTab] = useState<"overview" | "integrity" | "delivery">("overview");
+
+  React.useEffect(() => {
+    sendGTMEvent({ event: 'service_viewed', service: 'abstract-editing' });
+  }, []);
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-white dark:bg-zinc-950 text-slate-900 dark:text-zinc-100">

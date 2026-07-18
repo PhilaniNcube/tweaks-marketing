@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { contactSchema, ContactFormData } from "@/lib/validations/contact";
 import { submitContactForm } from "@/app/actions/contact";
+import { sendGTMEvent } from '@next/third-parties/google';
 
 function ContactForm() {
   const searchParams = useSearchParams();
@@ -63,6 +64,15 @@ function ContactForm() {
       setValue("pageCount", defaultPages);
     }
   }, [searchParams, setValue]);
+
+  useEffect(() => {
+    if (state.success) {
+      sendGTMEvent({ 
+        event: 'contact_form_submission',
+        services: searchParams.get("service") || "custom"
+      });
+    }
+  }, [state.success, searchParams]);
 
   const onSubmit = (data: ContactFormData) => {
     startTransition(() => {
