@@ -42,14 +42,23 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_ZA",
     url: "/",
-    title: "Tweaks Academic | Professional Academic Editing & Transcription",
+    title: "Tweaks Academic Editing",
     description:
       "Premium academic editing, journal article proposal editing, transcription, formatting, and reference list editing services.",
-    siteName: "Tweaks Academic",
+    siteName: "Tweaks Academic Editing",
+    images: [
+      {
+        url: "/images/tweaks_logo.png",
+        width: 1200,
+        height: 630,
+        alt: "Tweaks Academic Editing",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Tweaks Academic | Professional Academic Editing & Transcription",
+    images: ["/images/tweaks_logo.png"],
+    title: "Tweaks Academic Editing",
     description:
       "Premium academic editing, journal article proposal editing, transcription, formatting, and reference list editing services.",
   },
