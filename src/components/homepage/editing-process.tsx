@@ -85,7 +85,7 @@ function DocumentView({ mode }: { mode: Mode }) {
       <div
         className={cn("flex-1", mode !== "original" ? "md:w-2/3" : "w-full")}
       >
-        <div className="h-[650px] border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-none overflow-hidden flex flex-col">
+        <div className="h-162.5 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-none overflow-hidden flex flex-col">
           <div className="py-3 px-4 border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50 flex flex-row items-center gap-2">
             <FileText className="w-4 h-4 text-tweaks-blue" />
             <span className="text-sm font-medium text-slate-900 dark:text-white">
@@ -206,7 +206,7 @@ function DocumentView({ mode }: { mode: Mode }) {
             <MessageSquareText className="w-4 h-4 text-tweaks-blue" />
             Editor Comments
           </h3>
-          <div className="h-[618px] overflow-y-auto pr-2">
+          <div className="h-154.5 overflow-y-auto pr-2">
             <div className="flex flex-col gap-4">
               {comments.map((comment) => (
                 <div

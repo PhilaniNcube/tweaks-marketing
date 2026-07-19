@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import Hero from "@/components/homepage/hero";
 import RefineSection from "@/components/homepage/refine-section";

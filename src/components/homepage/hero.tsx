@@ -1,9 +1,6 @@
-"use client";
-
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -16,74 +13,59 @@ export default function Hero() {
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-
           {/* Text Content */}
           <div className="lg:col-span-7 space-y-6 text-left">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-tweaks-blue dark:text-white leading-tight">
+              Professional Academic Editing That Helps You Submit with
+              Confidence
+            </h1>
 
+            <p className="text-lg text-slate-600 dark:text-zinc-300 font-light leading-relaxed max-w-2xl">
+              We help students and researchers refine their dissertations,
+              theses, journal articles, and research papers with expert academic
+              editing, clear language, and accurate formatting, ready for
+              submission, publication, or peer review.
+            </p>
 
-            <motion.h1
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-tweaks-blue dark:text-white leading-tight"
-            >
-             Professional Academic Editing That Helps You Submit with Confidence
-
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-lg text-slate-600 dark:text-zinc-300 font-light leading-relaxed max-w-2xl"
-            >
-             We help students and researchers refine their dissertations, theses, journal articles, and research papers with expert academic editing, clear language, and accurate formatting, ready for submission, publication, or peer review.
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex flex-wrap gap-4 pt-2"
-            >
-              <Button asChild size="lg" className="bg-tweaks-blue hover:bg-tweaks-red text-white font-medium cursor-pointer px-8 py-6 rounded-none">
+            <div className="flex flex-wrap gap-4 pt-2">
+              <Button
+                asChild
+                size="lg"
+                className="bg-tweaks-blue hover:bg-tweaks-red text-white font-medium cursor-pointer px-8 py-6 rounded-none"
+              >
                 <Link href="/contact">
                   Get A Quote
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
 
-                   <Button asChild size="lg" className="bg-tweaks-red hover:bg-tweaks-blue text-white font-medium cursor-pointer px-8 py-6 rounded-none">
+              <Button
+                asChild
+                size="lg"
+                className="bg-tweaks-red hover:bg-tweaks-blue text-white font-medium cursor-pointer px-8 py-6 rounded-none"
+              >
                 <Link href="#academicshop">
                   Explore Services
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
-
-            </motion.div>
+            </div>
           </div>
 
           {/* Hero Image */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="lg:col-span-5 relative"
-          >
+          <div className="lg:col-span-5 relative">
             <div className="relative aspect-4/3 rounded-none overflow-hidden shadow-2xl border border-slate-200/50 dark:border-zinc-800/80 bg-white dark:bg-zinc-950">
               <Image
-                src="https://conceptafrika.com/wp-content/uploads/2021/09/professional-academic-editing-services.jpg"
+                src="/images/hero-academic-editing.jpg"
                 alt="Professional Academic Editing Services"
                 fill
                 priority
+                sizes="(max-width: 1024px) 100vw, 40vw"
                 className="object-cover hover:scale-102 transition-transform duration-700"
               />
               <div className="absolute inset-0 bg-linear-to-t from-slate-900/10 to-transparent" />
             </div>
-            {/* Subtle floating overlay accent */}
-
-          </motion.div>
-
+          </div>
         </div>
       </div>
     </section>
