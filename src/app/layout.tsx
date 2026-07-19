@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     siteName: "Tweaks Academic Editing",
     images: [
       {
-        url: "/images/tweaks_logo.png",
+        url: "/images/og-image.png",
         width: 1200,
         height: 630,
         alt: "Tweaks Academic Editing",
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    images: ["/images/tweaks_logo.png"],
+    images: ["/images/og-image.png"],
     title: "Tweaks Academic Editing",
     description:
       "Premium academic editing, journal article proposal editing, transcription, formatting, and reference list editing services.",
