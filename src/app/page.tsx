@@ -13,6 +13,7 @@ import ServicesCatalog from "@/components/homepage/services-catalog";
 import FAQSection from "@/components/homepage/faq-section";
 import Values from "@/components/homepage/values";
 import GetInTouch from "@/components/homepage/get-in-touch";
+import MeetEditor from "@/components/homepage/meet-editor";
 
 export default function Home() {
   return (
@@ -21,6 +22,7 @@ export default function Home() {
       <RefineSection />
       <QuoteCallout />
       <ExpertCare />
+      <MeetEditor />
       <WhatWeEdit />
       <LogosBar />
       <Testimonials />
