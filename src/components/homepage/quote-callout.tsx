@@ -24,9 +24,11 @@ export default function QuoteCallout() {
             className="p-8 sm:p-12 bg-white dark:bg-zinc-900 border-l-4 border-tweaks-blue dark:border-indigo-500 rounded-none shadow-xl relative"
           >
             <p className="text-xl sm:text-2xl text-slate-800 dark:text-slate-200 font-medium leading-relaxed italic text-left">
-              "The truth is, If you are a student or academic from a non-English speaking background, your work will achieve better marks and a greater academic impact if it is presented in perfect English."
+              Whether English is your first language or not, even exceptional
+              research can lose impact if it isn&apos;t communicated clearly.
+              Professional academic editing ensures your ideas are presented
+              with the clarity, precision, and academic tone they deserve.
             </p>
-
           </motion.div>
         </div>
       </div>

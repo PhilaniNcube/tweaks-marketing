@@ -1,0 +1,75 @@
+
+> tweaks-marketing@0.1.0 lint
+> eslint
+
+
+C:\Users\ncbph\Documents\Development\tweaks-marketing\src\app\abstract-editing\page.tsx
+  120:47  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  294:61  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\ncbph\Documents\Development\tweaks-marketing\src\app\academic-editing\page.tsx
+   11:3   warning  'ShieldCheck' is defined but never used                          @typescript-eslint/no-unused-vars
+   12:3   warning  'FileText' is defined but never used                             @typescript-eslint/no-unused-vars
+   13:3   warning  'Sparkles' is defined but never used                             @typescript-eslint/no-unused-vars
+   17:3   warning  'Mail' is defined but never used                                 @typescript-eslint/no-unused-vars
+  136:47  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+  375:61  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\ncbph\Documents\Development\tweaks-marketing\src\app\contact\page.tsx
+   11:3   warning  'Phone' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+   12:3   warning  'Clock' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  182:21  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\ncbph\Documents\Development\tweaks-marketing\src\app\contact\page.tsx:182:21
+  180 |     checked: boolean,
+  181 |   ) => {
+> 182 |     const current = watch(field) || [];
+      |                     ^^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  183 |     if (checked) {
+  184 |       setValue(field, [...current, value]);
+  185 |     } else {  react-hooks/incompatible-library
+  458:53  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/no-unescaped-entities
+  565:52  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/no-unescaped-entities
+  656:16  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/no-unescaped-entities
+  818:30  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/no-unescaped-entities
+  868:37  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/no-unescaped-entities
+  870:51  error    `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 react/no-unescaped-entities
+
+C:\Users\ncbph\Documents\Development\tweaks-marketing\src\components\emails\contact-confirmation.tsx
+  109:58  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+C:\Users\ncbph\Documents\Development\tweaks-marketing\src\components\homepage\get-in-touch.tsx
+  6:22  warning  'Mail' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ncbph\Documents\Development\tweaks-marketing\src\components\homepage\services-catalog.tsx
+    4:8   warning  'Link' is defined but never used   @typescript-eslint/no-unused-vars
+  123:35  warning  'index' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ncbph\Documents\Development\tweaks-marketing\src\components\navbar.tsx
+  12:3  warning  'Headphones' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\ncbph\Documents\Development\tweaks-marketing\src\components\ui\sheet.tsx
+  19:61  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\ncbph\Documents\Development\tweaks-marketing\src\components\whatsapp-bubble.tsx
+  15:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\ncbph\Documents\Development\tweaks-marketing\src\components\whatsapp-bubble.tsx:15:5
+  13 |
+  14 |   useEffect(() => {
+> 15 |     setMounted(true);
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  16 |   }, []);
+  17 |
+  18 |   if (!mounted || !WHATSAPP_NUMBER) return null;  react-hooks/set-state-in-effect
+
+✖ 24 problems (13 errors, 11 warnings)
+

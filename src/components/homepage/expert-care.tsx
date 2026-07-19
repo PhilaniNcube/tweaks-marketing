@@ -42,7 +42,7 @@ export default function ExpertCare() {
                 transition={{ duration: 0.5 }}
                 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl"
               >
-                Your Work Deserves Expert Care
+             Why Choose Tweaks?
               </motion.h2>
               <div className="w-16 h-1 bg-indigo-600 dark:bg-indigo-400 rounded-none" />
             </div>

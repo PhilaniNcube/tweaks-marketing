@@ -64,7 +64,7 @@ export default function Testimonials() {
             transition={{ duration: 0.5 }}
             className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl"
           >
-            Testimonials
+           What Our Clients Say
           </motion.h2>
           <div className="w-16 h-1 bg-indigo-600 dark:bg-indigo-400 mx-auto rounded-none" />
           <p className="text-slate-600 dark:text-zinc-400 font-light text-base">
@@ -90,7 +90,7 @@ export default function Testimonials() {
 
               {/* Text quote */}
               <p className="text-slate-600 dark:text-zinc-300 italic font-light text-sm leading-relaxed mb-8 text-left relative z-10">
-                "{item.quote}"
+                &quot;{item.quote}&quot;
               </p>
 
               {/* Author metadata */}

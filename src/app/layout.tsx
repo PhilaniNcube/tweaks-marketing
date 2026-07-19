@@ -3,9 +3,10 @@ import { Montserrat } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import { GoogleTagManager } from '@next/third-parties/google';
-import PageViewTracker from '@/components/page-view-tracker';
-import { Suspense } from 'react';
+import { GoogleTagManager } from "@next/third-parties/google";
+import PageViewTracker from "@/components/page-view-tracker";
+import WhatsappBubble from "@/components/whatsapp-bubble";
+import { Suspense } from "react";
 import { Toaster } from "sonner";
 
 const montserrat = Montserrat({
@@ -15,12 +16,15 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://tweaks.co.za"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_BASE_URL || "https://tweaks.co.za",
+  ),
   title: {
-    default: "Tweaks Academic | Professional Academic Editing & Transcription",
-    template: "%s | Tweaks Academic",
+    default: "Tweaks Academic Editing",
+    template: "%s | Tweaks Academic Editing",
   },
-  description: "Premium academic editing, journal article proposal editing, transcription, formatting, and reference list editing services for researchers, students, and academics.",
+  description:
+    "Premium academic editing, journal article proposal editing, transcription, formatting, and reference list editing services for researchers, students, and academics.",
   keywords: [
     "academic editing",
     "transcription services",
@@ -39,13 +43,15 @@ export const metadata: Metadata = {
     locale: "en_ZA",
     url: "/",
     title: "Tweaks Academic | Professional Academic Editing & Transcription",
-    description: "Premium academic editing, journal article proposal editing, transcription, formatting, and reference list editing services.",
+    description:
+      "Premium academic editing, journal article proposal editing, transcription, formatting, and reference list editing services.",
     siteName: "Tweaks Academic",
   },
   twitter: {
     card: "summary_large_image",
     title: "Tweaks Academic | Professional Academic Editing & Transcription",
-    description: "Premium academic editing, journal article proposal editing, transcription, formatting, and reference list editing services.",
+    description:
+      "Premium academic editing, journal article proposal editing, transcription, formatting, and reference list editing services.",
   },
 };
 
@@ -55,10 +61,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${montserrat.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`${montserrat.variable} h-full antialiased`}>
       <GoogleTagManager gtmId="GTM-TPP8GGMS" />
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <Suspense fallback={null}>
@@ -67,6 +70,7 @@ export default function RootLayout({
         <Navbar />
         <main className="flex-1 flex flex-col">{children}</main>
         <Footer />
+        <WhatsappBubble />
         <Toaster position="top-right" richColors closeButton />
       </body>
     </html>

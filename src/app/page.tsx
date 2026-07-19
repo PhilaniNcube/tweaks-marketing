@@ -24,8 +24,8 @@ export default function Home() {
       <WhatWeEdit />
       <LogosBar />
       <Testimonials />
-      <StepGuide />
       <ServicesCatalog />
+      <StepGuide />
       <FAQSection />
       <Values />
       <GetInTouch />

@@ -20,9 +20,9 @@ export default function LogosBar() {
           {/* Label */}
           <div className="text-center md:text-left shrink-0">
             <h4 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-              PROUDLY SUPPORTING
+             TRUSTED BY STUDENTS FROM 
               <br />
-              SCHOLARS AT:
+              LEADING UNIVERSITIES
             </h4>
           </div>
 
