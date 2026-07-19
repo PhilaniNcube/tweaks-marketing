@@ -14,7 +14,7 @@ export default function MeetEditor() {
               className="relative aspect-3/4 rounded-none overflow-hidden shadow-xl border border-slate-100 dark:border-zinc-800"
             >
               <Image
-                src="/images/chendu.jpg"
+                src="https://conceptafrika.com/wp-content/uploads/2021/10/Chengetai-Chikadaya.jpg"
                 alt="Chengetai Chikadaya, founder of ZUVA Academic Coaching"
                 fill
                 sizes="(max-width: 1024px) 100vw, 40vw"
