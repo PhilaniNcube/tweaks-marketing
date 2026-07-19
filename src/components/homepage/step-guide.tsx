@@ -37,17 +37,6 @@ const services: ServiceDef[] = [
     wordsPerPage: 300,
   },
   {
-    id: "journal-article-proposal-editing",
-    name: "Journal Article Editing",
-    unit: "article",
-    defaultQty: 1,
-    min: 1,
-    max: 20,
-    numberMax: 50,
-    basePrice: 2200.0,
-    expressAddon: 1500.0,
-  },
-  {
     id: "reference-checking",
     name: "Reference Checking",
     unit: "A4 page",
@@ -58,17 +47,6 @@ const services: ServiceDef[] = [
     basePrice: 7.5,
     expressAddon: 3.0,
     wordsPerPage: 300,
-  },
-  {
-    id: "formatting",
-    name: "Formatting",
-    unit: "document",
-    defaultQty: 1,
-    min: 1,
-    max: 50,
-    numberMax: 100,
-    basePrice: 1500.0,
-    expressAddon: 800.0,
   },
   {
     id: "reference-list-editing",
@@ -83,15 +61,15 @@ const services: ServiceDef[] = [
     wordsPerPage: 300,
   },
   {
-    id: "abstract-editing",
-    name: "Abstract Editing",
-    unit: "abstract",
+    id: "formatting",
+    name: "Formatting",
+    unit: "document",
     defaultQty: 1,
     min: 1,
     max: 1,
     numberMax: 1,
-    basePrice: 1000.0,
-    expressAddon: 0.0,
+    basePrice: 1500.0,
+    expressAddon: 800.0,
     flat: true,
   },
 ];
@@ -204,8 +182,8 @@ export default function StepGuide() {
           <div className="w-16 h-1 bg-indigo-600 dark:bg-indigo-400 mx-auto rounded-none" />
           <p className="text-slate-600 dark:text-zinc-400 font-light text-base leading-relaxed">
             Find out what your project is likely to cost in less than a minute.
-            Once you&apos;ve completed your estimate you&apos;ll be able to request a
-            formal quote for your thesis.
+            Once you&apos;ve completed your estimate you&apos;ll be able to
+            request a formal quote for your thesis.
           </p>
         </div>
 
