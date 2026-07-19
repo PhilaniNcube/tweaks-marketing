@@ -58,33 +58,30 @@ export default function MeetEditor() {
                 One of the biggest challenges I have observed over the past 16
                 years is that exceptional research is often overlooked because
                 it is not communicated as clearly as it could be. Strong ideas
-                deserve strong writing, and every researcher deserves the
-                opportunity to have their work judged on the quality of their
-                thinking, not the clarity of their language.
-              </p>
-              <p>
-                As the founder of Zuva Academic Coaching, I have spent the last
-                16 years supporting students, researchers, and academics at
-                every stage of their academic journey. During this time, I have
-                edited thousands of research papers, dissertations, theses,
-                journal articles, and academic manuscripts, helping authors
-                strengthen clarity, improve structure, and meet the standards
-                expected by universities and academic publishers.
+                deserve strong writing, and every researcher deserves to have
+                their work judged on the quality of their thinking, not the
+                clarity of their language. As an editor at Tweaks and the
+                founder of Zuva Academic Coaching, I have spent the last 16
+                years supporting students, researchers, and academics with
+                academic editing and coaching at every stage of their journey.
+                During this time, I have edited thousands of research papers,
+                dissertations, theses, journal articles, and academic
+                manuscripts, helping authors strengthen clarity, improve
+                structure, and meet the standards expected by universities and
+                academic publishers.
               </p>
               <p>
                 My approach goes beyond proofreading. I work collaboratively
                 with every client to preserve their voice while enhancing
-                clarity, coherence, and academic rigour. Whether you are
-                preparing your first dissertation or your latest journal
-                article, my goal is to ensure your work is polished,
-                professional, and ready for submission.
+                clarity, coherence, and academic rigour, so your work is
+                polished, professional, and ready for submission. I believe
+                great research has the power to change lives, influence policy,
+                and advance knowledge, and my mission is to help you communicate
+                your ideas with the clarity, confidence, and impact they
+                deserve.
               </p>
-              <p>
-                I believe great research has the power to change lives,
-                influence policy, and advance knowledge. My mission is to help
-                you communicate your ideas with clarity, confidence, and the
-                impact they deserve.
-              </p>
+         
+         
             </motion.div>
           </div>
         </div>
