@@ -276,6 +276,7 @@ export default function StepGuide() {
                       <input
                         id={`${activeService.id}-range`}
                         type="range"
+                        aria-label={`${activeService.name} quantity in ${activeService.unit}s`}
                         min={activeService.min}
                         max={activeService.max}
                         value={activeCost.qty}
@@ -290,6 +291,7 @@ export default function StepGuide() {
                       <input
                         id={`${activeService.id}-number`}
                         type="number"
+                        aria-label={`${activeService.name} quantity in ${activeService.unit}s`}
                         min={activeService.min}
                         max={activeService.numberMax}
                         value={activeCost.qty}

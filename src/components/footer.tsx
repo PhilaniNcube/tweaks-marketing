@@ -39,7 +39,10 @@ const InstagramIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 const footerServices = [
   { name: "Academic Editing", href: "/academic-editing" },
-  { name: "Journal & Proposal Editing", href: "/journal-article-proposal-editing" },
+  {
+    name: "Journal & Proposal Editing",
+    href: "/journal-article-proposal-editing",
+  },
   // { name: "Transcription Services", href: "/transcription" }, // temporarily disabled
   { name: "Reference Checking", href: "/reference-checking" },
   { name: "Document Formatting", href: "/formatting" },
@@ -48,7 +51,6 @@ const footerServices = [
 ];
 
 const companyLinks = [
-
   { name: "Contact", href: "/contact" },
   { name: "Privacy Policy", href: "/privacy-policy" },
 ];
@@ -60,7 +62,10 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand Info */}
           <div className="space-y-4">
-            <Link href="/" className="flex items-center gap-2 font-bold text-xl text-white tracking-tight">
+            <Link
+              href="/"
+              className="flex items-center gap-2 font-bold text-xl text-white tracking-tight"
+            >
               <Image
                 src="/images/tweaks_logo.png"
                 width={128}
@@ -70,13 +75,23 @@ export default function Footer() {
               />
             </Link>
             <p className="text-sm text-slate-400 max-w-xs">
-              Premium editorial solutions designed for researchers, graduate students, and academic institutions worldwide. Elevate your research.
+              Premium editorial solutions designed for researchers, graduate
+              students, and academic institutions worldwide. Elevate your
+              research.
             </p>
             <div className="flex gap-4 pt-2">
-              <Link href="https://www.linkedin.com/company/12955567" className="text-slate-400 hover:text-indigo-400 transition-colors">
+              <Link
+                href="https://www.linkedin.com/company/12955567"
+                aria-label="Tweaks on LinkedIn"
+                className="text-slate-400 hover:text-indigo-400 transition-colors"
+              >
                 <LinkedinIcon className="h-4 w-4" />
               </Link>
-              <Link href="https://www.instagram.com/tweaks_editing?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" className="text-slate-400 hover:text-indigo-400 transition-colors">
+              <Link
+                href="https://www.instagram.com/tweaks_editing?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw=="
+                aria-label="Tweaks on Instagram"
+                className="text-slate-400 hover:text-indigo-400 transition-colors"
+              >
                 <InstagramIcon className="h-4 w-4" />
               </Link>
             </div>
@@ -84,11 +99,16 @@ export default function Footer() {
 
           {/* Services Links */}
           <div>
-            <h3 className="font-bold text-sm text-white uppercase tracking-wider mb-4">Services</h3>
+            <h3 className="font-bold text-sm text-white uppercase tracking-wider mb-4">
+              Services
+            </h3>
             <ul className="space-y-2">
               {footerServices.map((service) => (
                 <li key={service.href}>
-                  <Link href={service.href} className="text-sm text-slate-400 hover:text-white hover:underline transition-all">
+                  <Link
+                    href={service.href}
+                    className="text-sm text-slate-400 hover:text-white hover:underline transition-all"
+                  >
                     {service.name}
                   </Link>
                 </li>
@@ -98,11 +118,16 @@ export default function Footer() {
 
           {/* Company Links */}
           <div>
-            <h3 className="font-bold text-sm text-white uppercase tracking-wider mb-4">Company</h3>
+            <h3 className="font-bold text-sm text-white uppercase tracking-wider mb-4">
+              Company
+            </h3>
             <ul className="space-y-2">
               {companyLinks.map((link) => (
                 <li key={link.name}>
-                  <Link href={link.href} className="text-sm text-slate-400 hover:text-white hover:underline transition-all">
+                  <Link
+                    href={link.href}
+                    className="text-sm text-slate-400 hover:text-white hover:underline transition-all"
+                  >
                     {link.name}
                   </Link>
                 </li>
@@ -112,9 +137,10 @@ export default function Footer() {
 
           {/* Contact Details */}
           <div className="space-y-4">
-            <h3 className="font-bold text-sm text-white uppercase tracking-wider">Get in Touch</h3>
+            <h3 className="font-bold text-sm text-white uppercase tracking-wider">
+              Get in Touch
+            </h3>
             <ul className="space-y-3">
-
               <li className="flex items-center gap-3 text-sm text-slate-400">
                 <Mail className="h-4 w-4 shrink-0 text-indigo-400" />
                 <span>hello@tweaks.co.za</span>
@@ -124,10 +150,21 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-slate-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
-          <Link href="https://www.conceptafrika.com" target="_blank" rel="noopener noreferrer" className="hover:text-slate-400">© {new Date().getFullYear()} designed with ❤️ by Concept Afrika</Link>
+          <Link
+            href="https://www.conceptafrika.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-slate-400"
+          >
+            © {new Date().getFullYear()} designed with ❤️ by Concept Afrika
+          </Link>
           <div className="flex gap-4">
-            <Link href="#" className="hover:text-slate-400">Privacy Policy</Link>
-            <Link href="#" className="hover:text-slate-400">Terms of Use</Link>
+            <Link href="#" className="hover:text-slate-400">
+              Privacy Policy
+            </Link>
+            <Link href="#" className="hover:text-slate-400">
+              Terms of Use
+            </Link>
           </div>
         </div>
       </div>
