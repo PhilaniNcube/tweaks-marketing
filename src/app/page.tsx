@@ -9,6 +9,7 @@ import WhatWeEdit from "@/components/homepage/what-we-edit";
 import LogosBar from "@/components/homepage/logos-bar";
 import Testimonials from "@/components/homepage/testimonials";
 import StepGuide from "@/components/homepage/step-guide";
+import EditingProcess from "@/components/homepage/editing-process";
 import ServicesCatalog from "@/components/homepage/services-catalog";
 import FAQSection from "@/components/homepage/faq-section";
 import Values from "@/components/homepage/values";
@@ -28,6 +29,7 @@ export default function Home() {
       <Testimonials />
       <ServicesCatalog />
       <StepGuide />
+      <EditingProcess />
       <FAQSection />
       <Values />
       <GetInTouch />

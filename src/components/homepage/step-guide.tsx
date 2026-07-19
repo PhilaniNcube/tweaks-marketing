@@ -74,30 +74,6 @@ const services: ServiceDef[] = [
   },
 ];
 
-const steps = [
-  {
-    num: "1",
-    img: "https://conceptafrika.com/wp-content/uploads/2021/09/one.png",
-    title: "Request a Quote",
-    description:
-      "Use the estimator above to choose your services, then submit your brief. We will respond with a formal quote and an estimated turnaround time (typically five days from acceptance).",
-  },
-  {
-    num: "2",
-    img: "https://conceptafrika.com/wp-content/uploads/2021/09/two.png",
-    title: "Confirm Your Details",
-    description:
-      "Review the quote and the quantity selections provided. Once you confirm that everything is correct, we will finalise your order and reserve your place in the editing schedule.",
-  },
-  {
-    num: "3",
-    img: "https://conceptafrika.com/wp-content/uploads/2021/09/three.png",
-    title: "Email Your Document and Get Matched",
-    description:
-      "After confirmation and payment, you will receive instructions on how to email your document and any specific guidelines. An expert editor, matched to your subject area, will be assigned to your project.",
-  },
-];
-
 function formatZAR(amount: number): string {
   return amount.toLocaleString("en-ZA", {
     minimumFractionDigits: 2,
@@ -513,52 +489,6 @@ export default function StepGuide() {
               </Button>
             </div>
           </motion.div>
-        </div>
-
-        {/* Steps — horizontal row at bottom */}
-        <div className="mt-16 pt-12 border-t border-slate-100 dark:border-zinc-800/40">
-          <div className="text-center max-w-xl mx-auto mb-10 space-y-2">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-              Our Three-Step Process
-            </h3>
-            <p className="text-slate-500 dark:text-zinc-400 font-light text-sm">
-              Once you&rsquo;ve planned your estimate above, here&rsquo;s what
-              to expect next.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {steps.map((step, index) => (
-              <motion.div
-                key={step.num}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-100px" }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="flex items-start gap-4 p-6 rounded-none bg-slate-50 dark:bg-zinc-950/40 border border-slate-100 dark:border-zinc-800/40 hover:border-indigo-100 dark:hover:border-indigo-950 transition-all duration-300"
-              >
-                {/* Step Number Image */}
-                <div className="relative w-12 h-14 shrink-0 bg-transparent flex items-center justify-center">
-                  <Image
-                    src={step.img}
-                    alt={`Step ${step.num}`}
-                    width={40}
-                    height={47}
-                    className="object-contain"
-                  />
-                </div>
-
-                {/* Step Content */}
-                <div className="space-y-1.5 text-left">
-                  <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                    {step.title}
-                  </h4>
-                  <p className="text-slate-600 dark:text-zinc-400 font-light text-xs leading-relaxed">
-                    {step.description}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
         </div>
       </div>
     </section>
