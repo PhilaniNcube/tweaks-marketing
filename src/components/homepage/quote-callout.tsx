@@ -1,8 +1,6 @@
-"use client";
-
 import React from "react";
-import { motion } from "framer-motion";
 import { Quote } from "lucide-react";
+import Reveal from "@/components/reveal";
 
 export default function QuoteCallout() {
   return (
@@ -16,11 +14,8 @@ export default function QuoteCallout() {
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6 }}
+          <Reveal
+            variant="fade"
             className="p-8 sm:p-12 bg-white dark:bg-zinc-900 border-l-4 border-tweaks-blue dark:border-indigo-500 rounded-none shadow-xl relative"
           >
             <p className="text-xl sm:text-2xl text-slate-800 dark:text-slate-200 font-medium leading-relaxed italic text-left">
@@ -29,7 +24,7 @@ export default function QuoteCallout() {
               Professional academic editing ensures your ideas are presented
               with the clarity, precision, and academic tone they deserve.
             </p>
-          </motion.div>
+          </Reveal>
         </div>
       </div>
     </section>

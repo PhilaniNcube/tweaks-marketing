@@ -1,9 +1,7 @@
-"use client";
-
 import React from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowRight, Mail } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import Reveal from "@/components/reveal";
 
 export default function GetInTouch() {
   return (
@@ -15,15 +13,7 @@ export default function GetInTouch() {
       </div>
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 0.55 }}
-          className="flex flex-col items-center text-center gap-8 max-w-2xl mx-auto"
-        >
-
-
+        <Reveal className="flex flex-col items-center text-center gap-8 max-w-2xl mx-auto">
           {/* Heading */}
           <div className="space-y-4">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
@@ -35,11 +25,7 @@ export default function GetInTouch() {
           </div>
 
           {/* CTA Button */}
-          <motion.div
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          >
+          <div>
             <Link
               href="/contact"
               className="inline-flex items-center gap-3 bg-tweaks-red text-white font-bold text-sm sm:text-base px-8 py-4 hover:bg-tweaks-blue transition-colors duration-200 group"
@@ -47,8 +33,8 @@ export default function GetInTouch() {
               <span>Get In Touch</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
             </Link>
-          </motion.div>
-        </motion.div>
+          </div>
+        </Reveal>
       </div>
     </section>
   );

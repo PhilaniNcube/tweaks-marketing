@@ -3,9 +3,9 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { ArrowRight, AlertCircle, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Reveal from "@/components/reveal";
 
 type DeliverySpeed = "standard" | "express";
 
@@ -146,15 +146,12 @@ export default function StepGuide() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Title */}
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-          <motion.h2
-            initial={{ opacity: 0, y: 15 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.5 }}
+          <Reveal
+            as="h2"
             className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl"
           >
             Get an Instant Editing Estimate
-          </motion.h2>
+          </Reveal>
           <div className="w-16 h-1 bg-indigo-600 dark:bg-indigo-400 mx-auto rounded-none" />
           <p className="text-slate-600 dark:text-zinc-400 font-light text-base leading-relaxed">
             Find out what your project is likely to cost in less than a minute.
@@ -166,18 +163,13 @@ export default function StepGuide() {
         {/* Content split: image + calculator */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:items-start">
           {/* Left Column: Visual Image — sticky on desktop */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6 }}
-            className="lg:sticky lg:top-24 flex flex-col gap-6"
-          >
+          <Reveal className="lg:sticky lg:top-24 flex flex-col gap-6">
             <div className="relative aspect-4/3 rounded-none overflow-hidden shadow-xl border border-slate-100 dark:border-zinc-800">
               <Image
                 src="https://conceptafrika.com/wp-content/uploads/2021/09/academic-editing-services-selection.jpg"
                 alt="Academic Editing Services Selection"
                 fill
+                sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover"
               />
             </div>
@@ -195,15 +187,10 @@ export default function StepGuide() {
                 details you provide in the brief.
               </p>
             </div>
-          </motion.div>
+          </Reveal>
 
           {/* Right Column: Interactive Multi-Service Estimator */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.6 }}
-          >
+          <Reveal delay={100}>
             <div className="border border-slate-200 dark:border-zinc-800 p-6 bg-slate-50/50 dark:bg-zinc-900/30 rounded-none space-y-6">
               <div className="space-y-2">
                 <h3 className="font-bold text-sm uppercase tracking-wider text-slate-900 dark:text-white">
@@ -488,7 +475,7 @@ export default function StepGuide() {
                 </Link>
               </Button>
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </div>
     </section>

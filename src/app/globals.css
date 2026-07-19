@@ -46,8 +46,8 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --color-tweaks-blue: #1B0ABD;
-  --color-tweaks-red: #FF2216;
+  --color-tweaks-blue: #1b0abd;
+  --color-tweaks-red: #ff2216;
 }
 
 :root {
@@ -128,5 +128,49 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@keyframes reveal-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes reveal-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.reveal-fade-up {
+  animation: reveal-fade-up 0.5s both;
+}
+.reveal-fade {
+  animation: reveal-fade 0.5s both;
+}
+@keyframes hint-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(6px);
+  }
+}
+.hint-nudge {
+  animation: hint-nudge 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal-fade-up,
+  .reveal-fade,
+  .hint-nudge {
+    animation: none;
   }
 }

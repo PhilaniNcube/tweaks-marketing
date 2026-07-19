@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { motion } from "framer-motion";
 import { MessageSquareText, FileText, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Reveal from "@/components/reveal";
 
 const comments = [
   {
@@ -251,25 +251,16 @@ export default function EditingProcess() {
     <section className="py-20 bg-slate-50 dark:bg-zinc-950 border-t border-b border-slate-100 dark:border-zinc-800/40">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.4 }}
-            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-tweaks-blue"
-          >
+          <Reveal className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-tweaks-blue">
             <CheckCheck className="h-4 w-4" />
             Transparent Editing Process
-          </motion.div>
-          <motion.h2
-            initial={{ opacity: 0, y: 15 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.5 }}
+          </Reveal>
+          <Reveal
+            as="h2"
             className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl"
           >
             This is what our editing actually looks like
-          </motion.h2>
+          </Reveal>
           <div className="w-16 h-1 bg-tweaks-blue dark:bg-indigo-400 mx-auto rounded-none" />
           <p className="text-slate-600 dark:text-zinc-400 font-light text-base leading-relaxed">
             Tweaks uses tracked changes on every document. Toggle between the
@@ -307,13 +298,7 @@ export default function EditingProcess() {
               </TabsList>
             </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.5 }}
-              className="mt-8"
-            >
+            <Reveal className="mt-8">
               <TabsContent
                 value="original"
                 className="m-0 focus-visible:outline-none focus-visible:ring-0"
@@ -332,7 +317,7 @@ export default function EditingProcess() {
               >
                 <DocumentView mode="simple" />
               </TabsContent>
-            </motion.div>
+            </Reveal>
           </Tabs>
         </div>
       </div>

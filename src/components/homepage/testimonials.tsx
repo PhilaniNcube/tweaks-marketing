@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
 import { Quote, ChevronLeft, ChevronRight } from "lucide-react";
+import Reveal from "@/components/reveal";
 
 const testimonialsData = [
   {
@@ -65,25 +65,22 @@ const AUTOPLAY_MS = 6000;
 
 export default function Testimonials() {
   const [index, setIndex] = useState(0);
-  const [direction, setDirection] = useState(1);
   const [paused, setPaused] = useState(false);
   const count = testimonialsData.length;
 
   const go = useCallback(
-    (next: number, dir: number) => {
-      setDirection(dir);
+    (next: number) => {
       setIndex(((next % count) + count) % count);
     },
     [count],
   );
 
-  const next = useCallback(() => go(index + 1, 1), [go, index]);
-  const prev = useCallback(() => go(index - 1, -1), [go, index]);
+  const next = useCallback(() => go(index + 1), [go, index]);
+  const prev = useCallback(() => go(index - 1), [go, index]);
 
   useEffect(() => {
     if (paused) return;
     const id = setInterval(() => {
-      setDirection(1);
       setIndex((i) => (i + 1) % count);
     }, AUTOPLAY_MS);
     return () => clearInterval(id);
@@ -99,15 +96,12 @@ export default function Testimonials() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-          <motion.h2
-            initial={{ opacity: 0, y: 15 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.5 }}
+          <Reveal
+            as="h2"
             className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl"
           >
             What Our Clients Say
-          </motion.h2>
+          </Reveal>
           <div className="w-16 h-1 bg-indigo-600 dark:bg-indigo-400 mx-auto rounded-none" />
           <p className="text-slate-600 dark:text-zinc-400 font-light text-base">
             What students, lecturers, and researchers say about their experience
@@ -123,53 +117,47 @@ export default function Testimonials() {
           onFocus={() => setPaused(true)}
           onBlur={() => setPaused(false)}
         >
-          <div className="relative">
-            <AnimatePresence mode="wait" custom={direction}>
-              <motion.div
-                key={item.author}
-                custom={direction}
-                initial={{ opacity: 0, x: 40 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -40 }}
-                transition={{ duration: 0.4, ease: "easeInOut" }}
-                className="flex flex-col justify-between p-8 sm:p-10 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800/80 rounded-none shadow-sm relative"
-              >
-                {/* Quote Icon Overlay */}
-                <div className="absolute top-6 right-6 text-slate-100 dark:text-zinc-800/50 pointer-events-none">
-                  <Quote className="w-8 h-8" />
-                </div>
+          <div className="relative min-h-[280px] sm:min-h-[260px]">
+            <div
+              key={index}
+              className="reveal-fade flex flex-col justify-between p-8 sm:p-10 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800/80 rounded-none shadow-sm relative"
+            >
+              {/* Quote Icon Overlay */}
+              <div className="absolute top-6 right-6 text-slate-100 dark:text-zinc-800/50 pointer-events-none">
+                <Quote className="w-8 h-8" />
+              </div>
 
-                {/* Text quote */}
-                <p className="text-slate-600 dark:text-zinc-300 italic font-light text-base sm:text-lg leading-relaxed mb-8 text-left relative z-10">
-                  &quot;{item.quote}&quot;
-                </p>
+              {/* Text quote */}
+              <p className="text-slate-600 dark:text-zinc-300 italic font-light text-base sm:text-lg leading-relaxed mb-8 text-left relative z-10">
+                &quot;{item.quote}&quot;
+              </p>
 
-                {/* Author metadata */}
-                <div className="flex items-center gap-4 border-t border-slate-100 dark:border-zinc-800/80 pt-6 mt-auto">
-                  <div className="relative w-12 h-12 rounded-none overflow-hidden shrink-0 border border-slate-200/50 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-950">
-                    <Image
-                      src={item.image}
-                      alt={item.author}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-bold text-slate-900 dark:text-white text-base">
-                      {item.author}
-                    </div>
-                    <div className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">
-                      {item.position}
-                    </div>
-                    {item.company && (
-                      <div className="text-[10px] text-slate-400 font-medium">
-                        {item.company}
-                      </div>
-                    )}
-                  </div>
+              {/* Author metadata */}
+              <div className="flex items-center gap-4 border-t border-slate-100 dark:border-zinc-800/80 pt-6 mt-auto">
+                <div className="relative w-12 h-12 rounded-none overflow-hidden shrink-0 border border-slate-200/50 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-950">
+                  <Image
+                    src={item.image}
+                    alt={item.author}
+                    fill
+                    sizes="48px"
+                    className="object-cover"
+                  />
                 </div>
-              </motion.div>
-            </AnimatePresence>
+                <div className="text-left">
+                  <div className="font-bold text-slate-900 dark:text-white text-base">
+                    {item.author}
+                  </div>
+                  <div className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">
+                    {item.position}
+                  </div>
+                  {item.company && (
+                    <div className="text-[10px] text-slate-400 font-medium">
+                      {item.company}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Controls */}
@@ -189,7 +177,7 @@ export default function Testimonials() {
                 <button
                   key={t.author}
                   type="button"
-                  onClick={() => go(i, i > index ? 1 : -1)}
+                  onClick={() => go(i)}
                   aria-label={`Go to testimonial ${i + 1}`}
                   className={`h-2 transition-all rounded-none cursor-pointer ${
                     i === index
