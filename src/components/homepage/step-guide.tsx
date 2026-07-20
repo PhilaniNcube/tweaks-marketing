@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, AlertCircle, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import Reveal from "@/components/reveal";
 
 type DeliverySpeed = "standard" | "express";
@@ -204,41 +206,42 @@ export default function StepGuide() {
               </div>
 
               {/* Service tabs */}
-              <div
-                className="flex sm:grid sm:grid-cols-3 lg:grid-cols-3 gap-2 overflow-x-auto sm:overflow-visible -mx-1 px-1 sm:mx-0 sm:px-0
-                scrollbar-none [&::-webkit-scrollbar]:hidden snap-x snap-mandatory"
+              <Tabs
+                value={activeTabId}
+                onValueChange={(val) => setActiveTabId(val as string)}
+                className="min-h-37.5 md:min-h-auto "
               >
-                {services.map((svc) => {
-                  const isActive = svc.id === activeService.id;
-                  const isIncluded = selected.includes(svc.id);
-                  return (
-                    <button
-                      type="button"
-                      key={svc.id}
-                      onClick={() => setActiveTabId(svc.id)}
-                      className={`snap-start flex items-center justify-between gap-2 px-3 py-2.5 border rounded-none text-left transition-all cursor-pointer whitespace-nowrap ${
-                        isActive
-                          ? "border-tweaks-blue bg-tweaks-blue text-white"
-                          : "border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-100/60 dark:hover:bg-zinc-950 hover:border-slate-300"
-                      }`}
-                    >
-                      <span className="text-xs font-bold uppercase tracking-wider">
-                        {svc.name}
-                      </span>
-                      <span
-                        aria-hidden
-                        className={`h-2 w-2 rounded-full shrink-0 ${
-                          isIncluded
-                            ? "bg-emerald-400 ring-2 ring-emerald-400/30"
-                            : isActive
-                              ? "bg-white/40"
-                              : "bg-slate-300 dark:bg-zinc-700"
-                        }`}
-                      />
-                    </button>
-                  );
-                })}
-              </div>
+                <TabsList
+                  variant="line"
+                  className="h-auto flex-wrap justify-start gap-2 my-4"
+                >
+                  {services.map((svc) => {
+                    const isActive = svc.id === activeService.id;
+                    const isIncluded = selected.includes(svc.id);
+                    return (
+                      <TabsTrigger
+                        key={svc.id}
+                        value={svc.id}
+                        className="flex-none gap-2 px-3 py-2 border rounded-none cursor-pointer data-active:text-tweaks-blue data-active:border-tweaks-blue data-active:after:opacity-0 dark:data-active:bg-tweaks-blue dark:data-active:text-white dark:data-active:border-tweaks-blue"
+                      >
+                        <span className="text-xs font-bold uppercase tracking-wider">
+                          {svc.name}
+                        </span>
+                        <span
+                          aria-hidden
+                          className={`h-2 w-2 rounded-full shrink-0 ${
+                            isIncluded
+                              ? "bg-emerald-400 ring-2 ring-emerald-400/30"
+                              : isActive
+                                ? "bg-white/40"
+                                : "bg-slate-300 dark:bg-zinc-700"
+                          }`}
+                        />
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </Tabs>
 
               {/* Active tab planner */}
               <div className="border rounded-none border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
@@ -288,7 +291,7 @@ export default function StepGuide() {
                         }
                         className="w-full h-1 bg-slate-200 dark:bg-zinc-800 appearance-none cursor-pointer accent-tweaks-blue"
                       />
-                      <input
+                      <Input
                         id={`${activeService.id}-number`}
                         type="number"
                         aria-label={`${activeService.name} quantity in ${activeService.unit}s`}
@@ -304,7 +307,7 @@ export default function StepGuide() {
                             ),
                           }))
                         }
-                        className="w-full bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 px-3 py-2 text-sm outline-none rounded-none focus-visible:border-tweaks-blue"
+                        className="w-full rounded-none"
                       />
                     </div>
                   )}
@@ -319,19 +322,20 @@ export default function StepGuide() {
                       <div className="text-xs font-semibold">
                         Delivery Speed Option:
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
+                      <div className="grid md:grid-cols-2 gap-3">
+                        <Button
                           type="button"
+                          variant="outline"
                           onClick={() =>
                             setSpeeds((sp) => ({
                               ...sp,
                               [activeService.id]: "standard",
                             }))
                           }
-                          className={`flex flex-col p-3 border text-left rounded-none transition-all cursor-pointer ${
+                          className={`h-auto flex-col items-start p-3 border text-left rounded-none transition-all cursor-pointer ${
                             activeCost.speed === "standard"
                               ? "border-tweaks-blue bg-indigo-50/10 text-tweaks-blue font-semibold"
-                              : "border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-100/50"
+                              : ""
                           }`}
                         >
                           <span className="text-xs uppercase tracking-wider font-bold">
@@ -340,19 +344,20 @@ export default function StepGuide() {
                           <span className="text-xs font-light mt-1">
                             3 - 5 Days Included
                           </span>
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="outline"
                           onClick={() =>
                             setSpeeds((sp) => ({
                               ...sp,
                               [activeService.id]: "express",
                             }))
                           }
-                          className={`flex flex-col p-3 border text-left rounded-none transition-all cursor-pointer ${
+                          className={`h-auto flex-col items-start p-3 border text-left rounded-none transition-all cursor-pointer ${
                             activeCost.speed === "express"
                               ? "border-tweaks-blue bg-indigo-50/10 text-tweaks-blue font-semibold"
-                              : "border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-100/50"
+                              : ""
                           }`}
                         >
                           <span className="text-xs uppercase tracking-wider font-bold">
@@ -363,7 +368,7 @@ export default function StepGuide() {
                             {formatZAR(activeService.expressAddon)} /{" "}
                             {activeService.unit})
                           </span>
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -373,16 +378,17 @@ export default function StepGuide() {
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                       {activeService.name} subtotal:
                     </span>
-                    <span className="text-base font-black text-tweaks-blue">
+                    <span className="text-xs md:text-base font-black text-tweaks-blue">
                       R {formatZAR(activeCost.subtotal)}
                     </span>
                   </div>
 
                   {/* Include toggle */}
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={() => toggleService(activeService.id)}
-                    className={`w-full flex items-center justify-center gap-2 py-3 border rounded-none text-sm font-bold uppercase tracking-wider cursor-pointer transition-colors ${
+                    className={`w-full justify-center gap-2 py-3 border rounded-none text-sm font-bold uppercase tracking-wider cursor-pointer transition-colors ${
                       isActiveSelected
                         ? "border-tweaks-red/40 bg-tweaks-red/10 text-tweaks-red hover:bg-tweaks-red/15"
                         : "border-tweaks-blue bg-tweaks-blue text-white hover:bg-indigo-700"
@@ -396,7 +402,7 @@ export default function StepGuide() {
                         isActiveSelected ? "bg-tweaks-red" : "bg-emerald-400"
                       }`}
                     />
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -415,18 +421,23 @@ export default function StepGuide() {
                       return (
                         <li
                           key={svc.id}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-none text-xs font-semibold"
+                          className="flex justify-between w-full md:w-fit items-center gap-1.5 px-2.5 py-1 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 rounded-none text-xs font-semibold"
                         >
-                          <span
-                            aria-hidden
-                            className="h-1.5 w-1.5 rounded-full bg-emerald-400"
-                          />
-                          <span className="text-slate-700 dark:text-zinc-300">
-                            {svc.name}
-                          </span>
-                          <span className="text-slate-400 dark:text-zinc-500 font-light">
-                            {unitLabel} • {speed}
-                          </span>
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              aria-hidden
+                              className="h-1.5 w-1.5 rounded-full bg-emerald-400"
+                            />
+                            <div className="flex flex-col text-sm">
+                              <span className="text-slate-700 dark:text-zinc-300">
+                                {svc.name}
+                              </span>
+                              <span className="text-slate-400 dark:text-zinc-500 font-light">
+                                {unitLabel} • {speed}
+                              </span>
+                            </div>
+                          </div>
+
                           <button
                             type="button"
                             aria-label={`Remove ${svc.name}`}
