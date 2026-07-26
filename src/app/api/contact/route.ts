@@ -5,10 +5,29 @@ import { contactSchema } from "@/lib/validations/contact";
 import { ContactNotificationEmail } from "@/components/emails/contact-notification";
 import { ContactConfirmationEmail } from "@/components/emails/contact-confirmation";
 
+import { checkRateLimit } from "@/lib/rate-limit";
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {
+    // 1. IP Rate Limiting Check
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      "127.0.0.1";
+
+    const rateLimit = checkRateLimit(ip, 3, 10 * 60 * 1000); // 3 submissions per 10 mins
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Too many form submissions. Please wait a few minutes before trying again.",
+        },
+        { status: 429 }
+      );
+    }
+
     const formData = await request.formData();
 
     const getString = (key: string) => {
@@ -22,7 +41,7 @@ export async function POST(request: NextRequest) {
     };
 
     const getArray = (key: string) => {
-      return formData.getAll(key).map(val => String(val));
+      return formData.getAll(key).map((val) => String(val));
     };
 
     const rawData = {
@@ -47,7 +66,27 @@ export async function POST(request: NextRequest) {
       certificate: getString("certificate"),
       funding: getOptionalString("funding"),
       additionalInfo: getOptionalString("additionalInfo"),
+      hp_website: getOptionalString("hp_website"),
+      _formTime: getOptionalString("_formTime"),
     };
+
+    // 2. Honeypot check: If the hidden field is filled, silently succeed without sending email
+    if (rawData.hp_website && rawData.hp_website.trim() !== "") {
+      console.warn("Spam detected via Honeypot trap:", { ip, email: rawData.email });
+      return NextResponse.json({ success: true });
+    }
+
+    // 3. Time trap check: If submitted in under 3 seconds (3000ms), silently succeed
+    if (rawData._formTime) {
+      const formTimeNum = Number(rawData._formTime);
+      if (!isNaN(formTimeNum)) {
+        const elapsedTime = Date.now() - formTimeNum;
+        if (elapsedTime < 3000) {
+          console.warn("Spam detected via Time Trap (<3s):", { ip, elapsedTime, email: rawData.email });
+          return NextResponse.json({ success: true });
+        }
+      }
+    }
 
     const validatedFields = contactSchema.safeParse(rawData);
 

@@ -64,9 +64,16 @@ function ContactForm() {
       certificate: "",
       funding: "",
       additionalInfo: "",
+      hp_website: "",
+      _formTime: "",
       file: undefined,
     },
   });
+
+  // Set form load timestamp on mount
+  useEffect(() => {
+    setValue("_formTime", String(Date.now()));
+  }, [setValue]);
 
   // Initialize from searchParams
   useEffect(() => {
@@ -192,6 +199,22 @@ function ContactForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 text-left">
+      {/* Honeypot field for spam prevention */}
+      <div
+        className="absolute opacity-0 pointer-events-none -z-50 h-0 w-0 overflow-hidden"
+        aria-hidden="true"
+      >
+        <label htmlFor="hp_website">Do not fill this field</label>
+        <input
+          id="hp_website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          {...register("hp_website")}
+        />
+        <input type="hidden" {...register("_formTime")} />
+      </div>
+
       {state.error && (
         <div className="flex items-start gap-3 p-4 bg-red-50 text-red-600 border border-red-200 text-sm">
           <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />

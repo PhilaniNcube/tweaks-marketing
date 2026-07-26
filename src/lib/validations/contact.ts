@@ -22,6 +22,8 @@ export const contactSchema = z.object({
   certificate: z.string().min(1, { message: "Please specify if an editing certificate is required" }),
   funding: z.string().optional(),
   additionalInfo: z.string().optional(),
+  hp_website: z.string().optional(),
+  _formTime: z.string().optional(),
 });
 
 export type ContactFormData = z.infer<typeof contactSchema>;
