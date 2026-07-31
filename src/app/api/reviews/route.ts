@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Resend } from "resend";
+import { render } from "@react-email/components";
 import { db } from "@/db";
 import { reviews } from "@/db/schema";
 import { reviewSchema } from "@/lib/validations/review";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { ReviewNotificationEmail } from "@/components/emails/review-notification";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
   try {
@@ -62,6 +67,33 @@ export async function POST(request: NextRequest) {
       authorEmail: authorEmail ? authorEmail.trim() : null,
     });
 
+    // 6. Send notification email to admin via Resend
+    if (process.env.RESEND_API_KEY) {
+      try {
+        const emailHtml = await render(
+          ReviewNotificationEmail({
+            rating,
+            feedback: feedback.trim(),
+            authorName: authorName ? authorName.trim() : undefined,
+            authorEmail: authorEmail ? authorEmail.trim() : undefined,
+          })
+        );
+
+        const emailResult = await resend.emails.send({
+          from: "Tweaks Notifications <hello@tweaks.co.za>",
+          to: ["hello@tweaks.co.za"],
+          subject: `New ${rating}-Star Review from ${authorName?.trim() || "Anonymous"}`,
+          html: emailHtml,
+        });
+
+        if (emailResult.error) {
+          console.error("Resend Review Notification Error:", emailResult.error);
+        }
+      } catch (emailErr) {
+        console.error("Failed rendering or sending review notification email:", emailErr);
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Reviews API Error:", error);
@@ -71,3 +103,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
