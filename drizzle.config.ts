@@ -1,8 +1,4 @@
 import { defineConfig } from "drizzle-kit";
-import * as dotenv from "dotenv";
-
-const envPath = process.env.DOTENV_CONFIG_PATH || (require("fs").existsSync(".env.production") ? ".env.production" : ".env.local");
-dotenv.config({ path: envPath });
 
 export default defineConfig({
   schema: "./src/db/schema.ts",
@@ -13,5 +9,6 @@ export default defineConfig({
     authToken: process.env.TURSO_AUTH_TOKEN,
   },
 });
+
 
 
