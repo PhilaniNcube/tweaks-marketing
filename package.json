@@ -10,7 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:push:prod": "cross-env DOTENV_CONFIG_PATH=.env.production drizzle-kit push"
+    "db:push:prod": "npx --package=dotenv-cli dotenv -e .env.production -- drizzle-kit push"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
