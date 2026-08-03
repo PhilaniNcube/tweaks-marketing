@@ -17,6 +17,7 @@ interface ReviewNotificationEmailProps {
   feedback: string;
   authorName?: string;
   authorEmail?: string;
+  university?: string;
 }
 
 export function ReviewNotificationEmail({
@@ -24,6 +25,7 @@ export function ReviewNotificationEmail({
   feedback,
   authorName,
   authorEmail,
+  university,
 }: Readonly<ReviewNotificationEmailProps>) {
   const starsText = "★".repeat(rating) + "☆".repeat(5 - rating);
   const previewText = `New ${rating}-Star Review from ${authorName || "Anonymous"}`;
@@ -78,6 +80,12 @@ export function ReviewNotificationEmail({
                       ) : (
                         <span className="text-slate-400 italic">Not provided</span>
                       )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-[6px] font-semibold text-slate-500">University:</td>
+                    <td className="py-[6px] text-slate-900 font-medium">
+                      {university || <span className="text-slate-400 italic">Not provided</span>}
                     </td>
                   </tr>
                 </tbody>

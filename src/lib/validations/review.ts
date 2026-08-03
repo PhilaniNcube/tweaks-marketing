@@ -15,6 +15,7 @@ export const reviewSchema = z.object({
     .email("Please enter a valid email address.")
     .or(z.literal(""))
     .optional(),
+  university: z.string().max(150).optional(),
   hp_website: z.string().optional(),
   _formTime: z.string().optional(),
 });

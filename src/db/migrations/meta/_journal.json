@@ -15,6 +15,13 @@
       "when": 1785775458959,
       "tag": "0001_premium_killer_shrike",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785780199729,
+      "tag": "0002_kind_blink",
+      "breakpoints": true
     }
   ]
 }

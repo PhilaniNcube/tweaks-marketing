@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { rating, feedback, authorName, authorEmail } = validated.data;
+    const { rating, feedback, authorName, authorEmail, university } = validated.data;
 
     // 5. Insert into Turso database via Drizzle
     await db.insert(reviews).values({
@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       feedback: feedback.trim(),
       authorName: authorName ? authorName.trim() : null,
       authorEmail: authorEmail ? authorEmail.trim() : null,
+      university: university ? university.trim() : null,
     });
 
     // 6. Send notification email to admin via Resend
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
             feedback: feedback.trim(),
             authorName: authorName ? authorName.trim() : undefined,
             authorEmail: authorEmail ? authorEmail.trim() : undefined,
+            university: university ? university.trim() : undefined,
           })
         );
 

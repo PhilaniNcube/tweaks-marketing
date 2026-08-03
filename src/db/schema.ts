@@ -9,6 +9,7 @@ export const reviews = sqliteTable("reviews", {
   feedback: text("feedback").notNull(),
   authorName: text("author_name"),
   authorEmail: text("author_email"),
+  university: text("university"),
   createdAt: text("created_at")
     .default(sql`(CURRENT_TIMESTAMP)`)
     .notNull(),

@@ -25,6 +25,7 @@ async function submitReviewAction(
   const feedback = (formData.get("feedback") as string) || "";
   const authorName = (formData.get("authorName") as string) || "";
   const authorEmail = (formData.get("authorEmail") as string) || "";
+  const university = (formData.get("university") as string) || "";
   const hp_website = (formData.get("hp_website") as string) || "";
   const _formTime = (formData.get("_formTime") as string) || "";
 
@@ -33,6 +34,7 @@ async function submitReviewAction(
     feedback,
     authorName: authorName.trim() || undefined,
     authorEmail: authorEmail.trim() || undefined,
+    university: university.trim() || undefined,
     hp_website,
     _formTime,
   };
@@ -83,6 +85,7 @@ export default function ReviewPage() {
       feedback: "",
       authorName: "",
       authorEmail: "",
+      university: "",
       hp_website: "",
       _formTime: "",
     },
@@ -242,6 +245,26 @@ export default function ReviewPage() {
             )}
             {state.errors?.authorEmail && (
               <p className="text-xs text-red-500">{state.errors.authorEmail[0]}</p>
+            )}
+          </div>
+
+          {/* University / Institution (Optional) */}
+          <div className="space-y-2">
+            <Label htmlFor="university" className="block text-sm font-medium text-slate-800 dark:text-slate-200">
+              University / Institution <span className="text-slate-400 font-normal">(Optional)</span>
+            </Label>
+            <Input
+              id="university"
+              type="text"
+              {...register("university")}
+              placeholder="e.g. University of Cape Town"
+              className="bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus-visible:ring-amber-500 dark:focus-visible:ring-amber-400 transition-colors text-sm rounded-xl"
+            />
+            {formErrors.university && (
+              <p className="text-xs text-red-500">{formErrors.university.message}</p>
+            )}
+            {state.errors?.university && (
+              <p className="text-xs text-red-500">{state.errors.university[0]}</p>
             )}
           </div>
 
