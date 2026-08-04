@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { MessageCircle, X } from "lucide-react";
 
 const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "";
@@ -8,6 +9,7 @@ const DEFAULT_MESSAGE =
   "Hi Tweaks, I'd like to get a quote for editing services.";
 
 export default function WhatsappBubble() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -16,13 +18,14 @@ export default function WhatsappBubble() {
   }, []);
 
   if (!mounted || !WHATSAPP_NUMBER) return null;
+  if (pathname?.startsWith("/certificate")) return null;
 
   const href = `https://wa.me/${WHATSAPP_NUMBER.replace(/[^\d]/g, "")}?text=${encodeURIComponent(DEFAULT_MESSAGE)}`;
 
   return (
     <div
       aria-live="polite"
-      className="fixed z-50 right-4 bottom-4 sm:right-6 sm:bottom-6 flex flex-col items-end gap-3"
+      className="fixed z-50 right-4 bottom-4 sm:right-6 sm:bottom-6 flex flex-col items-end gap-3 print:hidden"
     >
       {open && (
         <div className="w-[min(20rem,calc(100vw-2rem))] sm:w-72 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-none shadow-xl overflow-hidden">

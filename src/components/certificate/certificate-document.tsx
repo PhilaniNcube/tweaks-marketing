@@ -93,13 +93,13 @@ export function CertificateDocument({
             accuracy.
           </p>
 
-          <div className="w-full border-b border-slate-400 my-6 md:my-8" />
+          <div className="w-full border-b border-slate-400 my-6 md:my-8 print:my-4" />
         </div>
 
         {/* Certificate Body Fields */}
-        <div className="flex flex-col items-center text-center space-y-6 md:space-y-8 my-auto px-4">
+        <div className="flex flex-col items-center text-center space-y-6 md:space-y-8 print:space-y-4 my-auto px-4">
           {/* Research Title */}
-          <div className="space-y-2 w-full max-w-2xl">
+          <div className="space-y-2 print:space-y-1 w-full max-w-2xl">
             <h2 className="text-base md:text-lg font-bold text-slate-900">
               Research Title:
             </h2>
@@ -140,7 +140,7 @@ export function CertificateDocument({
         </div>
 
         {/* Footer / QR & Signature */}
-        <div className="flex items-end justify-between w-full pt-8 pb-4 border-t border-transparent">
+        <div className="flex items-end justify-between w-full pt-8 pb-4 print:pt-4 print:pb-2 border-t border-transparent">
           {/* Left: Scan Me QR Code */}
           <div className="flex flex-col items-start gap-2">
             <div className="relative border-2 border-purple-500 rounded-2xl p-2.5 pt-4 bg-white flex flex-col items-center shadow-sm">
@@ -159,18 +159,15 @@ export function CertificateDocument({
 
           {/* Right: Signature Block */}
           <div className="flex flex-col items-end text-right space-y-1 pr-2">
-            {/* Signature Graphics */}
-            <div className="relative w-44 h-14 -mb-3 flex items-center justify-center">
-              {/* Handwritten style SVG Signature */}
-              <svg
-                viewBox="0 0 200 60"
-                className="w-full h-full text-slate-800 opacity-90 stroke-current fill-none"
-                style={{ strokeWidth: 1.8, strokeLinecap: "round" }}
-              >
-                <path d="M 20 40 C 30 15, 45 10, 50 35 C 55 50, 70 25, 80 30 C 90 35, 100 45, 110 30 C 120 15, 125 45, 135 25 C 145 15, 160 40, 180 35" />
-                <path d="M 35 30 C 50 30, 80 20, 140 25" />
-                <path d="M 60 45 C 80 48, 120 42, 150 40" />
-              </svg>
+            {/* Signature Image */}
+            <div className="relative w-44 h-14 -mb-2 flex items-center justify-center">
+              <Image
+                src="/images/signature.png"
+                alt="Chengetai Chikadaya Signature"
+                fill
+                className="object-contain object-bottom"
+                priority
+              />
             </div>
 
             <div className="w-64 border-b border-slate-700 mb-2" />
