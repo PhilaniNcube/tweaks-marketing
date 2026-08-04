@@ -174,7 +174,7 @@ export default function ClaimCertificatePage({
               <textarea
                 rows={3}
                 required
-                placeholder="e.g. EXPLORING THE ROLE OF STRATEGIC COMMUNICATION FOR REPUTATION MANAGEMENT IN THE PUBLIC SECTOR"
+                placeholder="Enter title exactly as you would like it to appear on the certificate"
                 value={researchTitle}
                 onChange={(e) => setResearchTitle(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-purple-600 focus:border-transparent text-sm uppercase placeholder:normal-case leading-relaxed"
@@ -198,7 +198,7 @@ export default function ClaimCertificatePage({
               <input
                 type="text"
                 required
-                placeholder="e.g. Neil Shikwambana"
+                placeholder="e.g. John Doe"
                 value={researcherName}
                 onChange={(e) => setResearcherName(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-purple-600 focus:border-transparent text-sm"
@@ -219,7 +219,7 @@ export default function ClaimCertificatePage({
               <input
                 type="text"
                 required
-                placeholder="e.g. University of South Africa"
+                placeholder="e.g. Nelson Mandela University"
                 value={university}
                 onChange={(e) => setUniversity(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-purple-600 focus:border-transparent text-sm"
