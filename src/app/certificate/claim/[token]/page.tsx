@@ -133,7 +133,7 @@ export default function ClaimCertificatePage({
             href={`/certificate/view/${cert.id}`}
             className="inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-purple-700 text-white font-medium text-sm rounded-xl hover:bg-purple-800 transition-colors shadow-sm"
           >
-            View / Print Certificate <ArrowRight className="w-4 h-4" />
+            View / Download Certificate <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </div>

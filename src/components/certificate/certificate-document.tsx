@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
-import { Globe, MousePointerClick } from "lucide-react";
+import { Globe, MousePointerClick, Download } from "lucide-react";
 import { QRCodeImage } from "./qr-code";
 
 export interface CertificateData {
@@ -23,15 +23,58 @@ export function CertificateDocument({
   data,
   showPrintButton = false,
 }: CertificateDocumentProps) {
+  const [downloading, setDownloading] = useState(false);
+
   const verificationUrl =
     data.verificationUrl ||
     (typeof window !== "undefined"
       ? `${window.location.origin}/certificate/verify/${data.id}`
       : `https://tweaks.co.za/certificate/verify/${data.id}`);
 
-  const handlePrint = () => {
-    if (typeof window !== "undefined") {
-      window.print();
+  const handleDownloadPDF = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const element = document.getElementById("certificate-print-area");
+      if (!element) {
+        setDownloading(false);
+        return;
+      }
+
+      const html2canvas = (await import("html2canvas-pro")).default;
+      const jsPDF = (await import("jspdf")).default;
+
+      const canvas = await html2canvas(element, {
+        scale: 3,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        onclone: (clonedDoc) => {
+          const clonedElement = clonedDoc.getElementById("certificate-print-area");
+          if (clonedElement) {
+            clonedElement.style.boxShadow = "none";
+            clonedElement.style.border = "none";
+            clonedElement.style.borderRadius = "0px";
+          }
+        },
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Academic-Editing-Certificate-${data.id || "Document"}.pdf`);
+    } catch (error) {
+      console.error("Failed to export PDF certificate:", error);
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -40,23 +83,21 @@ export function CertificateDocument({
       {showPrintButton && (
         <div className="mb-6 flex gap-3 print:hidden">
           <button
-            onClick={handlePrint}
-            className="px-6 py-2.5 bg-slate-900 text-white font-medium text-sm rounded-lg hover:bg-slate-800 transition-colors shadow-sm cursor-pointer flex items-center gap-2"
+            onClick={handleDownloadPDF}
+            disabled={downloading}
+            className="px-6 py-2.5 bg-purple-700 hover:bg-purple-800 text-white font-semibold text-sm rounded-xl transition-colors shadow-sm cursor-pointer flex items-center gap-2 disabled:opacity-60"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H7a2 2 0 00-2 2v4h10z"
-              />
-            </svg>
-            Print / Save PDF
+            {downloading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Downloading PDF...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4" />
+                Download PDF Certificate
+              </>
+            )}
           </button>
         </div>
       )}
