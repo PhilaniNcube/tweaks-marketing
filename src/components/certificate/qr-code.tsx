@@ -15,8 +15,9 @@ export function QRCodeImage({ value, size = 160, className = "" }: QRCodeImagePr
   useEffect(() => {
     if (!value) return;
     QRCode.toDataURL(value, {
-      width: size * 2, // High resolution for print
+      width: size * 3, // Ultra-high resolution for crisp PDF export and printing
       margin: 1,
+      errorCorrectionLevel: "M",
       color: {
         dark: "#000000",
         light: "#ffffff",
@@ -45,3 +46,4 @@ export function QRCodeImage({ value, size = 160, className = "" }: QRCodeImagePr
     />
   );
 }
+
