@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { Globe, MousePointerClick, Download } from "lucide-react";
+import { Globe, MousePointerClick, Download, ShieldCheck } from "lucide-react";
 import { QRCodeImage } from "./qr-code";
 
 export interface CertificateData {
@@ -24,6 +24,11 @@ export function CertificateDocument({
   showPrintButton = false,
 }: CertificateDocumentProps) {
   const [downloading, setDownloading] = useState(false);
+
+  const homepageUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/`
+      : "https://tweaks.co.za/";
 
   const verificationUrl =
     data.verificationUrl ||
@@ -182,19 +187,34 @@ export function CertificateDocument({
 
         {/* Footer / QR & Signature */}
         <div className="flex items-end justify-between w-full pt-8 pb-4 print:pt-4 print:pb-2 border-t border-transparent">
-          {/* Left: Scan Me QR Code */}
-          <div className="flex flex-col items-start gap-2">
-            <div className="relative border-2 border-purple-500 rounded-2xl p-2.5 pt-4 bg-white flex flex-col items-center shadow-sm">
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-3 py-0.5 border border-purple-500 rounded-full text-[10px] font-bold text-purple-700 tracking-wider uppercase whitespace-nowrap shadow-2xs">
-                SCAN ME
-              </span>
-              <QRCodeImage value={verificationUrl} size={110} />
-              <MousePointerClick className="w-5 h-5 text-purple-600 absolute -bottom-2 -right-2 transform rotate-12 bg-white rounded-full p-0.5 border border-purple-300" />
+          {/* Left: Dual QR Codes */}
+          <div className="flex items-end gap-3 md:gap-4">
+            {/* QR Code 1: Visit Website */}
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="relative border-2 border-purple-500 rounded-2xl p-2 pt-3.5 bg-white flex flex-col items-center shadow-sm">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-2.5 py-0.5 border border-purple-500 rounded-full text-[9px] font-bold text-purple-700 tracking-wider uppercase whitespace-nowrap shadow-2xs">
+                  WEBSITE
+                </span>
+                <QRCodeImage value={homepageUrl} size={85} />
+              </div>
+              <div className="flex items-center gap-1 text-[11px] text-slate-800 font-medium">
+                <Globe className="w-3.5 h-3.5 text-purple-600" />
+                <span>tweaks.co.za</span>
+              </div>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs text-slate-800 font-medium pl-1 mt-1">
-              <Globe className="w-3.5 h-3.5 text-slate-600" />
-              <span>www.tweaks.co.za</span>
+            {/* QR Code 2: Verify Certificate */}
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="relative border-2 border-emerald-600 rounded-2xl p-2 pt-3.5 bg-white flex flex-col items-center shadow-sm">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-2.5 py-0.5 border border-emerald-600 rounded-full text-[9px] font-bold text-emerald-800 tracking-wider uppercase whitespace-nowrap shadow-2xs">
+                  VERIFY CERT
+                </span>
+                <QRCodeImage value={verificationUrl} size={85} />
+              </div>
+              <div className="flex items-center gap-1 text-[11px] text-slate-800 font-medium">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Verify Record</span>
+              </div>
             </div>
           </div>
 
