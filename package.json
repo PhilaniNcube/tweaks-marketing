@@ -10,6 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
+    "db:seed": "node src/db/seed.ts",
+    "db:push:preview": "npx --package=dotenv-cli dotenv -e .env.preview -- drizzle-kit push",
     "db:push:prod": "npx --package=dotenv-cli dotenv -e .env.production -- drizzle-kit push"
   },
   "dependencies": {

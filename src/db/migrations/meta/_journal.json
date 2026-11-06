@@ -22,6 +22,13 @@
       "when": 1785780199729,
       "tag": "0002_kind_blink",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793980482015,
+      "tag": "0003_nifty_captain_marvel",
+      "breakpoints": true
     }
   ]
 }
