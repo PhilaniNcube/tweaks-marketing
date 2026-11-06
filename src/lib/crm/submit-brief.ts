@@ -10,10 +10,8 @@ import {
 } from "@/db/schema";
 import { eq, and, gte, desc } from "drizzle-orm";
 import { ContactFormData } from "@/lib/validations/contact";
-import {
-  calculateQuote,
-  type CalculatedQuoteResult,
-} from "@/lib/pricing/quote-calculator";
+import { calculateQuote } from "@/lib/pricing/quote-calculator.server";
+import type { CalculatedQuoteResult } from "@/lib/pricing/quote-calculator";
 
 export interface BriefSubmissionDatabaseResult {
   clientId: string;
