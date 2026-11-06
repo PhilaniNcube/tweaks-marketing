@@ -2,7 +2,7 @@
 
 import React, { useActionState, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@/lib/validations/zod-resolver";
 import { Star, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { reviewSchema, ReviewInput } from "@/lib/validations/review";
 import { Button } from "@/components/ui/button";
