@@ -1,16 +1,21 @@
 "use client";
 
-import React, { useState, Suspense, useEffect } from "react";
+import React, { useState, Suspense, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   Mail,
   Send,
   CheckCircle2,
   Paperclip,
   AlertCircle,
-  Phone,
-  Clock,
   Loader2,
+  Calculator,
+  ShieldAlert,
+  FileCheck2,
+  Building2,
+  Zap,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,21 +23,137 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { contactSchema, ContactFormData } from "@/lib/validations/contact";
+import {
+  contactSchema,
+  ContactFormData,
+  REFERRAL_SOURCES,
+  REFERENCING_STYLES,
+  DOCUMENT_TYPES,
+  getMinimumTurnaroundDays,
+} from "@/lib/validations/contact";
+import {
+  calculateQuoteFromCatalog,
+  formatZarFromCents,
+  type CalculatedQuoteResult,
+} from "@/lib/pricing/quote-calculator";
+import {
+  DEFAULT_SERVICES,
+  DEFAULT_INSTITUTIONS,
+  DEFAULT_DEGREE_LEVELS,
+  DEFAULT_CRM_SETTINGS,
+  DEFAULT_RATE_CARD_RULES,
+} from "@/db/seed-data";
+import type { Service, RateCardRule } from "@/db/schema";
 import { sendGTMEvent } from "@next/third-parties/google";
 import { toast } from "sonner";
+
+interface LookupInstitution {
+  id: string;
+  name: string;
+  shortName?: string | null;
+}
+
+interface LookupDegreeLevel {
+  id: string;
+  designator: string;
+  category?: string;
+}
+
+interface LookupProgramme {
+  id: string;
+  institutionId?: string | null;
+  degreeLevel?: string | null;
+  name: string;
+  usageCount: number;
+}
+
+function getDefaultSettingsMap(): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const s of DEFAULT_CRM_SETTINGS) {
+    map[s.key] = s.value;
+  }
+  return map;
+}
 
 function ContactForm() {
   const searchParams = useSearchParams();
   const [fileName, setFileName] = useState("");
   const [isPending, setIsPending] = useState(false);
+  const [pageCountManuallyEdited, setPageCountManuallyEdited] = useState(false);
+
+  // CRM database lookups
+  const [catalog, setCatalog] = useState<Service[]>(() =>
+    DEFAULT_SERVICES.map((s, idx) => ({
+      id: s.slug,
+      slug: s.slug,
+      name: s.name,
+      description: s.description ?? null,
+      pricingBasis: s.pricingBasis,
+      standardRateCents: s.standardRateCents,
+      expressSurchargeCents: s.expressSurchargeCents ?? 0,
+      hasExpressOption: s.hasExpressOption ?? true,
+      standardTurnaroundMinDays: s.standardTurnaroundMinDays,
+      standardTurnaroundMaxDays: s.standardTurnaroundMaxDays,
+      expressTurnaroundMinHours: s.expressTurnaroundMinHours,
+      expressTurnaroundMaxHours: s.expressTurnaroundMaxHours,
+      includesReferencingReport: s.includesReferencingReport ?? false,
+      quickbooksItemId: null,
+      sortOrder: s.sortOrder ?? idx + 1,
+      isActive: true,
+      createdAt: "",
+      updatedAt: "",
+    }))
+  );
+  const [rules, setRules] = useState<RateCardRule[]>(() =>
+    DEFAULT_RATE_CARD_RULES.map((r, idx) => ({
+      id: `rule-${idx}`,
+      serviceId: r.serviceId ?? null,
+      name: r.name,
+      description: r.description ?? null,
+      ruleCategory: r.ruleCategory,
+      conditionField: r.conditionField,
+      operator: r.operator,
+      conditionValue: r.conditionValue,
+      effectType: r.effectType,
+      effectValue: r.effectValue,
+      priority: r.priority ?? idx * 10,
+      isActive: true,
+      createdAt: "",
+    }))
+  );
+  const [institutionsList, setInstitutionsList] = useState<LookupInstitution[]>(
+    () =>
+      DEFAULT_INSTITUTIONS.map((inst, idx) => ({
+        id: inst.name,
+        name: inst.name,
+        shortName: inst.shortName,
+      }))
+  );
+  const [degreeLevelsList, setDegreeLevelsList] = useState<LookupDegreeLevel[]>(
+    () =>
+      DEFAULT_DEGREE_LEVELS.map((d, idx) => ({
+        id: `deg-${idx}`,
+        designator: d.designator,
+        category: d.category,
+      }))
+  );
+  const [programmesList, setProgrammesList] = useState<LookupProgramme[]>([]);
+  const [settings, setSettings] = useState<Record<string, string>>(
+    getDefaultSettingsMap
+  );
+
   const [state, setState] = useState<{
     success: boolean;
     error?: string;
     errors?: Record<string, string[]>;
+    quoteNumber?: string;
+    quoteToken?: string;
+    quoteSummary?: CalculatedQuoteResult;
   }>({ success: false });
 
   type ContactFormValues = ContactFormData & { file?: FileList };
+
+  const todayIso = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   const {
     register,
@@ -43,75 +164,270 @@ function ContactForm() {
   } = useForm<ContactFormValues>({
     resolver: zodResolver(contactSchema),
     defaultValues: {
-      name: "",
+      firstName: "",
+      surname: "",
       email: "",
-      whatsapp: "",
-      documentTypes: [],
+      whatsapp: "+27 ",
+      institutionId: "",
+      institutionOther: "",
+      degreeLevel: "",
+      degreeLevelOther: "",
+      degreeProgramme: "",
+      researchTitle: "",
+      referralSource: "",
+      documentType: "Thesis/Dissertation",
       documentTypeOther: "",
-      studyLevel: "",
-      studyLevelOther: "",
-      pageCount: "",
-      referencePageCount: "",
+      wholeOrPart: "whole",
+      whichPart: "",
+      wordCount: undefined as unknown as number,
+      pageCount: undefined as unknown as number,
+      referencePageCount: 0,
       services: [],
-      serviceOther: "",
+      deliverySpeed: "standard",
       mainGoal: "",
       concerns: "",
       referencingStyle: "",
-      deadline: "",
-      submissionDate: "",
-      trackedChanges: "",
+      referencingStyleOther: "",
+      expectedSendDate: todayIso,
+      requestedReturnDate: "",
+      supervisorSignOff: "yes",
+      supervisorDisclaimerAck: false,
+      requestSupervisorSignOff: false,
+      supervisorName: "",
+      supervisorEmail: "",
+      trackedChanges: "Yes, both versions",
       trackedChangesOther: "",
-      certificate: "",
-      funding: "",
+      certificate: "Yes",
+      paymentOption: "full_payment",
+      selectedInstalmentMonths: 2,
+      department: "",
+      billingContactName: "",
+      billingContactEmail: "",
       additionalInfo: "",
+      scopeDeclarationAccepted: undefined as unknown as true,
       hp_website: "",
       _formTime: "",
       file: undefined,
     },
   });
 
-  // Set form load timestamp on mount
+  // Load live CRM lookups from database
   useEffect(() => {
     setValue("_formTime", String(Date.now()));
+    fetch("/api/crm/lookups")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.services) && data.services.length > 0) {
+          setCatalog(data.services);
+        }
+        if (Array.isArray(data.institutions) && data.institutions.length > 0) {
+          setInstitutionsList(data.institutions);
+        }
+        if (Array.isArray(data.degreeLevels) && data.degreeLevels.length > 0) {
+          setDegreeLevelsList(data.degreeLevels);
+        }
+        if (Array.isArray(data.degreeProgrammes)) {
+          setProgrammesList(data.degreeProgrammes);
+        }
+        if (data.settings) {
+          setSettings((prev) => ({ ...prev, ...data.settings }));
+        }
+        if (Array.isArray(data.rateCardRules) && data.rateCardRules.length > 0) {
+          setRules(data.rateCardRules);
+        }
+      })
+      .catch((err) => console.warn("Using default lookup fallback:", err));
   }, [setValue]);
 
-  // Initialize from searchParams
+  // Pre-fill from URL searchParams (from service page estimators)
   useEffect(() => {
     const serviceParam = searchParams.get("service");
     const defaultPages =
       searchParams.get("pageCount") ||
       searchParams.get("pages") ||
-      searchParams.get("minutes") ||
       searchParams.get("documents") ||
       searchParams.get("articles") ||
       "";
+    const speedParam = searchParams.get("speed");
 
     if (serviceParam) {
+      const slugToNameMap: Record<string, string> = {
+        "academic-editing": "Academic editing",
+        "reference-checking": "Reference checking",
+        "reference-list-editing": "Reference list editing",
+        formatting: "Formatting",
+        "journal-article-proposal-editing":
+          "Journal article and proposal editing",
+        "abstract-editing": "Abstract editing",
+      };
       const servicesList = serviceParam
         .split(",")
         .map((s) => s.trim())
-        .filter(Boolean);
+        .filter(Boolean)
+        .map((s) => slugToNameMap[s] || s);
+
       if (servicesList.length > 0) {
         setValue("services", servicesList);
       }
     }
-    if (defaultPages) {
-      setValue("pageCount", defaultPages);
+
+    if (defaultPages && !isNaN(Number(defaultPages))) {
+      const p = Math.max(1, Number(defaultPages));
+      setValue("pageCount", p);
+      setValue("wordCount", p * 300);
+    }
+
+    if (speedParam === "express" || speedParam === "standard") {
+      setValue("deliverySpeed", speedParam);
     }
   }, [searchParams, setValue]);
 
+  // Watch reactive fields
+  const watchedInstitutionId = watch("institutionId");
+  const watchedDegreeLevel = watch("degreeLevel");
+  const watchedDocumentType = watch("documentType");
+  const watchedWholeOrPart = watch("wholeOrPart");
+  const watchedWordCount = watch("wordCount");
+  const watchedPageCount = watch("pageCount");
+  const watchedRefPageCount = watch("referencePageCount");
+  const watchedServices = watch("services") || [];
+  const watchedDeliverySpeed = watch("deliverySpeed");
+  const watchedReferencingStyle = watch("referencingStyle");
+  const watchedExpectedSendDate = watch("expectedSendDate");
+  const watchedSupervisorSignOff = watch("supervisorSignOff");
+  const watchedRequestSupervisor = watch("requestSupervisorSignOff");
+  const watchedPaymentOption = watch("paymentOption");
+  const watchedSelectedMonths = watch("selectedInstalmentMonths");
+  const watchedTrackedChanges = watch("trackedChanges");
+  const watchedScopeDeclaration = watch("scopeDeclarationAccepted");
+
+  // Auto-convert Word Count -> Page Count at 300 words per page unless manually overridden
+  const wordsPerPage = Number(settings.words_per_page || "300") || 300;
+  useEffect(() => {
+    const wc = Number(watchedWordCount);
+    if (!pageCountManuallyEdited && !isNaN(wc) && wc > 0) {
+      setValue("pageCount", Math.max(1, Math.ceil(wc / wordsPerPage)), {
+        shouldValidate: true,
+      });
+    }
+  }, [watchedWordCount, pageCountManuallyEdited, wordsPerPage, setValue]);
+
+  // Calculate earliest allowed return date based on expectedSendDate + longest selected service turnaround
+  const minTurnaroundDays = useMemo(
+    () => getMinimumTurnaroundDays(watchedServices, watchedDeliverySpeed),
+    [watchedServices, watchedDeliverySpeed]
+  );
+
+  const minReturnDateIso = useMemo(() => {
+    const base = watchedExpectedSendDate
+      ? new Date(watchedExpectedSendDate)
+      : new Date();
+    if (isNaN(base.getTime())) return todayIso;
+    const minDate = new Date(base);
+    minDate.setDate(minDate.getDate() + minTurnaroundDays);
+    return minDate.toISOString().split("T")[0];
+  }, [watchedExpectedSendDate, minTurnaroundDays, todayIso]);
+
+  // Live Quote Estimate from Rate Card & Conditional Rules
+  const liveQuote = useMemo(() => {
+    return calculateQuoteFromCatalog(
+      {
+        selectedServices: watchedServices,
+        pageCount: Number(watchedPageCount) || 0,
+        referencePageCount: Number(watchedRefPageCount) || 0,
+        wordCount: Number(watchedWordCount) || 0,
+        deliverySpeed: watchedDeliverySpeed || "standard",
+        paymentOption: watchedPaymentOption || "full_payment",
+        requestedInstalmentMonths: Number(watchedSelectedMonths) || undefined,
+        degreeLevel: watchedDegreeLevel,
+      },
+      catalog,
+      rules
+    );
+  }, [
+    watchedServices,
+    watchedPageCount,
+    watchedRefPageCount,
+    watchedWordCount,
+    watchedDeliverySpeed,
+    watchedPaymentOption,
+    watchedSelectedMonths,
+    watchedDegreeLevel,
+    catalog,
+    rules,
+  ]);
+
+  // Keep selectedInstalmentMonths within maxInstalmentMonths (2 vs 3 months based on R3,000 rule)
+  useEffect(() => {
+    if (watchedPaymentOption === "payment_plan") {
+      if (
+        !watchedSelectedMonths ||
+        watchedSelectedMonths > liveQuote.maxInstalmentMonths
+      ) {
+        setValue("selectedInstalmentMonths", liveQuote.maxInstalmentMonths);
+      }
+    }
+  }, [
+    liveQuote.maxInstalmentMonths,
+    watchedPaymentOption,
+    watchedSelectedMonths,
+    setValue,
+  ]);
+
+  // Order degree programme autocomplete suggestions: programmes from selected institution first
+  const orderedProgrammeSuggestions = useMemo(() => {
+    const seen = new Set<string>();
+    const instMatched: string[] = [];
+    const others: string[] = [];
+
+    for (const p of programmesList) {
+      const key = p.name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (watchedInstitutionId && p.institutionId === watchedInstitutionId) {
+        instMatched.push(p.name);
+      } else {
+        others.push(p.name);
+      }
+    }
+
+    const commonDefaults = [
+      "Business Administration",
+      "Public Health",
+      "Educational Psychology",
+      "Computer Science",
+      "Information Systems",
+      "Sociology",
+      "Chemistry",
+      "Mechanical Engineering",
+      "Law",
+      "Development Studies",
+      "Nursing Science",
+      "Finance",
+      "Accounting",
+    ];
+    for (const def of commonDefaults) {
+      if (!seen.has(def.toLowerCase())) {
+        others.push(def);
+      }
+    }
+
+    return [...instMatched, ...others];
+  }, [programmesList, watchedInstitutionId]);
+
   useEffect(() => {
     if (state.success) {
-      toast.success("Brief submitted successfully!", {
-        description:
-          "We have received your project details. A member of our editorial team will reply shortly.",
+      toast.success("Brief submitted & quote generated!", {
+        description: state.quoteNumber
+          ? `Your quote reference is ${state.quoteNumber}.`
+          : "We have received your project details.",
       });
       sendGTMEvent({
         event: "contact_form_submission",
-        services: searchParams.get("service") || "custom",
+        services: watchedServices.join(",") || "custom",
       });
     }
-  }, [state.success, searchParams]);
+  }, [state.success, state.quoteNumber, watchedServices]);
 
   useEffect(() => {
     if (state.error) {
@@ -120,6 +436,19 @@ function ContactForm() {
       });
     }
   }, [state.error]);
+
+  const handleServiceToggle = (serviceName: string, checked: boolean) => {
+    const current = watchedServices || [];
+    if (checked) {
+      setValue("services", [...current, serviceName], { shouldValidate: true });
+    } else {
+      setValue(
+        "services",
+        current.filter((item) => item !== serviceName),
+        { shouldValidate: true }
+      );
+    }
+  };
 
   const onSubmit = async (data: ContactFormValues) => {
     const formData = new FormData();
@@ -153,49 +482,65 @@ function ContactForm() {
 
   if (state.success) {
     return (
-      <div className="py-12 text-center space-y-6">
+      <div className="py-10 text-center space-y-6">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-none bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900">
           <CheckCircle2 className="h-8 w-8" />
         </div>
         <div className="space-y-2">
           <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Brief Submitted Successfully!
+            Brief Submitted & Quote Generated!
           </h3>
+          {state.quoteNumber && (
+            <p className="text-sm font-semibold text-tweaks-blue">
+              Quote Reference: {state.quoteNumber}
+            </p>
+          )}
           <p className="text-slate-500 dark:text-zinc-400 font-light text-sm max-w-md mx-auto leading-relaxed">
-            Thank you! We have received your project details. A member of our
-            editorial team will reply to you shortly.
+            Thank you! Your project brief has been recorded in our system and a
+            confirmation has been sent to your email.
           </p>
         </div>
-        <Button
-          onClick={() => window.location.reload()}
-          variant="outline"
-          className="cursor-pointer rounded-none border-slate-300 hover:border-tweaks-blue hover:text-tweaks-blue transition-colors"
-        >
-          Submit Another Project
-        </Button>
+
+        {state.quoteSummary && (
+          <div className="max-w-md mx-auto bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 p-5 text-left space-y-3">
+            <div className="flex justify-between items-center border-b border-slate-200 dark:border-zinc-800 pb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Estimated Quote Total (ZAR)
+              </span>
+              <span className="text-lg font-black text-slate-900 dark:text-white">
+                {formatZarFromCents(state.quoteSummary.totalFeeCents)}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs text-slate-600 dark:text-zinc-400">
+              <span>Deposit Required ({state.quoteSummary.depositPercentage}%):</span>
+              <span className="font-semibold">
+                {formatZarFromCents(state.quoteSummary.depositRequiredCents)}
+              </span>
+            </div>
+            {state.quoteSummary.paymentOption === "payment_plan" && (
+              <div className="flex justify-between text-xs text-slate-600 dark:text-zinc-400">
+                <span>Payment Plan:</span>
+                <span className="font-semibold">
+                  {state.quoteSummary.selectedInstalmentMonths} monthly
+                  instalments
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-wrap justify-center gap-3 pt-2">
+          <Button
+            onClick={() => window.location.reload()}
+            variant="outline"
+            className="cursor-pointer rounded-none border-slate-300 hover:border-tweaks-blue hover:text-tweaks-blue transition-colors"
+          >
+            Submit Another Brief
+          </Button>
+        </div>
       </div>
     );
   }
-
-  // watch for certain fields to handle "Other" text inputs conditionally or just let them be bound
-  const documentTypes = watch("documentTypes");
-  const services = watch("services");
-
-  const handleCheckboxChange = (
-    field: "documentTypes" | "services",
-    value: string,
-    checked: boolean,
-  ) => {
-    const current = watch(field) || [];
-    if (checked) {
-      setValue(field, [...current, value]);
-    } else {
-      setValue(
-        field,
-        current.filter((item) => item !== value),
-      );
-    }
-  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-12 text-left">
@@ -227,47 +572,70 @@ function ContactForm() {
           <AlertCircle className="h-5 w-5 mt-0.5 shrink-0" />
           <div>
             <p className="font-semibold mb-1">
-              Please fix the following errors:
+              Please check the highlighted fields below:
             </p>
             <ul className="list-disc list-inside space-y-0.5">
               {Object.entries(state.errors).map(([field, messages]) =>
-                messages?.map((msg, i) => <li key={`${field}-${i}`}>{msg}</li>),
+                messages?.map((msg, i) => <li key={`${field}-${i}`}>{msg}</li>)
               )}
             </ul>
           </div>
         </div>
       )}
 
-      {/* Step 1: Tell us about yourself */}
+      {/* =====================================================================
+          STEP 1: CLIENT & ACADEMIC DETAILS
+         ===================================================================== */}
       <div className="space-y-6">
         <div className="border-b border-slate-100 dark:border-zinc-800 pb-2">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-            Step 1: Tell us about yourself
+            Step 1: Your Details & Academic Context
           </h3>
           <p className="text-xs text-slate-500 dark:text-zinc-400 font-light">
-            We just need a few contact details so we can reach you about your
-            project.
+            These details are used for your quotation and completion
+            certificate.
           </p>
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label
-              htmlFor="name"
+              htmlFor="firstName"
               className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
             >
-              Name & Surname <span className="text-red-500">*</span>
+              First Name <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="name"
+              id="firstName"
               type="text"
-              placeholder="Jane Doe"
-              {...register("name")}
+              placeholder="Thabo"
+              {...register("firstName")}
               className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
             />
-            {errors.name && (
-              <p className="text-xs text-red-500">{errors.name.message}</p>
+            {errors.firstName && (
+              <p className="text-xs text-red-500">{errors.firstName.message}</p>
             )}
           </div>
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="surname"
+              className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+            >
+              Surname <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="surname"
+              type="text"
+              placeholder="Mokoena"
+              {...register("surname")}
+              className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
+            />
+            {errors.surname && (
+              <p className="text-xs text-red-500">{errors.surname.message}</p>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label
               htmlFor="email"
@@ -278,7 +646,7 @@ function ContactForm() {
             <Input
               id="email"
               type="email"
-              placeholder="jane.doe@university.edu"
+              placeholder="student@university.ac.za"
               {...register("email")}
               className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
             />
@@ -286,12 +654,14 @@ function ContactForm() {
               <p className="text-xs text-red-500">{errors.email.message}</p>
             )}
           </div>
-          <div className="space-y-2 md:col-span-2">
+
+          <div className="space-y-2">
             <Label
               htmlFor="whatsapp"
               className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
             >
-              WhatsApp Number <span className="text-red-500">*</span>
+              WhatsApp Number (with country code){" "}
+              <span className="text-red-500">*</span>
             </Label>
             <Input
               id="whatsapp"
@@ -304,158 +674,387 @@ function ContactForm() {
               <p className="text-xs text-red-500">{errors.whatsapp.message}</p>
             )}
           </div>
+
+          {/* Institution Drop-Down + Other */}
+          <div className="space-y-2">
+            <Label
+              htmlFor="institutionId"
+              className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+            >
+              Institution <span className="text-red-500">*</span>
+            </Label>
+            <select
+              id="institutionId"
+              {...register("institutionId")}
+              className="w-full h-10 px-3 text-sm rounded-none border border-slate-300 dark:border-zinc-800 focus:outline-none focus:border-tweaks-blue bg-white dark:bg-zinc-950"
+            >
+              <option value="">Select your institution...</option>
+              {institutionsList.map((inst) => (
+                <option key={inst.id} value={inst.id}>
+                  {inst.name}
+                </option>
+              ))}
+              <option value="Other">Other (not listed)</option>
+            </select>
+            {errors.institutionId && (
+              <p className="text-xs text-red-500">
+                {errors.institutionId.message}
+              </p>
+            )}
+          </div>
+
+          {watchedInstitutionId === "Other" && (
+            <div className="space-y-2">
+              <Label
+                htmlFor="institutionOther"
+                className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+              >
+                Institution Name (if Other){" "}
+                <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="institutionOther"
+                type="text"
+                placeholder="Enter your university or college name"
+                {...register("institutionOther")}
+                className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
+              />
+              {errors.institutionOther && (
+                <p className="text-xs text-red-500">
+                  {errors.institutionOther.message}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Degree Level Designator */}
+          <div className="space-y-2">
+            <Label
+              htmlFor="degreeLevel"
+              className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+            >
+              Degree Level (Designator) <span className="text-red-500">*</span>
+            </Label>
+            <select
+              id="degreeLevel"
+              {...register("degreeLevel")}
+              className="w-full h-10 px-3 text-sm rounded-none border border-slate-300 dark:border-zinc-800 focus:outline-none focus:border-tweaks-blue bg-white dark:bg-zinc-950"
+            >
+              <option value="">Select designator (e.g. MSc, MCom, PhD)...</option>
+              {degreeLevelsList.map((deg) => (
+                <option key={deg.id} value={deg.designator}>
+                  {deg.designator}
+                </option>
+              ))}
+              <option value="Other">Other</option>
+            </select>
+            {errors.degreeLevel && (
+              <p className="text-xs text-red-500">
+                {errors.degreeLevel.message}
+              </p>
+            )}
+          </div>
+
+          {watchedDegreeLevel === "Other" && (
+            <div className="space-y-2">
+              <Label
+                htmlFor="degreeLevelOther"
+                className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+              >
+                Specify Degree Designator{" "}
+                <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="degreeLevelOther"
+                type="text"
+                placeholder="e.g. MComm, Dsc"
+                {...register("degreeLevelOther")}
+                className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
+              />
+              {errors.degreeLevelOther && (
+                <p className="text-xs text-red-500">
+                  {errors.degreeLevelOther.message}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Degree Programme with Autocomplete */}
+          <div className="space-y-2 md:col-span-2">
+            <Label
+              htmlFor="degreeProgramme"
+              className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+            >
+              Degree Programme <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="degreeProgramme"
+              type="text"
+              list="degree-programme-suggestions"
+              placeholder="e.g. Chemistry, Educational Psychology, Sociology"
+              {...register("degreeProgramme")}
+              className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
+            />
+            <datalist id="degree-programme-suggestions">
+              {orderedProgrammeSuggestions.map((prog) => (
+                <option key={prog} value={prog} />
+              ))}
+            </datalist>
+            <p className="text-xs text-slate-400">
+              Appears alongside your degree designator on your completion
+              certificate (e.g.{" "}
+              <em>
+                {watchedDegreeLevel && watchedDegreeLevel !== "Other"
+                  ? watchedDegreeLevel
+                  : "MSc"}{" "}
+                Chemistry
+              </em>
+              ).
+            </p>
+            {errors.degreeProgramme && (
+              <p className="text-xs text-red-500">
+                {errors.degreeProgramme.message}
+              </p>
+            )}
+          </div>
+
+          {/* Research Title */}
+          <div className="space-y-2 md:col-span-2">
+            <Label
+              htmlFor="researchTitle"
+              className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+            >
+              Research Title <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="researchTitle"
+              type="text"
+              placeholder="Enter your exact research title as it should appear on your completion certificate"
+              {...register("researchTitle")}
+              className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
+            />
+            {errors.researchTitle && (
+              <p className="text-xs text-red-500">
+                {errors.researchTitle.message}
+              </p>
+            )}
+          </div>
+
+          {/* How did you hear about us */}
+          <div className="space-y-2 md:col-span-2">
+            <Label
+              htmlFor="referralSource"
+              className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+            >
+              How did you hear about us? <span className="text-red-500">*</span>
+            </Label>
+            <select
+              id="referralSource"
+              {...register("referralSource")}
+              className="w-full h-10 px-3 text-sm rounded-none border border-slate-300 dark:border-zinc-800 focus:outline-none focus:border-tweaks-blue bg-white dark:bg-zinc-950"
+            >
+              <option value="">Please select...</option>
+              {REFERRAL_SOURCES.map((src) => (
+                <option key={src} value={src}>
+                  {src}
+                </option>
+              ))}
+            </select>
+            {errors.referralSource && (
+              <p className="text-xs text-red-500">
+                {errors.referralSource.message}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Step 2: What are you submitting? */}
+      {/* =====================================================================
+          STEP 2: DOCUMENT & VOLUME DETAILS
+         ===================================================================== */}
       <div className="space-y-6">
         <div className="border-b border-slate-100 dark:border-zinc-800 pb-2">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-            Step 2: What are you submitting?
+            Step 2: Document Scope & Volume
           </h3>
           <p className="text-xs text-slate-500 dark:text-zinc-400 font-light">
-            Help us understand the type and size of your document.
+            Enter your word count from Microsoft Word and we will automatically
+            calculate your billable pages at {wordsPerPage} words per page.
           </p>
         </div>
 
+        {/* Document Type */}
         <div className="space-y-3">
           <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-            What kind of document do you need edited?{" "}
-            <span className="text-red-500">*</span>
+            Document Type <span className="text-red-500">*</span>
           </Label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[
-              "Thesis/Dissertation",
-              "Proposal",
-              "Assignment",
-              "Journal Article",
-            ].map((docType) => (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {DOCUMENT_TYPES.map((docType) => (
               <label
                 key={docType}
-                className="flex items-center space-x-3 cursor-pointer"
+                className={`flex items-center space-x-3 p-3 border cursor-pointer transition-colors ${
+                  watchedDocumentType === docType
+                    ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                    : "border-slate-200 dark:border-zinc-800"
+                }`}
               >
                 <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded-none border-slate-300 text-tweaks-blue focus:ring-tweaks-blue"
-                  checked={documentTypes?.includes(docType) || false}
-                  onChange={(e) =>
-                    handleCheckboxChange(
-                      "documentTypes",
-                      docType,
-                      e.target.checked,
-                    )
-                  }
+                  type="radio"
+                  value={docType}
+                  {...register("documentType")}
+                  className="w-4 h-4 text-tweaks-blue focus:ring-tweaks-blue border-slate-300"
                 />
                 <span className="text-sm text-slate-700 dark:text-zinc-300">
                   {docType}
                 </span>
               </label>
             ))}
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <input
-                type="checkbox"
-                className="w-4 h-4 rounded-none border-slate-300 text-tweaks-blue focus:ring-tweaks-blue"
-                checked={documentTypes?.includes("Other") || false}
-                onChange={(e) =>
-                  handleCheckboxChange(
-                    "documentTypes",
-                    "Other",
-                    e.target.checked,
-                  )
-                }
-              />
-              <span className="text-sm text-slate-700 dark:text-zinc-300 whitespace-nowrap">
-                Other:
-              </span>
-              <Input
-                type="text"
-                {...register("documentTypeOther")}
-                className="rounded-none border-b border-slate-300 dark:border-zinc-800 border-t-0 border-l-0 border-r-0 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-transparent h-8 w-full"
-              />
-            </label>
           </div>
-          {errors.documentTypes && (
+          {watchedDocumentType === "Other" && (
+            <Input
+              type="text"
+              placeholder="Specify document type..."
+              {...register("documentTypeOther")}
+              className="mt-2 rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
+            />
+          )}
+          {errors.documentType && (
             <p className="text-xs text-red-500">
-              {errors.documentTypes.message}
+              {errors.documentType.message}
+            </p>
+          )}
+          {errors.documentTypeOther && (
+            <p className="text-xs text-red-500">
+              {errors.documentTypeOther.message}
             </p>
           )}
         </div>
 
-        <div className="space-y-3">
-          <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-            What is your current level of study?
-          </Label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {["Honors", "Masters'", "PhD"].map((level) => (
-              <label
-                key={level}
-                className="flex items-center space-x-3 cursor-pointer"
-              >
+        {/* Whole Document or Part */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+              Are you submitting the whole document or a part?{" "}
+              <span className="text-red-500">*</span>
+            </Label>
+            <div className="flex gap-4 pt-1">
+              <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="radio"
-                  value={level}
-                  {...register("studyLevel")}
-                  className="w-4 h-4 text-tweaks-blue focus:ring-tweaks-blue border-slate-300"
+                  value="whole"
+                  {...register("wholeOrPart")}
+                  className="w-4 h-4 text-tweaks-blue"
                 />
-                <span className="text-sm text-slate-700 dark:text-zinc-300">
-                  {level}
-                </span>
+                <span className="text-sm">Whole document</span>
               </label>
-            ))}
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <input
-                type="radio"
-                value="Other"
-                {...register("studyLevel")}
-                className="w-4 h-4 text-tweaks-blue focus:ring-tweaks-blue border-slate-300"
-              />
-              <span className="text-sm text-slate-700 dark:text-zinc-300 whitespace-nowrap">
-                Other:
-              </span>
-              <Input
-                type="text"
-                {...register("studyLevelOther")}
-                className="rounded-none border-b border-slate-300 dark:border-zinc-800 border-t-0 border-l-0 border-r-0 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-transparent h-8 w-full"
-              />
-            </label>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  value="part"
+                  {...register("wholeOrPart")}
+                  className="w-4 h-4 text-tweaks-blue"
+                />
+                <span className="text-sm">Part of document</span>
+              </label>
+            </div>
+            {errors.wholeOrPart && (
+              <p className="text-xs text-red-500">
+                {errors.wholeOrPart.message}
+              </p>
+            )}
           </div>
+
+          {watchedWholeOrPart === "part" && (
+            <div className="space-y-2">
+              <Label
+                htmlFor="whichPart"
+                className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+              >
+                Which part? <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="whichPart"
+                type="text"
+                placeholder="e.g. Chapters 1 to 3, or Chapter 4 of 6"
+                {...register("whichPart")}
+                className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
+              />
+              {errors.whichPart && (
+                <p className="text-xs text-red-500">
+                  {errors.whichPart.message}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+        {/* Word Count, Auto-Converted Page Count, and Reference List Page Count */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+          <div className="space-y-2">
+            <Label
+              htmlFor="wordCount"
+              className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+            >
+              Word Count (excl. references){" "}
+              <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="wordCount"
+              type="number"
+              min={1}
+              placeholder="e.g. 45000"
+              {...register("wordCount", {
+                onChange: () => setPageCountManuallyEdited(false),
+              })}
+              className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
+            />
+            {errors.wordCount && (
+              <p className="text-xs text-red-500">{errors.wordCount.message}</p>
+            )}
+            <p className="text-xs text-slate-400">
+              Read directly from MS Word status bar
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label
               htmlFor="pageCount"
               className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
             >
-              Page count (excluding reference list)?{" "}
-              <span className="text-red-500">*</span>
+              Billable Page Count <span className="text-red-500">*</span>
             </Label>
             <Input
               id="pageCount"
-              type="text"
-              placeholder="e.g. 150"
-              {...register("pageCount")}
+              type="number"
+              min={1}
+              placeholder="Auto-filled (300 words/page)"
+              {...register("pageCount", {
+                onChange: () => setPageCountManuallyEdited(true),
+              })}
               className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
             />
             {errors.pageCount && (
               <p className="text-xs text-red-500">{errors.pageCount.message}</p>
             )}
-            <p className="text-xs text-slate-400 italic">
-              (Approximate if not finalised)
+            <p className="text-xs text-slate-400">
+              Auto-calculated at {wordsPerPage} words/page (editable)
             </p>
           </div>
+
           <div className="space-y-2">
             <Label
-              htmlFor="refPageCount"
+              htmlFor="referencePageCount"
               className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
             >
-              Page count of the Reference List?{" "}
+              Reference List Pages (0–500){" "}
               <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="refPageCount"
-              type="text"
-              placeholder="e.g. 12"
+              id="referencePageCount"
+              type="number"
+              min={0}
+              max={500}
+              placeholder="0"
               {...register("referencePageCount")}
               className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
             />
@@ -464,22 +1063,23 @@ function ContactForm() {
                 {errors.referencePageCount.message}
               </p>
             )}
-            <p className="text-xs text-slate-400 italic">
-              (If Applicable, or type 0)
+            <p className="text-xs text-slate-400">
+              Used when Reference List Editing is ticked
             </p>
           </div>
         </div>
       </div>
 
-      {/* Step 3: What kind of editing do you need? */}
+      {/* =====================================================================
+          STEP 3: SERVICES & DELIVERY SPEED
+         ===================================================================== */}
       <div className="space-y-6">
         <div className="border-b border-slate-100 dark:border-zinc-800 pb-2">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-            Step 3: What kind of editing do you need?
+            Step 3: Select Services & Turnaround Speed
           </h3>
           <p className="text-xs text-slate-500 dark:text-zinc-400 font-light">
-            Tell us what kind of editing support you're looking for so we can
-            tailor our service.
+            All six live services from our rate card. Tick all that apply.
           </p>
         </div>
 
@@ -488,166 +1088,249 @@ function ContactForm() {
             Which services do you require?{" "}
             <span className="text-red-500">*</span>
           </Label>
-          <div className="space-y-3">
-            {[
-              {
-                id: "academic-editing",
-                label: "Academic Editing",
-                desc: "Our editors correct your grammar, punctuation, and spelling; edit for content, style, and presentation; delete irrelevant points; order points within sections.",
-              },
-              {
-                id: "reference-checking",
-                label: "Reference Checking",
-                desc: "We check and correct reference citations in your research work, according to your Reference guide. We then check that all references in your reference list are cited in your text and vice versa.",
-              },
-              {
-                id: "reference-list-editing",
-                label: "Reference List Editing",
-                desc: "We edit your reference list ensuring the correct format is used for various sources.",
-              },
-              {
-                id: "formatting",
-                label: "Formatting",
-                desc: "We address things like font selection, font size and presentation, spacing, margins, alignment, columns, indentation, and lists.",
-              },
-            ].map((svc) => (
-              <label
-                key={svc.id}
-                className="flex items-start space-x-3 cursor-pointer group"
-              >
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 mt-1 rounded-none border-slate-300 text-tweaks-blue focus:ring-tweaks-blue"
-                  checked={
-                    services?.includes(svc.id) ||
-                    services?.includes(svc.label) ||
-                    false
-                  }
-                  onChange={(e) =>
-                    handleCheckboxChange("services", svc.id, e.target.checked)
-                  }
-                />
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
-                    {svc.label}
-                  </span>
-                  <span className="text-xs text-slate-500 dark:text-zinc-400 font-light">
-                    {svc.desc}
-                  </span>
-                </div>
-              </label>
-            ))}
-            <label className="flex items-center space-x-3 cursor-pointer pt-1">
-              <input
-                type="checkbox"
-                className="w-4 h-4 rounded-none border-slate-300 text-tweaks-blue focus:ring-tweaks-blue"
-                checked={services?.includes("Other") || false}
-                onChange={(e) =>
-                  handleCheckboxChange("services", "Other", e.target.checked)
-                }
-              />
-              <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200 whitespace-nowrap">
-                Other:
-              </span>
-              <Input
-                type="text"
-                {...register("serviceOther")}
-                className="rounded-none border-b border-slate-300 dark:border-zinc-800 border-t-0 border-l-0 border-r-0 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-transparent h-8 w-full max-w-sm"
-              />
-            </label>
+          <div className="grid grid-cols-1 gap-3">
+            {catalog.map((svc) => {
+              const isChecked =
+                watchedServices.includes(svc.name) ||
+                watchedServices.includes(svc.slug);
+              const basisLabel =
+                svc.pricingBasis === "per_page"
+                  ? "per page"
+                  : svc.pricingBasis === "per_reference_page"
+                    ? "per reference page"
+                    : svc.pricingBasis === "flat_document"
+                      ? "flat per document"
+                      : svc.pricingBasis === "flat_article"
+                        ? "flat per article/proposal"
+                        : "flat per abstract";
+
+              return (
+                <label
+                  key={svc.id}
+                  className={`flex items-start justify-between gap-4 p-4 border cursor-pointer transition-colors ${
+                    isChecked
+                      ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                      : "border-slate-200 dark:border-zinc-800 hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-start space-x-3">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 mt-1 rounded-none border-slate-300 text-tweaks-blue focus:ring-tweaks-blue"
+                      checked={isChecked}
+                      onChange={(e) =>
+                        handleServiceToggle(svc.name, e.target.checked)
+                      }
+                    />
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                        {svc.name}
+                      </span>
+                      {svc.description && (
+                        <span className="text-xs text-slate-500 dark:text-zinc-400 font-light">
+                          {svc.description}
+                        </span>
+                      )}
+                      <span className="text-[11px] text-slate-400">
+                        Standard: {svc.standardTurnaroundMinDays}–
+                        {svc.standardTurnaroundMaxDays} days | Express:{" "}
+                        {svc.expressTurnaroundMinHours ===
+                        svc.expressTurnaroundMaxHours
+                          ? `${svc.expressTurnaroundMinHours} hours`
+                          : `${svc.expressTurnaroundMinHours}–${svc.expressTurnaroundMaxHours} hours`}{" "}
+                        (+{formatZarFromCents(svc.expressSurchargeCents, false)}{" "}
+                        {basisLabel})
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-sm font-extrabold text-tweaks-blue">
+                      {formatZarFromCents(svc.standardRateCents)}
+                    </span>
+                    <span className="block text-[11px] text-slate-400">
+                      {basisLabel}
+                    </span>
+                  </div>
+                </label>
+              );
+            })}
           </div>
           {errors.services && (
             <p className="text-xs text-red-500">{errors.services.message}</p>
           )}
         </div>
 
+        {/* Delivery Speed: Standard vs Express */}
+        <div className="space-y-3 pt-2">
+          <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+            Delivery Speed <span className="text-red-500">*</span>
+          </Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label
+              className={`flex items-start gap-3 p-4 border cursor-pointer transition-colors ${
+                watchedDeliverySpeed === "standard"
+                  ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                  : "border-slate-200 dark:border-zinc-800"
+              }`}
+            >
+              <input
+                type="radio"
+                value="standard"
+                {...register("deliverySpeed")}
+                className="w-4 h-4 mt-1 text-tweaks-blue"
+              />
+              <div>
+                <div className="flex items-center gap-1.5 font-bold text-sm text-slate-900 dark:text-white">
+                  <Clock className="h-4 w-4 text-tweaks-blue" />
+                  <span>Standard Delivery</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  {liveQuote.turnaround.minDays} to{" "}
+                  {liveQuote.turnaround.maxDays} days from when we receive your
+                  document. Standard rate card applies.
+                </p>
+              </div>
+            </label>
+
+            <label
+              className={`flex items-start gap-3 p-4 border cursor-pointer transition-colors ${
+                watchedDeliverySpeed === "express"
+                  ? "border-tweaks-red bg-red-50/30 dark:bg-red-950/20"
+                  : "border-slate-200 dark:border-zinc-800"
+              }`}
+            >
+              <input
+                type="radio"
+                value="express"
+                {...register("deliverySpeed")}
+                className="w-4 h-4 mt-1 text-tweaks-red"
+              />
+              <div>
+                <div className="flex items-center gap-1.5 font-bold text-sm text-slate-900 dark:text-white">
+                  <Zap className="h-4 w-4 text-tweaks-red" />
+                  <span>Express Priority</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  {liveQuote.turnaround.expressMinHours} to{" "}
+                  {liveQuote.turnaround.expressMaxHours} hours priority
+                  turnaround. Express surcharge applies to selected services.
+                </p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        {/* Main Goal (min 20 chars) & Specific Concerns */}
         <div className="space-y-2 pt-2">
           <Label
             htmlFor="mainGoal"
             className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
           >
-            What is the main goal of the edit?
+            What is the main goal of the edit? (min 20 characters){" "}
+            <span className="text-red-500">*</span>
           </Label>
-          <p className="text-xs text-slate-400 italic mb-2">
-            (e.g. Improve clarity, prepare for publication, fix grammar, adjust
-            tone for audience, meet guidelines)
-          </p>
           <Textarea
             id="mainGoal"
             rows={3}
+            placeholder="e.g. Prepare my PhD thesis for final examination submission, improve academic tone and flow..."
             {...register("mainGoal")}
             className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950 resize-none"
           />
+          {errors.mainGoal && (
+            <p className="text-xs text-red-500">{errors.mainGoal.message}</p>
+          )}
         </div>
 
-        <div className="space-y-2 pt-2">
+        <div className="space-y-2">
           <Label
             htmlFor="concerns"
             className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
           >
-            Do you have any particular concerns you'd like us to focus on?
+            Do you have any particular concerns you&apos;d like us to focus on?
           </Label>
-          <p className="text-xs text-slate-400 italic mb-2">
-            (e.g. Wordiness, academic tone, referencing, repetition)
-          </p>
           <Textarea
             id="concerns"
-            rows={3}
+            rows={2}
+            placeholder="e.g. Wordiness, academic tone, citation consistency, repetition"
             {...register("concerns")}
             className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950 resize-none"
           />
         </div>
       </div>
 
-      {/* Step 4: Style and Referencing */}
+      {/* =====================================================================
+          STEP 4: STYLE & REFERENCING
+         ===================================================================== */}
       <div className="space-y-6">
         <div className="border-b border-slate-100 dark:border-zinc-800 pb-2">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-            Step 4: Style and Referencing
+            Step 4: Style & Referencing
           </h3>
-          <p className="text-xs text-slate-500 dark:text-zinc-400 font-light">
-            Help us ensure the final version matches your required style and
-            referencing guidelines.
-          </p>
         </div>
 
-        <div className="space-y-2">
-          <Label
-            htmlFor="referencingStyle"
-            className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
-          >
-            What referencing style should we follow?{" "}
-            <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="referencingStyle"
-            type="text"
-            placeholder="e.g. APA 7th, Harvard, Chicago, MLA, IEEE, institution-specific"
-            {...register("referencingStyle")}
-            className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
-          />
-          {errors.referencingStyle && (
-            <p className="text-xs text-red-500">
-              {errors.referencingStyle.message}
-            </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label
+              htmlFor="referencingStyle"
+              className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+            >
+              Referencing Style <span className="text-red-500">*</span>
+            </Label>
+            <select
+              id="referencingStyle"
+              {...register("referencingStyle")}
+              className="w-full h-10 px-3 text-sm rounded-none border border-slate-300 dark:border-zinc-800 focus:outline-none focus:border-tweaks-blue bg-white dark:bg-zinc-950"
+            >
+              <option value="">Select referencing style...</option>
+              {REFERENCING_STYLES.map((style) => (
+                <option key={style} value={style}>
+                  {style}
+                </option>
+              ))}
+            </select>
+            {errors.referencingStyle && (
+              <p className="text-xs text-red-500">
+                {errors.referencingStyle.message}
+              </p>
+            )}
+          </div>
+
+          {watchedReferencingStyle === "Other" && (
+            <div className="space-y-2">
+              <Label
+                htmlFor="referencingStyleOther"
+                className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+              >
+                Specify Referencing Style{" "}
+                <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="referencingStyleOther"
+                type="text"
+                placeholder="Enter your department or journal referencing guide"
+                {...register("referencingStyleOther")}
+                className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
+              />
+              {errors.referencingStyleOther && (
+                <p className="text-xs text-red-500">
+                  {errors.referencingStyleOther.message}
+                </p>
+              )}
+            </div>
           )}
         </div>
 
         <div className="space-y-2 pt-2">
           <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-            Do you have a style guide or institutional formatting template we
-            should use?
+            Attach Document or Institutional Style Guide (Optional, max 10MB)
           </Label>
-          <p className="text-xs text-slate-400 italic mb-3">
-            (Upload or link if available.)
-          </p>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <Label
               htmlFor="file-upload"
               className="flex items-center justify-center gap-2 px-5 py-2.5 border border-dashed border-slate-300 dark:border-zinc-700 rounded-none cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-900 hover:border-tweaks-blue transition-all text-sm font-semibold"
             >
               <Paperclip className="h-4 w-4 text-slate-400" />
-              <span>Select Document</span>
+              <span>Select File</span>
             </Label>
             <input
               id="file-upload"
@@ -669,183 +1352,555 @@ function ContactForm() {
         </div>
       </div>
 
-      {/* Step 5: Logistics and Delivery */}
+      {/* =====================================================================
+          STEP 5: DATES, SUPERVISOR SIGN-OFF, FUNDING & QUOTE PREVIEW
+         ===================================================================== */}
       <div className="space-y-6">
         <div className="border-b border-slate-100 dark:border-zinc-800 pb-2">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-            Step 5: Logistics and Delivery
+            Step 5: Dates, Supervisor Sign-Off & Payment Option
           </h3>
           <p className="text-xs text-slate-500 dark:text-zinc-400 font-light">
-            Let's clarify practical details so we can plan accordingly and meet
-            your expectations.
+            Turnaround time starts from the date we receive your document.
           </p>
         </div>
 
+        {/* Date Pickers */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label
-              htmlFor="deadline"
+              htmlFor="expectedSendDate"
               className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
             >
-              What is your deadline? <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="deadline"
-              type="text"
-              placeholder="Example: 7 January 2026"
-              {...register("deadline")}
-              className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
-            />
-            {errors.deadline && (
-              <p className="text-xs text-red-500">{errors.deadline.message}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label
-              htmlFor="submissionDate"
-              className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
-            >
-              When will you submit your document?{" "}
+              When will you send us the document?{" "}
               <span className="text-red-500">*</span>
             </Label>
             <Input
-              id="submissionDate"
-              type="text"
-              placeholder="Example: 1 December 2025"
-              {...register("submissionDate")}
+              id="expectedSendDate"
+              type="date"
+              min={todayIso}
+              {...register("expectedSendDate")}
               className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
             />
-            {errors.submissionDate && (
+            {errors.expectedSendDate && (
               <p className="text-xs text-red-500">
-                {errors.submissionDate.message}
+                {errors.expectedSendDate.message}
               </p>
             )}
           </div>
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="requestedReturnDate"
+              className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
+            >
+              When do you need it back? <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="requestedReturnDate"
+              type="date"
+              min={minReturnDateIso}
+              {...register("requestedReturnDate")}
+              className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
+            />
+            {errors.requestedReturnDate && (
+              <p className="text-xs text-red-500">
+                {errors.requestedReturnDate.message}
+              </p>
+            )}
+            <p className="text-xs text-slate-400">
+              Earliest return date based on selected services:{" "}
+              <strong>{minReturnDateIso}</strong>
+            </p>
+          </div>
         </div>
 
+        {/* Supervisor Sign-Off Obtained */}
         <div className="space-y-3 pt-2">
           <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-            Will you require a tracked changes version and a clean copy?{" "}
+            Has your supervisor signed off on this document going for editing?{" "}
             <span className="text-red-500">*</span>
           </Label>
-          <div className="space-y-2">
-            {["Yes, both versions", "Just the edited file is fine"].map(
-              (opt) => (
-                <label
-                  key={opt}
-                  className="flex items-center space-x-3 cursor-pointer"
-                >
-                  <input
-                    type="radio"
-                    value={opt}
-                    {...register("trackedChanges")}
-                    className="w-4 h-4 text-tweaks-blue focus:ring-tweaks-blue border-slate-300"
-                  />
-                  <span className="text-sm text-slate-700 dark:text-zinc-300">
-                    {opt}
-                  </span>
-                </label>
-              ),
-            )}
-            <label className="flex items-center space-x-3 cursor-pointer">
+          <div className="flex gap-6">
+            <label className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="radio"
-                value="Other"
-                {...register("trackedChanges")}
-                className="w-4 h-4 text-tweaks-blue focus:ring-tweaks-blue border-slate-300"
+                value="yes"
+                {...register("supervisorSignOff")}
+                className="w-4 h-4 text-tweaks-blue"
               />
-              <span className="text-sm text-slate-700 dark:text-zinc-300 whitespace-nowrap">
-                Other:
+              <span className="text-sm font-medium">
+                Yes, supervisor sign-off obtained
               </span>
-              <Input
-                type="text"
-                {...register("trackedChangesOther")}
-                className="rounded-none border-b border-slate-300 dark:border-zinc-800 border-t-0 border-l-0 border-r-0 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-transparent h-8 w-full max-w-sm"
+            </label>
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="radio"
+                value="no"
+                {...register("supervisorSignOff")}
+                className="w-4 h-4 text-tweaks-red"
               />
+              <span className="text-sm font-medium">No, not yet</span>
             </label>
           </div>
-          {errors.trackedChanges && (
-            <p className="text-xs text-red-500">
-              {errors.trackedChanges.message}
-            </p>
+
+          {watchedSupervisorSignOff === "no" && (
+            <div className="p-4 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 space-y-4 mt-3">
+              <div className="flex items-start gap-3">
+                <ShieldAlert className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed italic">
+                  &ldquo;{settings.supervisor_disclaimer_text}&rdquo;
+                </p>
+              </div>
+
+              <label className="flex items-start space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  {...register("supervisorDisclaimerAck")}
+                  className="w-4 h-4 mt-0.5 rounded-none border-amber-400 text-tweaks-blue"
+                />
+                <span className="text-xs font-semibold text-slate-800 dark:text-zinc-200">
+                  I have read and acknowledge this disclaimer{" "}
+                  <span className="text-red-500">*</span>
+                </span>
+              </label>
+              {errors.supervisorDisclaimerAck && (
+                <p className="text-xs text-red-600">
+                  {errors.supervisorDisclaimerAck.message}
+                </p>
+              )}
+
+              <div className="pt-2 border-t border-amber-200/70 dark:border-amber-900/60 space-y-3">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register("requestSupervisorSignOff")}
+                    className="w-4 h-4 rounded-none border-slate-300 text-tweaks-blue"
+                  />
+                  <span className="text-xs font-medium text-slate-700 dark:text-zinc-300">
+                    Optional: Email my supervisor a 1-click sign-off
+                    confirmation link now (no fees or payment details are shown
+                    to your supervisor)
+                  </span>
+                </label>
+
+                {watchedRequestSupervisor && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold text-slate-600 dark:text-zinc-400">
+                        Supervisor Name <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="text"
+                        placeholder="Prof. N. Dlamini"
+                        {...register("supervisorName")}
+                        className="rounded-none bg-white dark:bg-zinc-950 h-9 text-xs"
+                      />
+                      {errors.supervisorName && (
+                        <p className="text-xs text-red-500">
+                          {errors.supervisorName.message}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold text-slate-600 dark:text-zinc-400">
+                        Supervisor Institutional Email{" "}
+                        <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        type="email"
+                        placeholder="n.dlamini@uct.ac.za"
+                        {...register("supervisorEmail")}
+                        className="rounded-none bg-white dark:bg-zinc-950 h-9 text-xs"
+                      />
+                      {errors.supervisorEmail && (
+                        <p className="text-xs text-red-500">
+                          {errors.supervisorEmail.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
 
+        {/* Tracked Changes & Certificate */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-          <div className="space-y-3">
+          <div className="space-y-2">
             <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-              Will you require an editing certificate?{" "}
+              Tracked Changes Preference <span className="text-red-500">*</span>
+            </Label>
+            <div className="space-y-2">
+              {["Yes, both versions", "Just the edited file is fine", "Other"].map(
+                (opt) => (
+                  <label
+                    key={opt}
+                    className="flex items-center space-x-2 cursor-pointer"
+                  >
+                    <input
+                      type="radio"
+                      value={opt}
+                      {...register("trackedChanges")}
+                      className="w-4 h-4 text-tweaks-blue"
+                    />
+                    <span className="text-sm">{opt}</span>
+                  </label>
+                )
+              )}
+              {watchedTrackedChanges === "Other" && (
+                <Input
+                  type="text"
+                  placeholder="Specify preference..."
+                  {...register("trackedChangesOther")}
+                  className="rounded-none h-8 text-xs"
+                />
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+              Official Editing Certificate Required?{" "}
               <span className="text-red-500">*</span>
             </Label>
             <div className="space-y-2">
               {["Yes", "No"].map((opt) => (
                 <label
                   key={opt}
-                  className="flex items-center space-x-3 cursor-pointer"
+                  className="flex items-center space-x-2 cursor-pointer"
                 >
                   <input
                     type="radio"
                     value={opt}
                     {...register("certificate")}
-                    className="w-4 h-4 text-tweaks-blue focus:ring-tweaks-blue border-slate-300"
+                    className="w-4 h-4 text-tweaks-blue"
                   />
-                  <span className="text-sm text-slate-700 dark:text-zinc-300">
-                    {opt}
-                  </span>
-                </label>
-              ))}
-            </div>
-            {errors.certificate && (
-              <p className="text-xs text-red-500">
-                {errors.certificate.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-              How are you funding this finalisation cost?
-            </Label>
-            <div className="space-y-2">
-              {[
-                {
-                  val: "Institution funded",
-                  label: "Institution funded - My institution will be paying",
-                },
-                { val: "Self Funded", label: "Self Funded - I will be paying" },
-              ].map((opt) => (
-                <label
-                  key={opt.val}
-                  className="flex items-center space-x-3 cursor-pointer"
-                >
-                  <input
-                    type="radio"
-                    value={opt.val}
-                    {...register("funding")}
-                    className="w-4 h-4 text-tweaks-blue focus:ring-tweaks-blue border-slate-300"
-                  />
-                  <span className="text-sm text-slate-700 dark:text-zinc-300">
-                    {opt.label}
-                  </span>
+                  <span className="text-sm">{opt}</span>
                 </label>
               ))}
             </div>
           </div>
         </div>
 
+        {/* Payment / Funding Option + Conditional Payment Plan (2 vs 3 months) */}
+        <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
+          <Label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+            Payment & Funding Option <span className="text-red-500">*</span>
+          </Label>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label
+              className={`p-4 border cursor-pointer transition-colors ${
+                watchedPaymentOption === "full_payment"
+                  ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                  : "border-slate-200 dark:border-zinc-800"
+              }`}
+            >
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <input
+                  type="radio"
+                  value="full_payment"
+                  {...register("paymentOption")}
+                  className="w-4 h-4 text-tweaks-blue"
+                />
+                <span>1. Full Payment</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Full fee paid up front via Paystack or EFT.
+              </p>
+            </label>
+
+            <label
+              className={`p-4 border cursor-pointer transition-colors ${
+                watchedPaymentOption === "payment_plan"
+                  ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                  : "border-slate-200 dark:border-zinc-800"
+              }`}
+            >
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <input
+                  type="radio"
+                  value="payment_plan"
+                  {...register("paymentOption")}
+                  className="w-4 h-4 text-tweaks-blue"
+                />
+                <span>2. Payment Plan (50% Deposit)</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                50% deposit now, balance over up to{" "}
+                <strong>{liveQuote.maxInstalmentMonths} months</strong>
+                {liveQuote.totalFeeCents > 0 && liveQuote.totalFeeCents < 300000
+                  ? " (max 2 months for quotes under R3,000)"
+                  : " (up to 3 months for quotes R3,000+)"}
+                .
+              </p>
+            </label>
+
+            <label
+              className={`p-4 border cursor-pointer transition-colors ${
+                watchedPaymentOption === "institutional_funding"
+                  ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                  : "border-slate-200 dark:border-zinc-800"
+              }`}
+            >
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <input
+                  type="radio"
+                  value="institutional_funding"
+                  {...register("paymentOption")}
+                  className="w-4 h-4 text-tweaks-blue"
+                />
+                <span>3. Institutional Funding</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Paid by your university/institution against an official Purchase
+                Order (no deposit).
+              </p>
+            </label>
+          </div>
+
+          {/* Option 2: Instalment Month Picker (2 vs 3 months conditional on R3,000 rule) */}
+          {watchedPaymentOption === "payment_plan" && (
+            <div className="p-4 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
+                    Payment Plan Schedule
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    {liveQuote.totalFeeCents < 300000
+                      ? "Quotes under R3,000 qualify for a 2-month payment plan after the 50% deposit."
+                      : "Quotes of R3,000 or more qualify for up to a 3-month payment plan after the 50% deposit."}
+                  </p>
+                </div>
+                {liveQuote.maxInstalmentMonths === 3 && (
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                      <input
+                        type="radio"
+                        value={2}
+                        checked={Number(watchedSelectedMonths) === 2}
+                        onChange={() => setValue("selectedInstalmentMonths", 2)}
+                      />
+                      <span>2 Months</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                      <input
+                        type="radio"
+                        value={3}
+                        checked={Number(watchedSelectedMonths) === 3}
+                        onChange={() => setValue("selectedInstalmentMonths", 3)}
+                      />
+                      <span>3 Months</span>
+                    </label>
+                  </div>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Note: Under a payment plan, your edited work is released once
+                the final instalment clears your balance to zero.
+              </p>
+            </div>
+          )}
+
+          {/* Option 3: Institutional Funding Fields & Policy Notice */}
+          {watchedPaymentOption === "institutional_funding" && (
+            <div className="p-5 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 space-y-4">
+              <div className="flex items-start gap-3">
+                <Building2 className="h-5 w-5 text-tweaks-blue shrink-0 mt-0.5" />
+                <p className="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed">
+                  {settings.institutional_release_text}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600 dark:text-zinc-400">
+                    Department / Faculty <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Department of Sociology"
+                    {...register("department")}
+                    className="rounded-none bg-white dark:bg-zinc-950 h-9 text-xs"
+                  />
+                  {errors.department && (
+                    <p className="text-xs text-red-500">
+                      {errors.department.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600 dark:text-zinc-400">
+                    Billing Contact Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="text"
+                    placeholder="Finance Officer / Administrator"
+                    {...register("billingContactName")}
+                    className="rounded-none bg-white dark:bg-zinc-950 h-9 text-xs"
+                  />
+                  {errors.billingContactName && (
+                    <p className="text-xs text-red-500">
+                      {errors.billingContactName.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600 dark:text-zinc-400">
+                    Billing Contact Email{" "}
+                    <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="email"
+                    placeholder="finance@university.ac.za"
+                    {...register("billingContactEmail")}
+                    className="rounded-none bg-white dark:bg-zinc-950 h-9 text-xs"
+                  />
+                  {errors.billingContactEmail && (
+                    <p className="text-xs text-red-500">
+                      {errors.billingContactEmail.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Live Quote Breakdown Card */}
+        {liveQuote.items.length > 0 && (
+          <div className="p-6 bg-slate-900 text-white space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+              <div className="flex items-center gap-2">
+                <Calculator className="h-5 w-5 text-tweaks-red" />
+                <span className="text-xs font-bold uppercase tracking-wider">
+                  Instant Quote Estimate (ZAR)
+                </span>
+              </div>
+              <span className="text-xs text-slate-400">
+                {liveQuote.turnaround.displayLabel}
+              </span>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              {liveQuote.items.map((item) => (
+                <div
+                  key={item.serviceId}
+                  className="flex justify-between text-slate-300"
+                >
+                  <span>
+                    {item.serviceName}{" "}
+                    {item.pricingBasis === "per_page"
+                      ? `(${item.quantity} pages)`
+                      : item.pricingBasis === "per_reference_page"
+                        ? `(${item.quantity} ref pages)`
+                        : "(Flat rate)"}
+                  </span>
+                  <span className="font-semibold text-white">
+                    {formatZarFromCents(item.lineTotalCents)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-slate-700 pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <span className="text-xs text-slate-400 block">
+                  Estimated Total (ZAR)
+                </span>
+                <span className="text-2xl font-black text-white">
+                  {formatZarFromCents(liveQuote.totalFeeCents)}
+                </span>
+              </div>
+              <div className="text-left sm:text-right text-xs text-slate-300">
+                {watchedPaymentOption === "payment_plan" ? (
+                  <>
+                    <div>
+                      50% Deposit Due:{" "}
+                      <strong className="text-white">
+                        {formatZarFromCents(liveQuote.depositRequiredCents)}
+                      </strong>
+                    </div>
+                    <div>
+                      Followed by {liveQuote.selectedInstalmentMonths} monthly
+                      instalments of{" "}
+                      <strong className="text-white">
+                        {formatZarFromCents(
+                          liveQuote.instalmentAmountsCents[0] || 0
+                        )}
+                      </strong>
+                    </div>
+                  </>
+                ) : watchedPaymentOption === "institutional_funding" ? (
+                  <div>
+                    Payable on Institutional PO (0% Deposit):{" "}
+                    <strong className="text-white">
+                      {formatZarFromCents(liveQuote.totalFeeCents)}
+                    </strong>
+                  </div>
+                ) : (
+                  <div>
+                    Full Upfront Payment:{" "}
+                    <strong className="text-white">
+                      {formatZarFromCents(liveQuote.totalFeeCents)}
+                    </strong>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Additional Info */}
         <div className="space-y-2 pt-2">
           <Label
             htmlFor="additionalInfo"
             className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
           >
-            Anything else you'd like to add or clarify before we begin?
+            Anything else you&apos;d like to add or clarify?
           </Label>
           <Textarea
             id="additionalInfo"
-            rows={4}
+            rows={3}
             {...register("additionalInfo")}
             className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950 resize-none"
           />
+        </div>
+
+        {/* Mandatory Scope Declaration */}
+        <div className="p-5 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 space-y-3">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
+            <FileCheck2 className="h-4 w-4 text-tweaks-blue" />
+            <span>
+              Scope Declaration <span className="text-red-500">*</span>
+            </span>
+          </div>
+          <label className="flex items-start space-x-3 cursor-pointer">
+            <input
+              type="checkbox"
+              {...register("scopeDeclarationAccepted")}
+              className="w-4 h-4 mt-1 rounded-none border-slate-300 text-tweaks-blue focus:ring-tweaks-blue"
+            />
+            <span className="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed">
+              {settings.scope_declaration_text}
+            </span>
+          </label>
+          {!watchedScopeDeclaration && errors.scopeDeclarationAccepted && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-xs text-slate-700 dark:text-zinc-300">
+              <strong>What our service covers:</strong> Tweaks provides
+              professional academic language editing, reference checking,
+              reference list formatting, and document layout formatting on your
+              own original research. We do not write or rewrite content, run
+              Turnitin/plagiarism similarity checks, or guarantee academic
+              grades. Please tick the box above to confirm and submit your
+              brief.
+            </div>
+          )}
         </div>
       </div>
 
@@ -860,7 +1915,9 @@ function ContactForm() {
           ) : (
             <Send className="mr-2 h-5 w-5" />
           )}
-          {isPending ? "Submitting..." : "Submit Editing Brief"}
+          {isPending
+            ? "Generating Quote & Submitting Brief..."
+            : "Submit Brief & Generate Official Quote"}
         </Button>
       </div>
     </form>
@@ -877,21 +1934,19 @@ export default function Contact() {
             <div className="lg:col-span-4 space-y-8 lg:sticky lg:top-24 text-left">
               <div className="space-y-6">
                 <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-slate-900 dark:text-white">
-                  Contact Us
+                  Request a Quote
                 </h1>
                 <div className="space-y-4 text-base text-slate-600 dark:text-zinc-400 font-light leading-relaxed">
                   <p>
-                    We are always happy to hear from you. Whether you have a
-                    straightforward project or would like to ask a few questions
-                    before deciding on the best approach, we are always happy to
-                    listen and offer advice and guidance.
+                    Complete your project brief below to receive an instant
+                    estimate and official quotation tailored to your document,
+                    turnaround time, and funding route.
                   </p>
                   <p>
-                    Complete the project briefing form with as much detail as
-                    possible, and we'll review your requirements before sending
-                    you a formal quotation, together with a proposed timeline.
-                    If you have any questions, you're also welcome to contact us
-                    directly by email.
+                    Whether you are paying upfront, choosing a 50% deposit
+                    payment plan, or submitting for institutional funding via a
+                    university Purchase Order, your quote is generated
+                    automatically from our live rate card.
                   </p>
                 </div>
 
@@ -925,7 +1980,7 @@ export default function Contact() {
                       <div className="animate-pulse flex items-center gap-3">
                         <div className="h-5 w-5 bg-slate-300 rounded-full"></div>
                         <span className="text-base font-semibold tracking-wide uppercase">
-                          Loading Form...
+                          Loading Brief Form...
                         </span>
                       </div>
                     </div>

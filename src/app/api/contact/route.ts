@@ -4,10 +4,79 @@ import { render } from "@react-email/components";
 import { contactSchema } from "@/lib/validations/contact";
 import { ContactNotificationEmail } from "@/components/emails/contact-notification";
 import { ContactConfirmationEmail } from "@/components/emails/contact-confirmation";
-
+import { recordBriefAndGenerateQuote } from "@/lib/crm/submit-brief";
 import { checkRateLimit } from "@/lib/rate-limit";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
+
+export function parseBriefFormData(formData: FormData) {
+  const getString = (key: string) => {
+    const val = formData.get(key);
+    return typeof val === "string" ? val : "";
+  };
+
+  const getOptionalString = (key: string) => {
+    const val = formData.get(key);
+    return typeof val === "string" && val.trim() !== "" ? val : undefined;
+  };
+
+  const getBoolean = (key: string) => {
+    const val = formData.get(key);
+    return val === "true" || val === "on" || val === "1";
+  };
+
+  const getArray = (key: string) => {
+    return formData.getAll(key).map((val) => String(val));
+  };
+
+  return {
+    firstName: getString("firstName"),
+    surname: getString("surname"),
+    email: getString("email"),
+    whatsapp: getString("whatsapp"),
+    institutionId: getString("institutionId"),
+    institutionOther: getOptionalString("institutionOther"),
+    degreeLevel: getString("degreeLevel"),
+    degreeLevelOther: getOptionalString("degreeLevelOther"),
+    degreeProgramme: getString("degreeProgramme"),
+    researchTitle: getString("researchTitle"),
+    referralSource: getString("referralSource"),
+    documentType: getString("documentType"),
+    documentTypeOther: getOptionalString("documentTypeOther"),
+    wholeOrPart: getString("wholeOrPart"),
+    whichPart: getOptionalString("whichPart"),
+    wordCount: getString("wordCount"),
+    pageCount: getString("pageCount"),
+    referencePageCount: getString("referencePageCount") || "0",
+    services: getArray("services"),
+    deliverySpeed: getString("deliverySpeed") || "standard",
+    mainGoal: getString("mainGoal"),
+    concerns: getOptionalString("concerns"),
+    referencingStyle: getString("referencingStyle"),
+    referencingStyleOther: getOptionalString("referencingStyleOther"),
+    expectedSendDate: getString("expectedSendDate"),
+    requestedReturnDate: getString("requestedReturnDate"),
+    supervisorSignOff: getString("supervisorSignOff"),
+    supervisorDisclaimerAck: getBoolean("supervisorDisclaimerAck"),
+    requestSupervisorSignOff: getBoolean("requestSupervisorSignOff"),
+    supervisorName: getOptionalString("supervisorName"),
+    supervisorEmail: getOptionalString("supervisorEmail"),
+    trackedChanges: getString("trackedChanges"),
+    trackedChangesOther: getOptionalString("trackedChangesOther"),
+    certificate: getString("certificate"),
+    paymentOption: getString("paymentOption") || "full_payment",
+    selectedInstalmentMonths: getOptionalString("selectedInstalmentMonths"),
+    department: getOptionalString("department"),
+    billingContactName: getOptionalString("billingContactName"),
+    billingContactEmail: getOptionalString("billingContactEmail"),
+    additionalInfo: getOptionalString("additionalInfo"),
+    scopeDeclarationAccepted: getBoolean("scopeDeclarationAccepted"),
+    hp_website: getOptionalString("hp_website"),
+    _formTime: getOptionalString("_formTime"),
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,72 +86,41 @@ export async function POST(request: NextRequest) {
       request.headers.get("x-real-ip") ||
       "127.0.0.1";
 
-    const rateLimit = checkRateLimit(ip, 3, 10 * 60 * 1000); // 3 submissions per 10 mins
+    const rateLimit = checkRateLimit(ip, 5, 10 * 60 * 1000);
     if (!rateLimit.success) {
       return NextResponse.json(
         {
           success: false,
-          error: "Too many form submissions. Please wait a few minutes before trying again.",
+          error:
+            "Too many form submissions. Please wait a few minutes before trying again.",
         },
         { status: 429 }
       );
     }
 
     const formData = await request.formData();
+    const rawData = parseBriefFormData(formData);
 
-    const getString = (key: string) => {
-      const val = formData.get(key);
-      return typeof val === "string" ? val : "";
-    };
-
-    const getOptionalString = (key: string) => {
-      const val = formData.get(key);
-      return typeof val === "string" && val.trim() !== "" ? val : undefined;
-    };
-
-    const getArray = (key: string) => {
-      return formData.getAll(key).map((val) => String(val));
-    };
-
-    const rawData = {
-      name: getString("name"),
-      email: getString("email"),
-      whatsapp: getString("whatsapp"),
-      documentTypes: getArray("documentTypes"),
-      documentTypeOther: getOptionalString("documentTypeOther"),
-      studyLevel: getOptionalString("studyLevel"),
-      studyLevelOther: getOptionalString("studyLevelOther"),
-      pageCount: getString("pageCount"),
-      referencePageCount: getString("referencePageCount"),
-      services: getArray("services"),
-      serviceOther: getOptionalString("serviceOther"),
-      mainGoal: getOptionalString("mainGoal"),
-      concerns: getOptionalString("concerns"),
-      referencingStyle: getString("referencingStyle"),
-      deadline: getString("deadline"),
-      submissionDate: getString("submissionDate"),
-      trackedChanges: getString("trackedChanges"),
-      trackedChangesOther: getOptionalString("trackedChangesOther"),
-      certificate: getString("certificate"),
-      funding: getOptionalString("funding"),
-      additionalInfo: getOptionalString("additionalInfo"),
-      hp_website: getOptionalString("hp_website"),
-      _formTime: getOptionalString("_formTime"),
-    };
-
-    // 2. Honeypot check: If the hidden field is filled, silently succeed without sending email
+    // 2. Honeypot check
     if (rawData.hp_website && rawData.hp_website.trim() !== "") {
-      console.warn("Spam detected via Honeypot trap:", { ip, email: rawData.email });
+      console.warn("Spam detected via Honeypot trap:", {
+        ip,
+        email: rawData.email,
+      });
       return NextResponse.json({ success: true });
     }
 
-    // 3. Time trap check: If submitted in under 3 seconds (3000ms), silently succeed
+    // 3. Time trap check (< 2 seconds)
     if (rawData._formTime) {
       const formTimeNum = Number(rawData._formTime);
       if (!isNaN(formTimeNum)) {
         const elapsedTime = Date.now() - formTimeNum;
-        if (elapsedTime < 3000) {
-          console.warn("Spam detected via Time Trap (<3s):", { ip, elapsedTime, email: rawData.email });
+        if (elapsedTime < 2000) {
+          console.warn("Spam detected via Time Trap (<2s):", {
+            ip,
+            elapsedTime,
+            email: rawData.email,
+          });
           return NextResponse.json({ success: true });
         }
       }
@@ -92,21 +130,27 @@ export async function POST(request: NextRequest) {
 
     if (!validatedFields.success) {
       return NextResponse.json(
-        { success: false, errors: validatedFields.error.flatten().fieldErrors },
+        {
+          success: false,
+          errors: validatedFields.error.flatten().fieldErrors,
+        },
         { status: 400 }
       );
     }
 
     const { data: parsedData } = validatedFields;
 
-    // Process file attachment if present
+    // 4. Process file attachment if present
     const file = formData.get("file") as File | null;
     const attachments: { filename: string; content: Buffer }[] = [];
 
     if (file && file.size > 0) {
       if (file.size > 10 * 1024 * 1024) {
         return NextResponse.json(
-          { success: false, error: "Attached file is too large (maximum 10MB)." },
+          {
+            success: false,
+            error: "Attached file is too large (maximum 10MB).",
+          },
           { status: 400 }
         );
       }
@@ -114,40 +158,103 @@ export async function POST(request: NextRequest) {
       attachments.push({ filename: file.name, content: buffer });
     }
 
-    // Send notification to tweaks.co.za
-    const notificationHtml = await render(ContactNotificationEmail({ data: parsedData }));
+    // 5. Persist Client, Brief/Project, Quote & Line Items into CRM Database
+    const crmResult = await recordBriefAndGenerateQuote(
+      parsedData,
+      file && file.size > 0 ? file.name : undefined
+    );
 
-    const notificationResult = await resend.emails.send({
-      from: "Tweaks Notifications <hello@tweaks.co.za>",
-      to: ["hello@tweaks.co.za"],
-      subject: `New Editing Brief from ${parsedData.name}`,
-      html: notificationHtml,
-      attachments,
-    });
+    const origin =
+      request.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "https://www.tweaks.co.za";
+    const quoteUrl = `${origin}/quote/${crmResult.quoteToken}`;
+    const fullName = `${parsedData.firstName} ${parsedData.surname}`.trim();
 
-    if (notificationResult.error) {
-      console.error("Resend Notification Error", notificationResult.error);
-      return NextResponse.json(
-        { success: false, error: "Failed to send notification email. Please try again." },
-        { status: 500 }
-      );
+    // 6. Send Email Notifications via Resend (non-blocking if API key not configured locally)
+    if (resend) {
+      try {
+        const notificationHtml = await render(
+          ContactNotificationEmail({
+            data: parsedData,
+            institutionName: crmResult.institutionName,
+            quoteNumber: crmResult.quoteNumber,
+            quoteSummary: crmResult.quoteSummary,
+            isDuplicateFlag: crmResult.isDuplicateFlag,
+            quoteUrl,
+          })
+        );
+
+        await resend.emails.send({
+          from: "Tweaks Notifications <hello@tweaks.co.za>",
+          to: ["hello@tweaks.co.za"],
+          subject: `${crmResult.isDuplicateFlag ? "[DUPLICATE FLAG] " : ""}New Brief & Quote ${crmResult.quoteNumber} from ${fullName}`,
+          html: notificationHtml,
+          attachments,
+        });
+
+        const confirmationHtml = await render(
+          ContactConfirmationEmail({
+            data: parsedData,
+            quoteNumber: crmResult.quoteNumber,
+            quoteSummary: crmResult.quoteSummary,
+            quoteUrl,
+          })
+        );
+
+        await resend.emails.send({
+          from: "Tweaks <hello@tweaks.co.za>",
+          to: [parsedData.email],
+          subject: `We have received your editing brief (${crmResult.quoteNumber})`,
+          html: confirmationHtml,
+        });
+
+        // If student requested supervisor sign-off confirmation via tokenised link
+        if (
+          crmResult.supervisorSignOffToken &&
+          parsedData.supervisorEmail &&
+          parsedData.supervisorName
+        ) {
+          const supervisorUrl = `${origin}/supervisor/sign-off/${crmResult.supervisorSignOffToken}`;
+          await resend.emails.send({
+            from: "Tweaks Academic Editing <hello@tweaks.co.za>",
+            to: [parsedData.supervisorEmail],
+            cc: [parsedData.email],
+            subject: `Supervisor confirmation requested: ${fullName} (${parsedData.researchTitle})`,
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0;">
+                <h2 style="color: #1B0ABD; margin-top: 0;">Supervisor Confirmation Request</h2>
+                <p>Dear ${parsedData.supervisorName},</p>
+                <p><strong>${fullName}</strong> (${crmResult.institutionName}, ${parsedData.degreeLevel} — ${parsedData.degreeProgramme}) has submitted their manuscript titled:</p>
+                <blockquote style="border-left: 3px solid #1B0ABD; padding-left: 12px; color: #334155; font-style: italic;">
+                  ${parsedData.researchTitle}
+                </blockquote>
+                <p>They have requested your confirmation that you are aware this work is being submitted for professional language editing at this stage.</p>
+                <p style="margin: 24px 0;">
+                  <a href="${supervisorUrl}" style="background: #1B0ABD; color: #ffffff; padding: 12px 20px; text-decoration: none; font-weight: bold; display: inline-block;">
+                    Review &amp; Confirm Sign-Off
+                  </a>
+                </p>
+                <p style="font-size: 12px; color: #64748b;">
+                  Note: Confirming only indicates awareness that the student is submitting their work for language editing at this stage; it is not an endorsement of the final edited text.
+                </p>
+              </div>
+            `,
+          });
+        }
+      } catch (emailErr) {
+        console.error("Email send warning (CRM record saved):", emailErr);
+      }
     }
 
-    // Send confirmation to customer
-    const confirmationHtml = await render(ContactConfirmationEmail({ data: parsedData }));
-
-    const confirmationResult = await resend.emails.send({
-      from: "Tweaks <hello@tweaks.co.za>",
-      to: [parsedData.email],
-      subject: "We have received your editing brief",
-      html: confirmationHtml,
+    return NextResponse.json({
+      success: true,
+      quoteNumber: crmResult.quoteNumber,
+      quoteToken: crmResult.quoteToken,
+      projectToken: crmResult.projectAccessToken,
+      quoteSummary: crmResult.quoteSummary,
+      isDuplicateFlag: crmResult.isDuplicateFlag,
     });
-
-    if (confirmationResult.error) {
-      console.error("Resend Confirmation Error", confirmationResult.error);
-    }
-
-    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("API route error:", error);
     return NextResponse.json(
