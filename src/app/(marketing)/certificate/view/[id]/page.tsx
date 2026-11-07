@@ -56,6 +56,8 @@ export default async function CertificateViewPage({
             researchTitle: cert.researchTitle,
             researcherName: cert.researcherName || "Researcher",
             university: cert.university || "University",
+            degreeLevel: cert.degreeLevel,
+            degreeProgramme: cert.degreeProgramme,
             completionDate: cert.completionDate || "July 2026",
           }}
           showPrintButton={true}

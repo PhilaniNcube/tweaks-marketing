@@ -118,6 +118,27 @@ export default async function CertificateVerifyPage({
                   </div>
                 </div>
 
+                {((cert.degreeLevel && cert.degreeLevel !== "N/A") ||
+                  (cert.degreeProgramme && cert.degreeProgramme !== "N/A")) && (
+                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+                    <span className="flex items-center gap-1.5 font-semibold text-slate-500">
+                      <Award className="w-3.5 h-3.5 text-purple-600" /> Qualification / Programme:
+                    </span>
+                    <span className="font-semibold text-slate-800">
+                      {[
+                        cert.degreeLevel && cert.degreeLevel !== "N/A"
+                          ? cert.degreeLevel
+                          : null,
+                        cert.degreeProgramme && cert.degreeProgramme !== "N/A"
+                          ? cert.degreeProgramme
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" — ")}
+                    </span>
+                  </div>
+                )}
+
                 <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
                   <span className="flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-purple-600" /> Date of Completion:

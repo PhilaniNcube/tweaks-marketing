@@ -6,6 +6,14 @@ import { ContactNotificationEmail } from "@/components/emails/contact-notificati
 import { ContactConfirmationEmail } from "@/components/emails/contact-confirmation";
 import { recordBriefAndGenerateQuote } from "@/lib/crm/submit-brief";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  isR2Configured,
+  uploadBufferToR2,
+  sanitizeR2FileName,
+} from "@/lib/r2";
+import { db } from "@/db";
+import { projects } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -143,19 +151,26 @@ export async function POST(request: NextRequest) {
     // 4. Process file attachment if present
     const file = formData.get("file") as File | null;
     const attachments: { filename: string; content: Buffer }[] = [];
+    let fileBuffer: Buffer | null = null;
 
     if (file && file.size > 0) {
-      if (file.size > 10 * 1024 * 1024) {
+      const maxBytes = isR2Configured() ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (file.size > maxBytes) {
         return NextResponse.json(
           {
             success: false,
-            error: "Attached file is too large (maximum 10MB).",
+            error: `Attached file is too large (maximum ${
+              isR2Configured() ? "50MB" : "10MB"
+            }).`,
           },
           { status: 400 }
         );
       }
-      const buffer = Buffer.from(await file.arrayBuffer());
-      attachments.push({ filename: file.name, content: buffer });
+      fileBuffer = Buffer.from(await file.arrayBuffer());
+      // Resend email attachments cap around 10MB
+      if (file.size <= 10 * 1024 * 1024) {
+        attachments.push({ filename: file.name, content: fileBuffer });
+      }
     }
 
     // 5. Persist Client, Brief/Project, Quote & Line Items into CRM Database
@@ -163,6 +178,31 @@ export async function POST(request: NextRequest) {
       parsedData,
       file && file.size > 0 ? file.name : undefined
     );
+
+    // 5B. Upload Client Manuscript to Cloudflare R2 if configured
+    if (file && fileBuffer && isR2Configured()) {
+      try {
+        const safeName = sanitizeR2FileName(file.name);
+        const key = `projects/${crmResult.projectId}/clientBrief/${Date.now()}-${safeName}`;
+        await uploadBufferToR2({
+          key,
+          buffer: fileBuffer,
+          contentType: file.type || "application/octet-stream",
+        });
+        const downloadUrl = `/api/r2/download?projectId=${encodeURIComponent(
+          crmResult.projectId
+        )}&slot=clientBrief&key=${encodeURIComponent(
+          key
+        )}&name=${encodeURIComponent(file.name)}`;
+
+        await db
+          .update(projects)
+          .set({ uploadedFileUrl: downloadUrl })
+          .where(eq(projects.id, crmResult.projectId));
+      } catch (r2Err) {
+        console.error("R2 brief upload warning (CRM record saved):", r2Err);
+      }
+    }
 
     const origin =
       request.headers.get("origin") ||

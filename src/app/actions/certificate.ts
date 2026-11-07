@@ -60,8 +60,15 @@ export async function claimCertificate(input: ClaimCertificateInput) {
       };
     }
 
-    const { token, researchTitle, researcherName, university, completionDate } =
-      validated.data;
+    const {
+      token,
+      researchTitle,
+      researcherName,
+      university,
+      degreeLevel,
+      degreeProgramme,
+      completionDate,
+    } = validated.data;
 
     // Check if token exists
     const [existing] = await db
@@ -86,6 +93,9 @@ export async function claimCertificate(input: ClaimCertificateInput) {
         researchTitle,
         researcherName,
         university,
+        degreeLevel: degreeLevel?.trim() || existing.degreeLevel || null,
+        degreeProgramme:
+          degreeProgramme?.trim() || existing.degreeProgramme || null,
         completionDate,
         completedAt: now,
       })

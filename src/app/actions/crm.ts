@@ -11,6 +11,8 @@ import {
   rateCardRules,
   institutions,
   degreeLevels,
+  degreeProgrammes,
+  editors,
   crmSettings,
   certificates,
   type ProjectStage,
@@ -22,6 +24,8 @@ import { eq, desc, asc } from "drizzle-orm";
 import { recalculateQuoteAndProjectFromPayments } from "@/lib/paystack";
 import { DEFAULT_CRM_SETTINGS } from "@/db/seed-data";
 import { seedCrmDatabase } from "@/db/seed";
+import { requireCrmSession } from "@/lib/auth-server";
+import { recordBriefAndGenerateQuote } from "@/lib/crm/submit-brief";
 
 /**
  * Fetches everything needed for the interactive client Quote, Payment, Status & Handover page (/quote/[token]).
@@ -298,9 +302,10 @@ export async function recordClientOpenedPackage(quoteToken: string) {
 }
 
 /**
- * Loads all data for the built-in Admin CRM Dashboard (/admin/crm).
+ * Loads all data for the built-in Admin CRM Workspace (/dashboard, /projects, /quotes, /payments, /institutions, /archive, /settings).
  */
 export async function getAdminCrmDashboardData() {
+  await requireCrmSession();
   try {
     let allServices = await db
       .select()
@@ -323,6 +328,9 @@ export async function getAdminCrmDashboardData() {
       allPayments,
       allInstitutions,
       allDegreeLevels,
+      allDegreeProgrammes,
+      allEditors,
+      allSettings,
       allRules,
       allCertificates,
     ] = await Promise.all([
@@ -333,9 +341,20 @@ export async function getAdminCrmDashboardData() {
       db.select().from(payments).orderBy(desc(payments.createdAt)),
       db.select().from(institutions).orderBy(asc(institutions.name)),
       db.select().from(degreeLevels).orderBy(asc(degreeLevels.sortOrder)),
+      db.select().from(degreeProgrammes).orderBy(desc(degreeProgrammes.usageCount)),
+      db.select().from(editors).orderBy(asc(editors.name)),
+      db.select().from(crmSettings),
       db.select().from(rateCardRules).orderBy(asc(rateCardRules.priority)),
       db.select().from(certificates),
     ]);
+
+    const settingsMap: Record<string, string> = {};
+    for (const s of DEFAULT_CRM_SETTINGS) {
+      settingsMap[s.key] = s.value;
+    }
+    for (const s of allSettings) {
+      settingsMap[s.key] = s.value;
+    }
 
     const enrichedProjects = allProjects.map((proj) => {
       const client = allClients.find((c) => c.id === proj.clientId) || null;
@@ -350,6 +369,9 @@ export async function getAdminCrmDashboardData() {
       const institution = proj.institutionId
         ? allInstitutions.find((i) => i.id === proj.institutionId) || null
         : null;
+      const assignedEditor = proj.assignedEditorId
+        ? allEditors.find((e) => e.id === proj.assignedEditorId) || null
+        : null;
       const certificate =
         allCertificates.find((c) => c.projectId === proj.id) || null;
 
@@ -359,27 +381,83 @@ export async function getAdminCrmDashboardData() {
         quote,
         items,
         payments: projPayments,
+        institution,
         institutionName:
           institution?.name || proj.institutionOther || "Unspecified",
+        assignedEditor,
         certificate,
       };
     });
 
-    // Calculate CRM KPIs (including "Released on a PO, not yet paid" exposure)
+    // Calculate CRM KPIs (including live capacity, pages in hand, fees on live work, unpaid finished work, PO exposure, conversion rates, 12-month trends)
     let totalQuotedCents = 0;
     let totalPaidCents = 0;
     let totalOutstandingCents = 0;
     let releasedOnPoExposureCents = 0;
+    let poReleasesCount = 0;
     let flaggedDuplicatesCount = 0;
+    let liveCapacityCount = 0;
+    let pagesInHand = 0;
+    let feesOnLiveWorkCents = 0;
+    let unpaidFinishedWorkCents = 0;
+    let acceptedQuotesCount = 0;
+
+    const liveStages: ProjectStage[] = [
+      "accepted",
+      "in_progress",
+      "work_ready",
+      "review",
+    ];
+    const finishedStages: ProjectStage[] = [
+      "work_ready",
+      "review",
+      "complete",
+    ];
+
+    const stageCounts: Record<ProjectStage, number> = {
+      enquiry: 0,
+      quote_sent: 0,
+      accepted: 0,
+      in_progress: 0,
+      work_ready: 0,
+      review: 0,
+      complete: 0,
+      closed: 0,
+      lost: 0,
+    };
 
     for (const row of enrichedProjects) {
+      stageCounts[row.project.stage] =
+        (stageCounts[row.project.stage] || 0) + 1;
+
       if (row.project.isDuplicateFlag && !row.project.duplicateResolved) {
         flaggedDuplicatesCount++;
       }
+
+      const isLive = liveStages.includes(row.project.stage);
+      const isFinished = finishedStages.includes(row.project.stage);
+
+      if (isLive) {
+        liveCapacityCount++;
+        pagesInHand += row.project.pageCount || 0;
+      }
+
       if (row.quote) {
         totalQuotedCents += row.quote.totalFeeCents;
         totalPaidCents += row.quote.paidToDateCents;
         totalOutstandingCents += row.quote.balanceCents;
+
+        if (row.quote.outcome === "accepted") {
+          acceptedQuotesCount++;
+        }
+
+        if (isLive) {
+          feesOnLiveWorkCents += row.quote.totalFeeCents;
+        }
+
+        if (isFinished && row.quote.balanceCents > 0) {
+          unpaidFinishedWorkCents += row.quote.balanceCents;
+        }
 
         if (
           row.quote.paymentOption === "institutional_funding" &&
@@ -387,6 +465,50 @@ export async function getAdminCrmDashboardData() {
           row.quote.balanceCents > 0
         ) {
           releasedOnPoExposureCents += row.quote.balanceCents;
+          poReleasesCount++;
+        }
+      }
+    }
+
+    const conversionRatePercent =
+      allQuotes.length > 0
+        ? Math.round((acceptedQuotesCount / allQuotes.length) * 100)
+        : 0;
+
+    // 12-month trend calculation
+    const now = new Date();
+    const monthlyTrends: Array<{
+      monthKey: string;
+      label: string;
+      projectsCount: number;
+      quotedCents: number;
+      paidCents: number;
+    }> = [];
+
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("en-ZA", {
+        month: "short",
+        year: "2-digit",
+      });
+      monthlyTrends.push({
+        monthKey,
+        label,
+        projectsCount: 0,
+        quotedCents: 0,
+        paidCents: 0,
+      });
+    }
+
+    for (const row of enrichedProjects) {
+      const createdMonth = (row.project.createdAt || "").slice(0, 7);
+      const bucket = monthlyTrends.find((m) => m.monthKey === createdMonth);
+      if (bucket) {
+        bucket.projectsCount++;
+        if (row.quote) {
+          bucket.quotedCents += row.quote.totalFeeCents;
+          bucket.paidCents += row.quote.paidToDateCents;
         }
       }
     }
@@ -395,6 +517,11 @@ export async function getAdminCrmDashboardData() {
       rows: enrichedProjects,
       services: allServices,
       rateCardRules: allRules,
+      institutions: allInstitutions,
+      degreeLevels: allDegreeLevels,
+      degreeProgrammes: allDegreeProgrammes,
+      editors: allEditors,
+      settings: settingsMap,
       pendingInstitutions: allInstitutions.filter(
         (i) => i.status === "pending_review"
       ),
@@ -407,7 +534,15 @@ export async function getAdminCrmDashboardData() {
         totalPaidCents,
         totalOutstandingCents,
         releasedOnPoExposureCents,
+        poReleasesCount,
         flaggedDuplicatesCount,
+        liveCapacityCount,
+        pagesInHand,
+        feesOnLiveWorkCents,
+        unpaidFinishedWorkCents,
+        conversionRatePercent,
+        stageCounts,
+        monthlyTrends,
       },
     };
   } catch (error) {
@@ -416,6 +551,11 @@ export async function getAdminCrmDashboardData() {
       rows: [],
       services: [],
       rateCardRules: [],
+      institutions: [],
+      degreeLevels: [],
+      degreeProgrammes: [],
+      editors: [],
+      settings: {} as Record<string, string>,
       pendingInstitutions: [],
       pendingDegreeLevels: [],
       kpis: {
@@ -424,7 +564,25 @@ export async function getAdminCrmDashboardData() {
         totalPaidCents: 0,
         totalOutstandingCents: 0,
         releasedOnPoExposureCents: 0,
+        poReleasesCount: 0,
         flaggedDuplicatesCount: 0,
+        liveCapacityCount: 0,
+        pagesInHand: 0,
+        feesOnLiveWorkCents: 0,
+        unpaidFinishedWorkCents: 0,
+        conversionRatePercent: 0,
+        stageCounts: {
+          enquiry: 0,
+          quote_sent: 0,
+          accepted: 0,
+          in_progress: 0,
+          work_ready: 0,
+          review: 0,
+          complete: 0,
+          closed: 0,
+          lost: 0,
+        } as Record<ProjectStage, number>,
+        monthlyTrends: [],
       },
     };
   }
@@ -446,6 +604,7 @@ export async function updateAdminProjectWorkflow(input: {
   quoteOutcome?: QuoteOutcome;
   whyLost?: WhyLost;
 }) {
+  await requireCrmSession();
   try {
     const [project] = await db
       .select()
@@ -577,6 +736,7 @@ export async function recordInstitutionalPurchaseOrder(input: {
   poDate: string;
   paymentTermsDays?: number;
 }) {
+  await requireCrmSession();
   try {
     const [quote] = await db
       .select()
@@ -641,6 +801,7 @@ export async function recordManualPayment(input: {
   reference?: string;
   notes?: string;
 }) {
+  await requireCrmSession();
   try {
     const [quote] = await db
       .select()
@@ -696,6 +857,7 @@ export async function recordManualPayment(input: {
 }
 
 export async function resolveDuplicateProjectFlag(projectId: string) {
+  await requireCrmSession();
   try {
     await db
       .update(projects)
@@ -715,6 +877,7 @@ export async function reviewQueueItemAction(input: {
   id: string;
   decision: "approved" | "rejected";
 }) {
+  await requireCrmSession();
   try {
     if (input.kind === "institution") {
       await db
@@ -742,6 +905,7 @@ export async function updateServiceRateCardItem(input: {
   quickbooksItemId?: string;
   isActive: boolean;
 }) {
+  await requireCrmSession();
   try {
     await db
       .update(services)
@@ -758,6 +922,370 @@ export async function updateServiceRateCardItem(input: {
     return { success: true as const };
   } catch {
     return { success: false as const, error: "Failed to update rate card." };
+  }
+}
+
+export async function assignProjectEditorAction(input: {
+  projectId: string;
+  editorId: string | null;
+}) {
+  await requireCrmSession();
+  try {
+    await db
+      .update(projects)
+      .set({
+        assignedEditorId: input.editorId || null,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(projects.id, input.projectId));
+    return { success: true as const };
+  } catch {
+    return { success: false as const, error: "Failed to assign editor." };
+  }
+}
+
+export async function updateProjectStageQuickAction(input: {
+  projectId: string;
+  stage: ProjectStage;
+  quoteOutcome?: QuoteOutcome;
+  whyLost?: WhyLost;
+  whyLostNotes?: string;
+}) {
+  await requireCrmSession();
+  try {
+    const nowIso = new Date().toISOString();
+    await db
+      .update(projects)
+      .set({
+        stage: input.stage,
+        completedAt: input.stage === "complete" ? nowIso : undefined,
+        updatedAt: nowIso,
+      })
+      .where(eq(projects.id, input.projectId));
+
+    if (input.quoteOutcome || input.whyLost || input.whyLostNotes) {
+      await db
+        .update(quotes)
+        .set({
+          outcome: input.quoteOutcome,
+          whyLost: input.whyLost || null,
+          whyLostNotes: input.whyLostNotes?.trim() || null,
+          updatedAt: nowIso,
+        })
+        .where(eq(quotes.projectId, input.projectId));
+    }
+
+    return { success: true as const };
+  } catch {
+    return { success: false as const, error: "Failed to update project stage." };
+  }
+}
+
+export async function updateQuoteOutcomeAction(input: {
+  quoteId: string;
+  outcome: QuoteOutcome;
+  whyLost?: WhyLost | null;
+  whyLostNotes?: string;
+  validUntil?: string;
+}) {
+  await requireCrmSession();
+  try {
+    const nowIso = new Date().toISOString();
+    const [quote] = await db
+      .select()
+      .from(quotes)
+      .where(eq(quotes.id, input.quoteId))
+      .limit(1);
+
+    if (!quote) {
+      return { success: false as const, error: "Quote not found." };
+    }
+
+    await db
+      .update(quotes)
+      .set({
+        outcome: input.outcome,
+        whyLost:
+          input.outcome === "declined" || input.outcome === "expired"
+            ? input.whyLost || null
+            : null,
+        whyLostNotes:
+          input.outcome === "declined" || input.outcome === "expired"
+            ? input.whyLostNotes?.trim() || null
+            : null,
+        validUntil: input.validUntil || quote.validUntil,
+        acceptedAt:
+          input.outcome === "accepted" && !quote.acceptedAt
+            ? nowIso
+            : quote.acceptedAt,
+        updatedAt: nowIso,
+      })
+      .where(eq(quotes.id, input.quoteId));
+
+    if (input.outcome === "declined" || input.outcome === "expired") {
+      await db
+        .update(projects)
+        .set({ stage: "lost", updatedAt: nowIso })
+        .where(eq(projects.id, quote.projectId));
+    } else if (input.outcome === "accepted") {
+      await db
+        .update(projects)
+        .set({ stage: "accepted", updatedAt: nowIso })
+        .where(eq(projects.id, quote.projectId));
+    }
+
+    return { success: true as const };
+  } catch {
+    return { success: false as const, error: "Failed to update quote outcome." };
+  }
+}
+
+export async function upsertEditorAction(input: {
+  id?: string;
+  name: string;
+  email: string;
+  whatsapp?: string;
+  role?: "admin" | "editor";
+  isActive?: boolean;
+}) {
+  await requireCrmSession();
+  try {
+    if (input.id) {
+      await db
+        .update(editors)
+        .set({
+          name: input.name.trim(),
+          email: input.email.trim().toLowerCase(),
+          whatsapp: input.whatsapp?.trim() || null,
+          role: input.role || "editor",
+          isActive: input.isActive ?? true,
+        })
+        .where(eq(editors.id, input.id));
+    } else {
+      await db.insert(editors).values({
+        name: input.name.trim(),
+        email: input.email.trim().toLowerCase(),
+        whatsapp: input.whatsapp?.trim() || null,
+        role: input.role || "editor",
+        isActive: input.isActive ?? true,
+      });
+    }
+    return { success: true as const };
+  } catch {
+    return { success: false as const, error: "Failed to save editor." };
+  }
+}
+
+export async function updateCrmSettingAction(input: {
+  key: string;
+  value: string;
+  description?: string;
+}) {
+  await requireCrmSession();
+  try {
+    const nowIso = new Date().toISOString();
+    const cleanValue = input.value.trim();
+    await db
+      .insert(crmSettings)
+      .values({
+        key: input.key,
+        value: cleanValue,
+        description: input.description || null,
+        updatedAt: nowIso,
+      })
+      .onConflictDoUpdate({
+        target: crmSettings.key,
+        set: {
+          value: cleanValue,
+          updatedAt: nowIso,
+        },
+      });
+
+    // Keep rate_card_rules payment_plan threshold in sync when payment_plan_3_month_threshold_cents changes
+    if (
+      input.key === "payment_plan_3_month_threshold_cents" &&
+      !isNaN(Number(cleanValue))
+    ) {
+      await db
+        .update(rateCardRules)
+        .set({ conditionValue: cleanValue })
+        .where(eq(rateCardRules.ruleCategory, "payment_plan"));
+    }
+
+    return { success: true as const };
+  } catch {
+    return { success: false as const, error: "Failed to update setting." };
+  }
+}
+
+export async function updateRateCardRuleAction(input: {
+  ruleId: string;
+  conditionValue: string;
+  effectValue: string;
+  isActive: boolean;
+}) {
+  await requireCrmSession();
+  try {
+    await db
+      .update(rateCardRules)
+      .set({
+        conditionValue: input.conditionValue.trim(),
+        effectValue: input.effectValue.trim(),
+        isActive: input.isActive,
+      })
+      .where(eq(rateCardRules.id, input.ruleId));
+    return { success: true as const };
+  } catch {
+    return { success: false as const, error: "Failed to update rule." };
+  }
+}
+
+export async function upsertInstitutionAction(input: {
+  id?: string;
+  name: string;
+  shortName?: string;
+  institutionType:
+    | "public_university"
+    | "university_of_technology"
+    | "comprehensive_university"
+    | "private_institution"
+    | "other";
+  emailDomains?: string;
+  defaultPaymentTermsDays?: number;
+  status?: "approved" | "pending_review" | "rejected";
+}) {
+  await requireCrmSession();
+  try {
+    if (input.id) {
+      await db
+        .update(institutions)
+        .set({
+          name: input.name.trim(),
+          shortName: input.shortName?.trim() || null,
+          institutionType: input.institutionType,
+          emailDomains: input.emailDomains?.trim() || null,
+          defaultPaymentTermsDays: input.defaultPaymentTermsDays || 30,
+          status: input.status || "approved",
+        })
+        .where(eq(institutions.id, input.id));
+    } else {
+      await db.insert(institutions).values({
+        name: input.name.trim(),
+        shortName: input.shortName?.trim() || null,
+        institutionType: input.institutionType,
+        emailDomains: input.emailDomains?.trim() || null,
+        defaultPaymentTermsDays: input.defaultPaymentTermsDays || 30,
+        status: input.status || "approved",
+      });
+    }
+    return { success: true as const };
+  } catch {
+    return { success: false as const, error: "Failed to save institution." };
+  }
+}
+
+export async function createInternalProjectAction(input: {
+  firstName: string;
+  surname: string;
+  email: string;
+  whatsapp: string;
+  institutionId: string;
+  institutionOther?: string;
+  degreeLevel: string;
+  degreeProgramme: string;
+  researchTitle: string;
+  referralSource?: string;
+  services: string[];
+  documentType: string;
+  wholeOrPart: "whole" | "part";
+  whichPart?: string;
+  wordCount: number;
+  pageCount: number;
+  referencePageCount: number;
+  referencingStyle: string;
+  deliverySpeed: "standard" | "express";
+  expectedSendDate: string;
+  requestedReturnDate: string;
+  mainGoal: string;
+  concerns?: string;
+  trackedChanges: string;
+  certificate: "Yes" | "No";
+  paymentOption: PaymentOption;
+  selectedInstalmentMonths?: number;
+  department?: string;
+  billingContactName?: string;
+  billingContactEmail?: string;
+  supervisorSignOff: "yes" | "no";
+  supervisorName?: string;
+  supervisorEmail?: string;
+  assignedEditorId?: string;
+  initialStage?: ProjectStage;
+  internalNotes?: string;
+}) {
+  await requireCrmSession();
+  try {
+    const result = await recordBriefAndGenerateQuote({
+      firstName: input.firstName,
+      surname: input.surname,
+      email: input.email,
+      whatsapp: input.whatsapp,
+      institutionId: input.institutionId,
+      institutionOther: input.institutionOther,
+      degreeLevel: input.degreeLevel,
+      degreeProgramme: input.degreeProgramme,
+      researchTitle: input.researchTitle,
+      referralSource: input.referralSource || "Internal Intake",
+      services: input.services,
+      documentType: input.documentType,
+      wholeOrPart: input.wholeOrPart,
+      whichPart: input.whichPart,
+      wordCount: input.wordCount,
+      pageCount: input.pageCount,
+      referencePageCount: input.referencePageCount,
+      referencingStyle: input.referencingStyle,
+      deliverySpeed: input.deliverySpeed,
+      expectedSendDate: input.expectedSendDate,
+      requestedReturnDate: input.requestedReturnDate,
+      mainGoal: input.mainGoal || "Academic language editing and clarity.",
+      concerns: input.concerns,
+      trackedChanges: input.trackedChanges || "Tracked changes + clean copy",
+      certificate: input.certificate,
+      paymentOption: input.paymentOption,
+      selectedInstalmentMonths: input.selectedInstalmentMonths,
+      department: input.department,
+      billingContactName: input.billingContactName,
+      billingContactEmail: input.billingContactEmail,
+      scopeDeclarationAccepted: true,
+      supervisorSignOff: input.supervisorSignOff,
+      supervisorDisclaimerAck: true,
+      supervisorName: input.supervisorName,
+      supervisorEmail: input.supervisorEmail,
+    });
+
+    if (input.assignedEditorId || input.initialStage || input.internalNotes) {
+      await db
+        .update(projects)
+        .set({
+          assignedEditorId: input.assignedEditorId || null,
+          stage: input.initialStage || "quote_sent",
+          internalNotes: input.internalNotes?.trim() || null,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(projects.id, result.projectId));
+    }
+
+    return {
+      success: true as const,
+      projectId: result.projectId,
+      quoteNumber: result.quoteNumber,
+      quoteToken: result.quoteToken,
+    };
+  } catch (error) {
+    console.error("Error creating internal project:", error);
+    return {
+      success: false as const,
+      error: "Failed to create project. Check all required fields.",
+    };
   }
 }
 

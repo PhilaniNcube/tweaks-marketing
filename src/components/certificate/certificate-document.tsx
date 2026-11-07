@@ -10,6 +10,8 @@ export interface CertificateData {
   researchTitle: string;
   researcherName: string;
   university: string;
+  degreeLevel?: string | null;
+  degreeProgramme?: string | null;
   completionDate: string;
   verificationUrl?: string;
 }
@@ -174,6 +176,28 @@ export function CertificateDocument({
             </p>
           </div>
 
+          {/* Degree & Programme (omitted when blank or N/A for journal articles) */}
+          {((data.degreeLevel && data.degreeLevel !== "N/A") ||
+            (data.degreeProgramme && data.degreeProgramme !== "N/A")) && (
+            <div className="space-y-1">
+              <h3 className="text-sm md:text-base font-bold text-slate-900">
+                Qualification / Degree Programme:
+              </h3>
+              <p className="text-base md:text-lg font-medium text-slate-800">
+                {[
+                  data.degreeLevel && data.degreeLevel !== "N/A"
+                    ? data.degreeLevel
+                    : null,
+                  data.degreeProgramme && data.degreeProgramme !== "N/A"
+                    ? data.degreeProgramme
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" — ")}
+              </p>
+            </div>
+          )}
+
           {/* Date of Completion */}
           <div className="space-y-1">
             <h3 className="text-sm md:text-base font-bold text-slate-900">
@@ -187,35 +211,47 @@ export function CertificateDocument({
 
         {/* Footer / QR & Signature */}
         <div className="flex items-end justify-between w-full pt-8 pb-4 print:pt-4 print:pb-2 border-t border-transparent">
-          {/* Left: Dual QR Codes */}
+          {/* Left: Dual Clickable & Scannable QR Codes */}
           <div className="flex items-end gap-3 md:gap-4">
             {/* QR Code 1: Visit Website */}
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="relative border-2 border-purple-500 rounded-2xl p-2 pt-3.5 bg-white flex flex-col items-center shadow-sm">
+            <a
+              href={homepageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Visit tweaks.co.za"
+              className="flex flex-col items-center gap-1.5 group"
+            >
+              <div className="relative border-2 border-purple-500 rounded-2xl p-2 pt-3.5 bg-white flex flex-col items-center shadow-sm group-hover:border-purple-700 transition-colors">
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-2.5 py-0.5 border border-purple-500 rounded-full text-[9px] font-bold text-purple-700 tracking-wider uppercase whitespace-nowrap shadow-2xs">
                   WEBSITE
                 </span>
                 <QRCodeImage value={homepageUrl} size={85} />
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-slate-800 font-medium">
+              <div className="flex items-center gap-1 text-[11px] text-slate-800 font-medium group-hover:text-purple-700">
                 <Globe className="w-3.5 h-3.5 text-purple-600" />
                 <span>tweaks.co.za</span>
               </div>
-            </div>
+            </a>
 
             {/* QR Code 2: Verify Certificate */}
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="relative border-2 border-emerald-600 rounded-2xl p-2 pt-3.5 bg-white flex flex-col items-center shadow-sm">
+            <a
+              href={verificationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Verify Certificate Record Online"
+              className="flex flex-col items-center gap-1.5 group"
+            >
+              <div className="relative border-2 border-emerald-600 rounded-2xl p-2 pt-3.5 bg-white flex flex-col items-center shadow-sm group-hover:border-emerald-800 transition-colors">
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white px-2.5 py-0.5 border border-emerald-600 rounded-full text-[9px] font-bold text-emerald-800 tracking-wider uppercase whitespace-nowrap shadow-2xs">
                   VERIFY CERT
                 </span>
                 <QRCodeImage value={verificationUrl} size={85} />
               </div>
-              <div className="flex items-center gap-1 text-[11px] text-slate-800 font-medium">
+              <div className="flex items-center gap-1 text-[11px] text-slate-800 font-medium group-hover:text-emerald-700">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Verify Record</span>
               </div>
-            </div>
+            </a>
           </div>
 
           {/* Right: Signature Block */}

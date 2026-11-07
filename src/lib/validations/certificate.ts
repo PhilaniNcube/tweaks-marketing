@@ -23,6 +23,8 @@ export const claimCertificateSchema = z.object({
     .string()
     .min(2, "University / Institution must be at least 2 characters long.")
     .max(200, "University cannot exceed 200 characters."),
+  degreeLevel: z.string().max(100).optional(),
+  degreeProgramme: z.string().max(200).optional(),
   completionDate: z
     .string()
     .min(2, "Date of Completion is required (e.g. July 2026).")

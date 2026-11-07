@@ -7,6 +7,7 @@ import {
   institutions,
   degreeLevels,
   degreeProgrammes,
+  crmSettings,
 } from "@/db/schema";
 import { eq, and, gte, desc } from "drizzle-orm";
 import { ContactFormData } from "@/lib/validations/contact";
@@ -287,7 +288,18 @@ export async function recordBriefAndGenerateQuote(
 
   // 8. Create Quote & Quote Line Items
   const quoteNumber = generateQuoteNumber();
-  const validUntilDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+  const [validitySetting] = await db
+    .select()
+    .from(crmSettings)
+    .where(eq(crmSettings.key, "quote_validity_days"))
+    .limit(1);
+  const validityDays = Math.max(
+    1,
+    Number(validitySetting?.value || 14) || 14
+  );
+  const validUntilDate = new Date(
+    Date.now() + validityDays * 24 * 60 * 60 * 1000
+  )
     .toISOString()
     .split("T")[0];
 
