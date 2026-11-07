@@ -175,6 +175,18 @@ export function CrmLoginClient({ isFirstTimeSetup }: CrmLoginClientProps) {
                 ? "Signing In..."
                 : "Sign In to CRM Dashboard"}
           </Button>
+
+          {!isFirstTimeSetup && (
+            <p className="text-center text-[11px] text-slate-500 dark:text-zinc-400 pt-2">
+              Received a team invitation?{" "}
+              <a
+                href="/admin/invite"
+                className="text-tweaks-blue font-bold hover:underline"
+              >
+                Accept Invite &amp; Set Password
+              </a>
+            </p>
+          )}
         </form>
       </div>
     </div>

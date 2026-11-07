@@ -28,6 +28,17 @@ export async function requireCrmSession() {
 }
 
 /**
+ * Requires an active session with role = "admin".
+ */
+export async function requireAdminSession() {
+  const session = await requireCrmSession();
+  if (session.user.role !== "admin") {
+    throw new Error("Unauthorized: Administrator permissions required.");
+  }
+  return session;
+}
+
+/**
  * Checks whether any user exists in the database yet.
  * Used to allow first-time initial admin setup on /admin/login when the user table is empty,
  * while locking public sign-up once an admin account has been created.
