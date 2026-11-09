@@ -2,6 +2,8 @@ import React from "react";
 import Link from "next/link";
 import { Archive, Award, ExternalLink } from "lucide-react";
 import { getAdminCrmDashboardData } from "@/app/actions/crm";
+import { getServerSession } from "@/lib/auth-server";
+import { ProjectAdminActions } from "@/components/crm/project-admin-actions";
 import {
   formatZarFromCents,
   STAGE_LABELS,
@@ -14,10 +16,15 @@ export const metadata = {
 };
 
 export default async function ArchivePage() {
-  const data = await getAdminCrmDashboardData();
+  const [data, session] = await Promise.all([
+    getAdminCrmDashboardData(),
+    getServerSession(),
+  ]);
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
 
   const archivedRows = data.rows.filter(
     (r) =>
+      Boolean(r.project.archivedAt) ||
       r.project.stage === "complete" ||
       r.project.stage === "closed" ||
       r.project.stage === "lost"
@@ -32,10 +39,12 @@ export default async function ArchivePage() {
         </p>
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white mt-0.5 flex items-center gap-2.5">
           <Archive className="h-6 w-6 text-tweaks-blue" />
-          Completed &amp; Closed Archive ({archivedRows.length})
+          Archived &amp; Closed Projects ({archivedRows.length})
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Read-only historical repository of completed, closed, and lost projects with closure reasons and issued certificates.
+          Historical repository of archived, completed, closed, and lost
+          projects. Admins can restore archived records or permanently delete
+          them directly from this list.
         </p>
       </div>
 
@@ -92,6 +101,13 @@ export default async function ArchivePage() {
                   >
                     {STAGE_LABELS[r.project.stage]}
                   </span>
+                  {r.project.archivedAt && (
+                    <div className="mt-1">
+                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-amber-100 text-amber-800">
+                        Archived
+                      </span>
+                    </div>
+                  )}
                   {r.project.completedAt && (
                     <div className="text-[10px] text-slate-400 mt-0.5">
                       {new Date(r.project.completedAt).toLocaleDateString(
@@ -149,12 +165,21 @@ export default async function ArchivePage() {
                 </td>
 
                 <td className="py-3.5 px-4 text-right">
-                  <Link
-                    href={`/projects/${r.project.id}`}
-                    className="px-3 py-1.5 border border-slate-300 dark:border-zinc-700 text-[11px] font-bold hover:bg-slate-100"
-                  >
-                    View Record
-                  </Link>
+                  <div className="flex items-center justify-end gap-2">
+                    <ProjectAdminActions
+                      projectId={r.project.id}
+                      archived={!!r.project.archivedAt}
+                      isAdmin={isAdmin}
+                      compact
+                      redirectTo="/archive"
+                    />
+                    <Link
+                      href={`/projects/${r.project.id}`}
+                      className="px-3 py-1.5 border border-slate-300 dark:border-zinc-700 text-[11px] font-bold hover:bg-slate-100"
+                    >
+                      View Record
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -164,7 +189,7 @@ export default async function ArchivePage() {
                   colSpan={7}
                   className="py-12 text-center text-slate-500 text-xs"
                 >
-                  No completed, closed, or lost projects in the archive yet.
+                  No archived, completed, closed, or lost projects in the archive yet.
                 </td>
               </tr>
             )}

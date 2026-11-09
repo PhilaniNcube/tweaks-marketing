@@ -26,6 +26,7 @@ import {
   updateProjectStageQuickAction,
   assignProjectEditorAction,
 } from "@/app/actions/crm";
+import { ProjectAdminActions } from "@/components/crm/project-admin-actions";
 import type { ProjectStage, Editor } from "@/db/schema";
 import type { getAdminCrmDashboardData } from "@/app/actions/crm";
 import { toast } from "sonner";
@@ -37,12 +38,14 @@ interface ProjectsViewClientProps {
   rows: EnrichedProjectRow[];
   editors: Editor[];
   institutions: string[];
+  isAdmin: boolean;
 }
 
 export function ProjectsViewClient({
   rows,
   editors,
   institutions,
+  isAdmin,
 }: ProjectsViewClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -69,6 +72,9 @@ export function ProjectsViewClient({
   // Exclude archived (closed/lost) unless explicitly filtered
   const activeRows = useMemo(() => {
     return rows.filter((row) => {
+      if (row.project.archivedAt) {
+        return false;
+      }
       if (
         stageFilter === "all" &&
         (row.project.stage === "closed" || row.project.stage === "lost")
@@ -499,6 +505,14 @@ export function ProjectsViewClient({
 
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {isAdmin && (
+                          <ProjectAdminActions
+                            projectId={row.project.id}
+                            archived={!!row.project.archivedAt}
+                            isAdmin={isAdmin}
+                            compact
+                          />
+                        )}
                         {row.quote && (
                           <Link
                             href={`/quote/${row.quote.token}`}

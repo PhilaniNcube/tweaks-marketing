@@ -13,7 +13,6 @@ import {
   Copy,
   Check,
   ShieldCheck,
-  Clock,
   Award,
   Loader2,
   Banknote,
@@ -44,6 +43,7 @@ import type {
   Editor,
 } from "@/db/schema";
 import type { getAdminCrmDashboardData } from "@/app/actions/crm";
+import { ProjectAdminActions } from "@/components/crm/project-admin-actions";
 import { toast } from "sonner";
 
 type DashboardData = Awaited<ReturnType<typeof getAdminCrmDashboardData>>;
@@ -52,11 +52,13 @@ type EnrichedProjectRow = DashboardData["rows"][number];
 interface ProjectDetailClientProps {
   row: EnrichedProjectRow;
   editors: Editor[];
+  isAdmin: boolean;
 }
 
 export function ProjectDetailClient({
   row,
   editors,
+  isAdmin,
 }: ProjectDetailClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -99,9 +101,7 @@ export function ProjectDetailClient({
   const [payRef, setPayRef] = useState(quote?.quoteNumber || "");
 
   const [poNumber, setPoNumber] = useState(quote?.poNumber || "");
-  const [poDate, setPoDate] = useState(
-    quote?.poDate || new Date().toISOString().split("T")[0]
-  );
+  const poDate = quote?.poDate || new Date().toISOString().split("T")[0];
   const [poTermsDays, setPoTermsDays] = useState<number>(
     quote?.paymentTermsDays || 30
   );
@@ -278,6 +278,11 @@ export function ProjectDetailClient({
             <span className="px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider bg-tweaks-blue text-white">
               {STAGE_LABELS[project.stage]}
             </span>
+            {project.archivedAt && (
+              <span className="px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+                Archived
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1 max-w-3xl">
             {project.researchTitle}
@@ -330,6 +335,14 @@ export function ProjectDetailClient({
           </button>
         </div>
       )}
+
+      {/* Project Administration: Archive / Restore / Delete */}
+      <ProjectAdminActions
+        projectId={project.id}
+        archived={!!project.archivedAt}
+        isAdmin={isAdmin}
+        redirectTo="/projects"
+      />
 
       {/* Main 3-Column Workspace Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

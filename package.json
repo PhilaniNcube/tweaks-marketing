@@ -11,6 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:seed": "node src/db/seed.ts",
+    "db:seed:projects": "node src/db/seed-projects.ts",
+    "db:seed:projects:reset": "node src/db/seed-projects.ts --reset",
     "db:push:preview": "npx --package=dotenv-cli dotenv -e .env.preview -- drizzle-kit push",
     "db:push:prod": "npx --package=dotenv-cli dotenv -e .env.production -- drizzle-kit push"
   },

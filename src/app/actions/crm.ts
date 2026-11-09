@@ -15,6 +15,7 @@ import {
   editors,
   crmSettings,
   certificates,
+  reminderLogs,
   type ProjectStage,
   type PaymentOption,
   type QuoteOutcome,
@@ -24,7 +25,7 @@ import { eq, desc, asc } from "drizzle-orm";
 import { recalculateQuoteAndProjectFromPayments } from "@/lib/paystack";
 import { DEFAULT_CRM_SETTINGS } from "@/db/seed-data";
 import { seedCrmDatabase } from "@/db/seed";
-import { requireCrmSession } from "@/lib/auth-server";
+import { requireAdminSession, requireCrmSession } from "@/lib/auth-server";
 import { recordBriefAndGenerateQuote } from "@/lib/crm/submit-brief";
 
 /**
@@ -389,6 +390,10 @@ export async function getAdminCrmDashboardData() {
       };
     });
 
+    const activeEnrichedProjects = enrichedProjects.filter(
+      (row) => !row.project.archivedAt
+    );
+
     // Calculate CRM KPIs (including live capacity, pages in hand, fees on live work, unpaid finished work, PO exposure, conversion rates, 12-month trends)
     let totalQuotedCents = 0;
     let totalPaidCents = 0;
@@ -426,7 +431,7 @@ export async function getAdminCrmDashboardData() {
       lost: 0,
     };
 
-    for (const row of enrichedProjects) {
+    for (const row of activeEnrichedProjects) {
       stageCounts[row.project.stage] =
         (stageCounts[row.project.stage] || 0) + 1;
 
@@ -501,7 +506,7 @@ export async function getAdminCrmDashboardData() {
       });
     }
 
-    for (const row of enrichedProjects) {
+    for (const row of activeEnrichedProjects) {
       const createdMonth = (row.project.createdAt || "").slice(0, 7);
       const bucket = monthlyTrends.find((m) => m.monthKey === createdMonth);
       if (bucket) {
@@ -529,7 +534,9 @@ export async function getAdminCrmDashboardData() {
         (d) => d.status === "pending_review"
       ),
       kpis: {
-        totalProjects: enrichedProjects.length,
+        totalProjects: activeEnrichedProjects.length,
+        archivedProjectsCount:
+          enrichedProjects.length - activeEnrichedProjects.length,
         totalQuotedCents,
         totalPaidCents,
         totalOutstandingCents,
@@ -560,6 +567,7 @@ export async function getAdminCrmDashboardData() {
       pendingDegreeLevels: [],
       kpis: {
         totalProjects: 0,
+        archivedProjectsCount: 0,
         totalQuotedCents: 0,
         totalPaidCents: 0,
         totalOutstandingCents: 0,
@@ -869,6 +877,88 @@ export async function resolveDuplicateProjectFlag(projectId: string) {
     return { success: true as const };
   } catch {
     return { success: false as const, error: "Could not resolve flag." };
+  }
+}
+
+/**
+ * Admin action: archives or restores a project without deleting any records.
+ * Archived projects are removed from the active pipeline but remain in the Archive.
+ */
+export async function setProjectArchivedAction(input: {
+  projectId: string;
+  archived: boolean;
+}) {
+  await requireAdminSession();
+  try {
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, input.projectId))
+      .limit(1);
+
+    if (!project) {
+      return { success: false as const, error: "Project not found." };
+    }
+
+    const nowIso = new Date().toISOString();
+    await db
+      .update(projects)
+      .set({
+        archivedAt: input.archived ? nowIso : null,
+        updatedAt: nowIso,
+      })
+      .where(eq(projects.id, project.id));
+
+    return { success: true as const };
+  } catch (error) {
+    console.error("Error archiving project:", error);
+    return {
+      success: false as const,
+      error: "Failed to update the project archive status.",
+    };
+  }
+}
+
+/**
+ * Admin action: permanently deletes a project and all of its related records
+ * (quote, quote items, payments, reminders, certificate).
+ * The client record is intentionally preserved.
+ */
+export async function deleteProjectAction(projectId: string) {
+  await requireAdminSession();
+  try {
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+
+    if (!project) {
+      return { success: false as const, error: "Project not found." };
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(projects)
+        .set({ duplicateOfProjectId: null })
+        .where(eq(projects.duplicateOfProjectId, project.id));
+      await tx
+        .delete(reminderLogs)
+        .where(eq(reminderLogs.projectId, project.id));
+      await tx.delete(payments).where(eq(payments.projectId, project.id));
+      await tx.delete(quoteItems).where(eq(quoteItems.projectId, project.id));
+      await tx.delete(quotes).where(eq(quotes.projectId, project.id));
+      await tx.delete(certificates).where(eq(certificates.projectId, project.id));
+      await tx.delete(projects).where(eq(projects.id, project.id));
+    });
+
+    return { success: true as const };
+  } catch (error) {
+    console.error("Error deleting project:", error);
+    return {
+      success: false as const,
+      error: "Failed to delete the project. Please try again.",
+    };
   }
 }
 

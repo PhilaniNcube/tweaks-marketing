@@ -461,6 +461,8 @@ export const projects = sqliteTable(
     reviewClosesAt: text("review_closes_at"),
     accessExpiresAt: text("access_expires_at"),
     completedAt: text("completed_at"),
+    /** Non-null when an admin archives the project out of the active pipeline */
+    archivedAt: text("archived_at"),
     internalNotes: text("internal_notes"),
     createdAt: text("created_at")
       .default(sql`(CURRENT_TIMESTAMP)`)

@@ -29,6 +29,7 @@ export const metadata = {
 export default async function DashboardPage() {
   const data = await getAdminCrmDashboardData();
   const { kpis, rows, editors, pendingInstitutions, pendingDegreeLevels } = data;
+  const activeRows = rows.filter((r) => !r.project.archivedAt);
 
   const activeEditorsCount = editors.filter((e) => e.isActive).length;
   const maxTrendCents = Math.max(
@@ -36,7 +37,7 @@ export default async function DashboardPage() {
     ...kpis.monthlyTrends.map((m) => Math.max(m.quotedCents, m.paidCents))
   );
 
-  const urgentProjects = rows
+  const urgentProjects = activeRows
     .map((r) => ({
       ...r,
       schedule: getReturnScheduleStatus(
@@ -384,7 +385,7 @@ export default async function DashboardPage() {
             href="/projects"
             className="text-xs font-bold text-tweaks-blue hover:underline flex items-center gap-1"
           >
-            View All Projects ({rows.length}) <ArrowRight className="h-3.5 w-3.5" />
+            View All Projects ({activeRows.length}) <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
@@ -401,7 +402,7 @@ export default async function DashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
-              {rows.slice(0, 8).map((r) => {
+              {activeRows.slice(0, 8).map((r) => {
                 const sched = getReturnScheduleStatus(
                   r.project.requestedReturnDate,
                   r.project.stage
@@ -464,7 +465,7 @@ export default async function DashboardPage() {
                   </tr>
                 );
               })}
-              {rows.length === 0 && (
+              {activeRows.length === 0 && (
                 <tr>
                   <td
                     colSpan={6}

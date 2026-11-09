@@ -47,6 +47,7 @@ export function QuotesClient({ rows }: QuotesClientProps) {
   const quoteRows = useMemo(() => {
     return rows
       .filter((r) => Boolean(r.quote))
+      .filter((r) => !r.project.archivedAt)
       .filter((r) => {
         if (outcomeFilter !== "all" && r.quote?.outcome !== outcomeFilter) {
           return false;
