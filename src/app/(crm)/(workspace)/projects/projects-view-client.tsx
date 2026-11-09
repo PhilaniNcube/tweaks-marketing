@@ -1,8 +1,18 @@
 "use client";
 
-import React, { useState, useMemo, useTransition } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useMemo,
+  useTransition,
+  useOptimistic,
+} from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useAtom } from "jotai";
+import { useHydrateAtoms } from "jotai/utils";
 import {
   Search,
   LayoutList,
@@ -27,18 +37,86 @@ import {
   assignProjectEditorAction,
 } from "@/app/actions/crm";
 import { ProjectAdminActions } from "@/components/crm/project-admin-actions";
+import {
+  PROJECT_SORT_COOKIE,
+  PROJECT_VIEW_COOKIE,
+  projectBoardOrderAtom,
+  projectSortOrderAtom,
+  projectViewModeAtom,
+  writeProjectPreferenceCookie,
+  type ProjectSortOrder,
+  type ProjectViewMode,
+} from "@/lib/crm/projects-view-atoms";
 import type { ProjectStage, Editor } from "@/db/schema";
 import type { getAdminCrmDashboardData } from "@/app/actions/crm";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 type DashboardData = Awaited<ReturnType<typeof getAdminCrmDashboardData>>;
 type EnrichedProjectRow = DashboardData["rows"][number];
+
+type OptimisticStageUpdate = {
+  projectId: string;
+  stage: ProjectStage;
+};
+
+type DropTarget = {
+  stage: ProjectStage;
+  /** Card the dragged item should be inserted before, or null for the end. */
+  beforeId: string | null;
+};
+
+/**
+ * Works out where a dragged card should land inside a column by comparing the
+ * pointer position against the midpoint of each rendered card.
+ */
+function getDropBeforeId(
+  container: HTMLElement,
+  clientY: number
+): string | null {
+  const cards = Array.from(
+    container.querySelectorAll<HTMLElement>("[data-kanban-card-id]")
+  );
+
+  for (const card of cards) {
+    const rect = card.getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) {
+      return card.dataset.kanbanCardId ?? null;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Keep ?view= in the address bar in sync with the Jotai atom. This makes a
+ * refresh resolve to the same view without a server round-trip.
+ */
+function updateProjectsViewUrl(view: ProjectViewMode) {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  params.set("view", view);
+  const query = params.toString();
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}${query ? `?${query}` : ""}`
+  );
+}
+
+// Layout effects run before paint on the client, but React warns if they run
+// during server rendering.
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 interface ProjectsViewClientProps {
   rows: EnrichedProjectRow[];
   editors: Editor[];
   institutions: string[];
   isAdmin: boolean;
+  initialView: ProjectViewMode;
+  initialSortOrder: ProjectSortOrder;
+  initialStage: string;
 }
 
 export function ProjectsViewClient({
@@ -46,14 +124,24 @@ export function ProjectsViewClient({
   editors,
   institutions,
   isAdmin,
+  initialView,
+  initialSortOrder,
+  initialStage,
 }: ProjectsViewClientProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialView =
-    searchParams.get("view") === "kanban" ? "kanban" : "table";
-  const initialStage = searchParams.get("stage") || "all";
 
-  const [viewMode, setViewMode] = useState<"table" | "kanban">(initialView);
+  // Hydrate during render so SSR and the first client pass agree on the
+  // server-provided preference. Layout effects below handle prop changes on
+  // later client-side navigations.
+  useHydrateAtoms([
+    [projectViewModeAtom, initialView],
+    [projectSortOrderAtom, initialSortOrder],
+  ]);
+
+  const [viewMode, setViewMode] = useAtom(projectViewModeAtom);
+  const [sortBy, setSortBy] = useAtom(projectSortOrderAtom);
+  const [boardOrder, setBoardOrder] = useAtom(projectBoardOrderAtom);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<string>(initialStage);
   const [scheduleFilter, setScheduleFilter] = useState<
@@ -61,17 +149,79 @@ export function ProjectsViewClient({
   >("all");
   const [editorFilter, setEditorFilter] = useState<string>("all");
   const [institutionFilter, setInstitutionFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<
-    "return_date_asc" | "return_date_desc" | "created_desc" | "fee_desc"
-  >("return_date_asc");
 
   const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<ProjectStage | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [draggedCardHeight, setDraggedCardHeight] = useState(0);
   const [isPending, startTransition] = useTransition();
+  // Set when a drop is taking ownership of the drag cleanup. This stops the
+  // later dragleave/dragend events from collapsing the gap before the
+  // optimistic move has committed.
+  const dropHandledRef = useRef(false);
+
+  const clearDragState = () => {
+    setDraggedProjectId(null);
+    setDragOverStage(null);
+    setDropTarget(null);
+    setDraggedCardHeight(0);
+  };
+
+  useIsomorphicLayoutEffect(() => {
+    setViewMode(initialView);
+  }, [initialView, setViewMode]);
+
+  useIsomorphicLayoutEffect(() => {
+    setSortBy(initialSortOrder);
+  }, [initialSortOrder, setSortBy]);
+
+  const changeViewMode = (mode: ProjectViewMode) => {
+    setViewMode(mode);
+    writeProjectPreferenceCookie(PROJECT_VIEW_COOKIE, mode);
+    updateProjectsViewUrl(mode);
+  };
+
+  // If a project's stage changed somewhere else (table dropdown, detail page,
+  // another admin), discard stale manual-order entries on the next fresh
+  // server render. Columns are always grouped by the row's real stage, so a
+  // stale entry can never pull a card into the wrong column.
+  useEffect(() => {
+    setBoardOrder((prev) => {
+      const stageById = new Map(
+        rows.map((row) => [row.project.id, row.project.stage])
+      );
+      let changed = false;
+      const next: typeof prev = {};
+
+      for (const [stage, ids] of Object.entries(prev) as [
+        ProjectStage,
+        string[]
+      ][]) {
+        const kept = ids.filter((id) => stageById.get(id) === stage);
+        if (kept.length !== ids.length) changed = true;
+        if (kept.length > 0) next[stage] = kept;
+      }
+
+      return changed ? next : prev;
+    });
+  }, [rows, setBoardOrder]);
+
+  // Move the card immediately while the server action is in flight. The
+  // optimistic state reverts automatically if the action fails.
+  const [optimisticRows, applyOptimisticStage] = useOptimistic<
+    EnrichedProjectRow[],
+    OptimisticStageUpdate
+  >(rows, (currentRows, update) =>
+    currentRows.map((row) =>
+      row.project.id === update.projectId
+        ? { ...row, project: { ...row.project, stage: update.stage } }
+        : row
+    )
+  );
 
   // Exclude archived (closed/lost) unless explicitly filtered
   const activeRows = useMemo(() => {
-    return rows.filter((row) => {
+    return optimisticRows.filter((row) => {
       if (row.project.archivedAt) {
         return false;
       }
@@ -135,7 +285,7 @@ export function ProjectsViewClient({
       return true;
     });
   }, [
-    rows,
+    optimisticRows,
     stageFilter,
     scheduleFilter,
     editorFilter,
@@ -166,18 +316,131 @@ export function ProjectsViewClient({
     return copy;
   }, [activeRows, sortBy]);
 
-  const handleStageDrop = (projectId: string, targetStage: ProjectStage) => {
-    setDraggedProjectId(null);
-    setDragOverStage(null);
+  // Group the visible rows into their kanban columns, then apply any manual
+  // ordering the user has created by dragging cards. Ids missing from the
+  // manual order (new cards, filtered-in cards) keep their sorted fallback
+  // position at the end of the column.
+  const rowsByStage = useMemo(() => {
+    const grouped = new Map<ProjectStage, EnrichedProjectRow[]>();
+
+    for (const row of sortedRows) {
+      const list = grouped.get(row.project.stage);
+      if (list) {
+        list.push(row);
+      } else {
+        grouped.set(row.project.stage, [row]);
+      }
+    }
+
+    for (const [stage, list] of grouped) {
+      const order = boardOrder[stage];
+      if (!order) continue;
+
+      const positionById = new Map(order.map((id, index) => [id, index]));
+      list.sort(
+        (a, b) =>
+          (positionById.get(a.project.id) ?? Number.MAX_SAFE_INTEGER) -
+          (positionById.get(b.project.id) ?? Number.MAX_SAFE_INTEGER)
+      );
+    }
+
+    return grouped;
+  }, [sortedRows, boardOrder]);
+
+  const getStageOrder = (
+    order: Partial<Record<ProjectStage, string[]>>,
+    stage: ProjectStage
+  ): string[] => {
+    const visibleIds = (rowsByStage.get(stage) ?? []).map(
+      (row) => row.project.id
+    );
+    const stored = order[stage];
+    if (!stored) return visibleIds;
+
+    // Merge in any visible cards the stored order does not know about yet so
+    // drops can be positioned relative to them too.
+    const seen = new Set(stored);
+    return [...stored, ...visibleIds.filter((id) => !seen.has(id))];
+  };
+
+  const handleStageDrop = (
+    projectId: string,
+    targetStage: ProjectStage,
+    beforeId: string | null = null
+  ) => {
+    const current = optimisticRows.find((row) => row.project.id === projectId);
+    if (!current) {
+      clearDragState();
+      return;
+    }
+
+    const sourceStage = current.project.stage;
+    const isSameStage = sourceStage === targetStage;
+
+    // Dropping a card directly above itself is a no-op.
+    if (isSameStage && beforeId === projectId) {
+      clearDragState();
+      return;
+    }
+
+    const previousOrder = boardOrder;
+
+    const reorder = (
+      prev: Partial<Record<ProjectStage, string[]>>
+    ): Partial<Record<ProjectStage, string[]>> => {
+      const sourceOrder = getStageOrder(prev, sourceStage);
+      const targetOrder = isSameStage
+        ? sourceOrder
+        : getStageOrder(prev, targetStage);
+
+      // Remove the card first so its old slot collapses and every card at or
+      // after the insertion point shifts down one position.
+      const sourceIndex = sourceOrder.indexOf(projectId);
+      if (sourceIndex !== -1) sourceOrder.splice(sourceIndex, 1);
+
+      const targetIndex = targetOrder.indexOf(projectId);
+      if (targetIndex !== -1) targetOrder.splice(targetIndex, 1);
+
+      const insertAt = beforeId ? targetOrder.indexOf(beforeId) : -1;
+      targetOrder.splice(
+        insertAt === -1 ? targetOrder.length : insertAt,
+        0,
+        projectId
+      );
+
+      return isSameStage
+        ? { ...prev, [targetStage]: targetOrder }
+        : {
+            ...prev,
+            [sourceStage]: sourceOrder,
+            [targetStage]: targetOrder,
+          };
+    };
+
+    // Same-column reordering is purely visual, so no server round-trip.
+    if (isSameStage) {
+      clearDragState();
+      setBoardOrder(reorder);
+      return;
+    }
+
     startTransition(async () => {
+      // Apply the stage swap, the new slot and the drag cleanup together in
+      // the same transition. If any of these landed in an earlier render the
+      // gap would collapse and the cards below would visibly jump.
+      applyOptimisticStage({ projectId, stage: targetStage });
+      setBoardOrder(reorder);
+      clearDragState();
+
       const res = await updateProjectStageQuickAction({
         projectId,
         stage: targetStage,
       });
       if (res.success) {
         toast.success(`Moved project to ${STAGE_LABELS[targetStage]}`);
-        router.refresh();
       } else {
+        // Roll the manual order back so the card returns to its source column.
+        setBoardOrder(previousOrder);
         toast.error(res.error || "Failed to move project");
       }
     });
@@ -218,7 +481,7 @@ export function ProjectsViewClient({
           <div className="inline-flex border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900">
             <button
               type="button"
-              onClick={() => setViewMode("table")}
+              onClick={() => changeViewMode("table")}
               className={`px-3 py-2 text-xs font-bold flex items-center gap-1.5 cursor-pointer ${
                 viewMode === "table"
                   ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
@@ -230,7 +493,7 @@ export function ProjectsViewClient({
             </button>
             <button
               type="button"
-              onClick={() => setViewMode("kanban")}
+              onClick={() => changeViewMode("kanban")}
               className={`px-3 py-2 text-xs font-bold flex items-center gap-1.5 cursor-pointer ${
                 viewMode === "kanban"
                   ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
@@ -309,15 +572,13 @@ export function ProjectsViewClient({
           <ArrowUpDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
           <select
             value={sortBy}
-            onChange={(e) =>
-              setSortBy(
-                e.target.value as
-                  | "return_date_asc"
-                  | "return_date_desc"
-                  | "created_desc"
-                  | "fee_desc"
-              )
-            }
+            onChange={(e) => {
+              const nextSort = e.target.value as ProjectSortOrder;
+              setSortBy(nextSort);
+              // Re-apply the chosen sort by discarding manual board positions.
+              setBoardOrder({});
+              writeProjectPreferenceCookie(PROJECT_SORT_COOKIE, nextSort);
+            }}
             className="w-full px-2.5 py-2 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-semibold"
           >
             <option value="return_date_asc">Sort: Return Date (Soonest)</option>
@@ -552,11 +813,9 @@ export function ProjectsViewClient({
 
       {/* VIEW 2: KANBAN / PIPELINE BOARD (DRAG AND DROP) */}
       {viewMode === "kanban" && (
-        <div className="flex gap-4 overflow-x-auto pb-6 min-h-[620px]">
+        <div className="flex gap-4 overflow-x-auto pb-6 h-[calc(100dvh_-_18rem)] min-h-[560px]">
           {KANBAN_STAGES.map((col) => {
-            const colProjects = sortedRows.filter(
-              (r) => r.project.stage === col.stage
-            );
+            const colProjects = rowsByStage.get(col.stage) ?? [];
             const isOver = dragOverStage === col.stage;
 
             return (
@@ -564,14 +823,39 @@ export function ProjectsViewClient({
                 key={col.stage}
                 onDragOver={(e) => {
                   e.preventDefault();
+                  if (!draggedProjectId || dropHandledRef.current) return;
+                  const beforeId = getDropBeforeId(e.currentTarget, e.clientY);
                   setDragOverStage(col.stage);
+                  setDropTarget((prev) =>
+                    prev?.stage === col.stage && prev.beforeId === beforeId
+                      ? prev
+                      : { stage: col.stage, beforeId }
+                  );
                 }}
-                onDragLeave={() => setDragOverStage(null)}
+                onDragLeave={(e) => {
+                  if (dropHandledRef.current) return;
+                  if (
+                    e.relatedTarget &&
+                    e.currentTarget.contains(e.relatedTarget as Node)
+                  ) {
+                    return;
+                  }
+                  setDragOverStage(null);
+                  setDropTarget(null);
+                }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  if (draggedProjectId) {
-                    handleStageDrop(draggedProjectId, col.stage);
-                  }
+                  if (!draggedProjectId) return;
+                  // Claim the drag cleanup so dragleave/dragend cannot collapse
+                  // the gap before the optimistic move commits.
+                  dropHandledRef.current = true;
+                  // Use the slot currently shown to the user so the card lands
+                  // exactly where the gap was opened, even mid-animation.
+                  const beforeId =
+                    dropTarget?.stage === col.stage
+                      ? dropTarget.beforeId
+                      : getDropBeforeId(e.currentTarget, e.clientY);
+                  handleStageDrop(draggedProjectId, col.stage, beforeId);
                 }}
                 className={`w-72 shrink-0 flex flex-col border transition-colors ${
                   isOver
@@ -593,22 +877,52 @@ export function ProjectsViewClient({
                 </div>
 
                 {/* Cards Stack */}
-                <div className="p-2.5 space-y-2.5 flex-1 overflow-y-auto">
+                <div className="p-2.5 space-y-2.5 flex-1 min-h-0 overflow-y-auto overscroll-contain [scrollbar-width:thin]">
                   {colProjects.map((row) => {
                     const sched = getReturnScheduleStatus(
                       row.project.requestedReturnDate,
                       row.project.stage
                     );
+                    const showDropSlot =
+                      dropTarget?.stage === col.stage &&
+                      dropTarget.beforeId === row.project.id;
                     return (
+                      <React.Fragment key={row.project.id}>
+                        {showDropSlot && (
+                          <div
+                            aria-hidden
+                            style={{ height: draggedCardHeight }}
+                            className="border-2 border-dashed border-tweaks-blue/40 bg-tweaks-blue/5"
+                          />
+                        )}
+                        <motion.div
+                          layout="position"
+                          transition={{
+                            layout: { duration: 0.18, ease: "easeOut" },
+                          }}
+                        >
                       <div
-                        key={row.project.id}
+                        data-kanban-card-id={row.project.id}
                         draggable
-                        onDragStart={() => setDraggedProjectId(row.project.id)}
-                        onDragEnd={() => {
-                          setDraggedProjectId(null);
-                          setDragOverStage(null);
+                        onDragStart={(e) => {
+                          dropHandledRef.current = false;
+                          setDraggedProjectId(row.project.id);
+                          setDraggedCardHeight(
+                            e.currentTarget.getBoundingClientRect().height
+                          );
                         }}
-                        className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-3.5 shadow-2xs hover:border-tweaks-blue cursor-grab active:cursor-grabbing space-y-2.5"
+                        onDragEnd={() => {
+                          // A drop owns the cleanup and keeps the gap until the
+                          // optimistic move commits; only cancelled drags clear
+                          // here. The flag resets on the next drag start.
+                          if (dropHandledRef.current) return;
+                          clearDragState();
+                        }}
+                        className={`bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-3.5 shadow-2xs hover:border-tweaks-blue cursor-grab active:cursor-grabbing space-y-2.5 ${
+                          draggedProjectId === row.project.id
+                            ? "opacity-40"
+                            : ""
+                        }`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <Link
@@ -657,10 +971,22 @@ export function ProjectsViewClient({
                           </span>
                         </div>
                       </div>
+                        </motion.div>
+                      </React.Fragment>
                     );
                   })}
 
-                  {colProjects.length === 0 && (
+                  {dropTarget?.stage === col.stage &&
+                    dropTarget.beforeId === null && (
+                      <div
+                        aria-hidden
+                        style={{ height: draggedCardHeight }}
+                        className="border-2 border-dashed border-tweaks-blue/40 bg-tweaks-blue/5"
+                      />
+                    )}
+
+                  {colProjects.length === 0 &&
+                    dropTarget?.stage !== col.stage && (
                     <div className="py-8 text-center text-[11px] text-slate-400 border border-dashed border-slate-200 dark:border-zinc-800">
                       Drag project card here
                     </div>

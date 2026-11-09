@@ -22,6 +22,7 @@ import {
   type WhyLost,
 } from "@/db/schema";
 import { eq, desc, asc } from "drizzle-orm";
+import { refresh } from "next/cache";
 import { recalculateQuoteAndProjectFromPayments } from "@/lib/paystack";
 import { DEFAULT_CRM_SETTINGS } from "@/db/seed-data";
 import { seedCrmDatabase } from "@/db/seed";
@@ -1064,6 +1065,10 @@ export async function updateProjectStageQuickAction(input: {
         })
         .where(eq(quotes.projectId, input.projectId));
     }
+
+    // Push the fresh server render back with the action response so the
+    // optimistic stage change reconciles without flickering back.
+    refresh();
 
     return { success: true as const };
   } catch {

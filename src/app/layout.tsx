@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { JotaiProvider } from "@/components/providers/jotai-provider";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -65,7 +66,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${montserrat.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
-        {children}
+        <JotaiProvider>{children}</JotaiProvider>
         <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
