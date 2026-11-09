@@ -892,11 +892,10 @@ function ContactForm() {
             {DOCUMENT_TYPES.map((docType) => (
               <label
                 key={docType}
-                className={`flex items-center space-x-3 p-3 border cursor-pointer transition-colors ${
-                  watchedDocumentType === docType
-                    ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
-                    : "border-slate-200 dark:border-zinc-800"
-                }`}
+                className={`flex items-center space-x-3 p-3 border cursor-pointer transition-colors ${watchedDocumentType === docType
+                  ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                  : "border-slate-200 dark:border-zinc-800"
+                  }`}
               >
                 <input
                   type="radio"
@@ -989,7 +988,7 @@ function ContactForm() {
         </div>
 
         {/* Word Count, Auto-Converted Page Count, and Reference List Page Count */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
           <div className="space-y-2">
             <Label
               htmlFor="wordCount"
@@ -1107,11 +1106,10 @@ function ContactForm() {
               return (
                 <label
                   key={svc.id}
-                  className={`flex items-start justify-between gap-4 p-4 border cursor-pointer transition-colors ${
-                    isChecked
-                      ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
-                      : "border-slate-200 dark:border-zinc-800 hover:border-slate-300"
-                  }`}
+                  className={`flex items-start justify-between gap-4 p-4 border cursor-pointer transition-colors ${isChecked
+                    ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                    : "border-slate-200 dark:border-zinc-800 hover:border-slate-300"
+                    }`}
                 >
                   <div className="flex items-start space-x-3">
                     <input
@@ -1135,7 +1133,7 @@ function ContactForm() {
                         Standard: {svc.standardTurnaroundMinDays}–
                         {svc.standardTurnaroundMaxDays} days | Express:{" "}
                         {svc.expressTurnaroundMinHours ===
-                        svc.expressTurnaroundMaxHours
+                          svc.expressTurnaroundMaxHours
                           ? `${svc.expressTurnaroundMinHours} hours`
                           : `${svc.expressTurnaroundMinHours}–${svc.expressTurnaroundMaxHours} hours`}{" "}
                         (+{formatZarFromCents(svc.expressSurchargeCents, false)}{" "}
@@ -1167,11 +1165,10 @@ function ContactForm() {
           </Label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label
-              className={`flex items-start gap-3 p-4 border cursor-pointer transition-colors ${
-                watchedDeliverySpeed === "standard"
-                  ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
-                  : "border-slate-200 dark:border-zinc-800"
-              }`}
+              className={`flex items-start gap-3 p-4 border cursor-pointer transition-colors ${watchedDeliverySpeed === "standard"
+                ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                : "border-slate-200 dark:border-zinc-800"
+                }`}
             >
               <input
                 type="radio"
@@ -1193,11 +1190,10 @@ function ContactForm() {
             </label>
 
             <label
-              className={`flex items-start gap-3 p-4 border cursor-pointer transition-colors ${
-                watchedDeliverySpeed === "express"
-                  ? "border-tweaks-red bg-red-50/30 dark:bg-red-950/20"
-                  : "border-slate-200 dark:border-zinc-800"
-              }`}
+              className={`flex items-start gap-3 p-4 border cursor-pointer transition-colors ${watchedDeliverySpeed === "express"
+                ? "border-tweaks-red bg-red-50/30 dark:bg-red-950/20"
+                : "border-slate-200 dark:border-zinc-800"
+                }`}
             >
               <input
                 type="radio"
@@ -1592,11 +1588,10 @@ function ContactForm() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <label
-              className={`p-4 border cursor-pointer transition-colors ${
-                watchedPaymentOption === "full_payment"
-                  ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
-                  : "border-slate-200 dark:border-zinc-800"
-              }`}
+              className={`p-4 border cursor-pointer transition-colors ${watchedPaymentOption === "full_payment"
+                ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                : "border-slate-200 dark:border-zinc-800"
+                }`}
             >
               <div className="flex items-center gap-2 font-bold text-sm">
                 <input
@@ -1613,11 +1608,10 @@ function ContactForm() {
             </label>
 
             <label
-              className={`p-4 border cursor-pointer transition-colors ${
-                watchedPaymentOption === "payment_plan"
-                  ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
-                  : "border-slate-200 dark:border-zinc-800"
-              }`}
+              className={`p-4 border cursor-pointer transition-colors ${watchedPaymentOption === "payment_plan"
+                ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                : "border-slate-200 dark:border-zinc-800"
+                }`}
             >
               <div className="flex items-center gap-2 font-bold text-sm">
                 <input
@@ -1639,11 +1633,10 @@ function ContactForm() {
             </label>
 
             <label
-              className={`p-4 border cursor-pointer transition-colors ${
-                watchedPaymentOption === "institutional_funding"
-                  ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
-                  : "border-slate-200 dark:border-zinc-800"
-              }`}
+              className={`p-4 border cursor-pointer transition-colors ${watchedPaymentOption === "institutional_funding"
+                ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                : "border-slate-200 dark:border-zinc-800"
+                }`}
             >
               <div className="flex items-center gap-2 font-bold text-sm">
                 <input
