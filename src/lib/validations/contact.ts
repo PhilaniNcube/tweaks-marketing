@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as v from "valibot";
 
 const PERSONAL_EMAIL_DOMAINS = new Set([
   "gmail.com",
@@ -31,6 +31,8 @@ export function isInstitutionalEmail(email: string): boolean {
   if (!domain || !domain.includes(".")) return false;
   return !PERSONAL_EMAIL_DOMAINS.has(domain);
 }
+
+const SIMPLE_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const REFERRAL_SOURCES = [
   "Google Search",
@@ -92,7 +94,8 @@ export function getMinimumTurnaroundDays(
   services: string[],
   deliverySpeed: "standard" | "express"
 ): number {
-  if (!services || services.length === 0) return deliverySpeed === "express" ? 1 : 3;
+  if (!services || services.length === 0)
+    return deliverySpeed === "express" ? 1 : 3;
   let maxMinDays = 1;
   for (const svc of services) {
     const rule = SERVICE_TURNAROUND_RULES[svc];
@@ -107,287 +110,421 @@ export function getMinimumTurnaroundDays(
   return maxMinDays;
 }
 
-export const contactSchema = z
-  .object({
+export const contactSchema = v.pipe(
+  v.object({
     // --- Step 1: Client & Academic Context ---
-    firstName: z.string().trim().min(1, { message: "First name is required" }),
-    surname: z.string().trim().min(1, { message: "Surname is required" }),
-    email: z.string().trim().email({ message: "Valid email address is required" }),
-    whatsapp: z
-      .string()
-      .trim()
-      .regex(/^\+\d{1,4}[\s\d-]{7,15}$/, {
-        message:
-          "WhatsApp number must include country code in international format (e.g. +27 82 123 4567)",
-      }),
-    institutionId: z
-      .string()
-      .min(1, { message: "Please select your institution" }),
-    institutionOther: z.string().optional(),
-    degreeLevel: z
-      .string()
-      .min(1, { message: "Please select your degree level" }),
-    degreeLevelOther: z.string().optional(),
-    degreeProgramme: z
-      .string()
-      .trim()
-      .min(2, { message: "Degree programme is required (e.g. Chemistry, Sociology)" }),
-    researchTitle: z
-      .string()
-      .trim()
-      .min(3, {
-        message:
-          "Research title is required as it should appear on your completion certificate",
-      }),
-    referralSource: z
-      .string()
-      .min(1, { message: "Please tell us how you heard about us" }),
+    firstName: v.pipe(
+      v.string("First name is required"),
+      v.trim(),
+      v.minLength(1, "First name is required")
+    ),
+    surname: v.pipe(
+      v.string("Surname is required"),
+      v.trim(),
+      v.minLength(1, "Surname is required")
+    ),
+    email: v.pipe(
+      v.string("Valid email address is required"),
+      v.trim(),
+      v.minLength(1, "Valid email address is required"),
+      v.email("Valid email address is required")
+    ),
+    whatsapp: v.pipe(
+      v.string("WhatsApp number is required"),
+      v.trim(),
+      v.regex(
+        /^\+\d{1,4}[\s\d-]{7,15}$/,
+        "WhatsApp number must include country code in international format (e.g. +27 82 123 4567)"
+      )
+    ),
+    institutionId: v.pipe(
+      v.string("Please select your institution"),
+      v.minLength(1, "Please select your institution")
+    ),
+    institutionOther: v.optional(v.string()),
+    degreeLevel: v.pipe(
+      v.string("Please select your degree level"),
+      v.minLength(1, "Please select your degree level")
+    ),
+    degreeLevelOther: v.optional(v.string()),
+    degreeProgramme: v.pipe(
+      v.string("Degree programme is required"),
+      v.trim(),
+      v.minLength(
+        2,
+        "Degree programme is required (e.g. Chemistry, Sociology)"
+      )
+    ),
+    researchTitle: v.pipe(
+      v.string("Research title is required"),
+      v.trim(),
+      v.minLength(
+        3,
+        "Research title is required as it should appear on your completion certificate"
+      )
+    ),
+    referralSource: v.pipe(
+      v.string("Please tell us how you heard about us"),
+      v.minLength(1, "Please tell us how you heard about us")
+    ),
 
     // --- Step 2: Document & Scope ---
-    documentType: z
-      .string()
-      .min(1, { message: "Please select your document type" }),
-    documentTypeOther: z.string().optional(),
-    wholeOrPart: z.enum(["whole", "part"], {
-      errorMap: () => ({
-        message: "Please indicate if you are sending the whole document or a part",
+    documentType: v.pipe(
+      v.string("Please select your document type"),
+      v.minLength(1, "Please select your document type")
+    ),
+    documentTypeOther: v.optional(v.string()),
+    wholeOrPart: v.picklist(
+      ["whole", "part"],
+      "Please indicate if you are sending the whole document or a part"
+    ),
+    whichPart: v.optional(v.string()),
+    wordCount: v.optional(
+      v.pipe(
+        v.unknown(),
+        v.transform((val) => {
+          if (val === "" || val === undefined || val === null) return undefined;
+          const n = Number(val);
+          return Number.isNaN(n) ? undefined : Math.trunc(n);
+        }),
+        v.optional(v.pipe(v.number(), v.integer(), v.minValue(0)))
+      )
+    ),
+    pageCount: v.pipe(
+      v.unknown(),
+      v.transform((val) => {
+        if (val === "" || val === undefined || val === null) return NaN;
+        return Number(val);
       }),
-    }),
-    whichPart: z.string().optional(),
-    wordCount: z.coerce
-      .number()
-      .int()
-      .min(0)
-      .optional(),
-    pageCount: z.coerce
-      .number({ invalid_type_error: "Page count is required" })
-      .int()
-      .min(1, { message: "Page count must be at least 1" }),
-    referencePageCount: z.coerce
-      .number({ invalid_type_error: "Reference list page count is required" })
-      .int()
-      .min(0, { message: "Reference list page count must be between 0 and 500" })
-      .max(500, { message: "Reference list page count cannot exceed 500" }),
+      v.number("Page count is required"),
+      v.integer("Page count must be a whole number"),
+      v.minValue(1, "Page count must be at least 1")
+    ),
+    referencePageCount: v.pipe(
+      v.unknown(),
+      v.transform((val) => {
+        if (val === "" || val === undefined || val === null) return 0;
+        return Number(val);
+      }),
+      v.number("Reference list page count is required"),
+      v.integer("Reference list page count must be a whole number"),
+      v.minValue(0, "Reference list page count must be between 0 and 500"),
+      v.maxValue(500, "Reference list page count cannot exceed 500")
+    ),
 
     // --- Step 3: Services & Delivery Speed ---
-    services: z
-      .array(z.string())
-      .min(1, { message: "Please select at least one editing service" }),
-    deliverySpeed: z.enum(["standard", "express"], {
-      errorMap: () => ({
-        message: "Please choose Standard or Express delivery speed",
-      }),
-    }),
-    mainGoal: z
-      .string()
-      .trim()
-      .min(20, {
-        message:
-          "Please describe the main goal of the edit (at least 20 characters)",
-      }),
-    concerns: z.string().optional(),
+    services: v.pipe(
+      v.array(v.string(), "Please select at least one editing service"),
+      v.minLength(1, "Please select at least one editing service")
+    ),
+    deliverySpeed: v.picklist(
+      ["standard", "express"],
+      "Please choose Standard or Express delivery speed"
+    ),
+    mainGoal: v.pipe(
+      v.string("Please describe the main goal of the edit"),
+      v.trim(),
+      v.minLength(
+        20,
+        "Please describe the main goal of the edit (at least 20 characters)"
+      )
+    ),
+    concerns: v.optional(v.string()),
 
-    // --- Step 4: Style & Referencing ---
-    referencingStyle: z
-      .string()
-      .min(1, { message: "Please select a referencing style" }),
-    referencingStyleOther: z.string().optional(),
+    // --- Step 4: Style, Referencing & Preferences ---
+    referencingStyle: v.pipe(
+      v.string("Please select a referencing style"),
+      v.minLength(1, "Please select a referencing style")
+    ),
+    referencingStyleOther: v.optional(v.string()),
+    trackedChanges: v.pipe(
+      v.string("Please select tracked changes preference"),
+      v.minLength(1, "Please select tracked changes preference")
+    ),
+    trackedChangesOther: v.optional(v.string()),
+    certificate: v.pipe(
+      v.string("Please specify if an editing certificate is required"),
+      v.minLength(1, "Please specify if an editing certificate is required")
+    ),
 
     // --- Step 5: Dates, Supervisor Sign-Off & Funding ---
-    expectedSendDate: z
-      .string()
-      .min(1, { message: "Please pick the date you will send us the document" }),
-    requestedReturnDate: z
-      .string()
-      .min(1, { message: "Please pick the date you need the document back" }),
-    supervisorSignOff: z.enum(["yes", "no"], {
-      errorMap: () => ({
-        message: "Please indicate whether supervisor sign-off has been obtained",
-      }),
-    }),
-    supervisorDisclaimerAck: z.boolean().optional(),
-    requestSupervisorSignOff: z.boolean().optional(),
-    supervisorName: z.string().optional(),
-    supervisorEmail: z.string().optional(),
-    trackedChanges: z
-      .string()
-      .min(1, { message: "Please select tracked changes preference" }),
-    trackedChangesOther: z.string().optional(),
-    certificate: z
-      .string()
-      .min(1, { message: "Please specify if an editing certificate is required" }),
-    paymentOption: z.enum(
-      ["full_payment", "payment_plan", "institutional_funding"],
-      {
-        errorMap: () => ({ message: "Please select a payment / funding option" }),
-      }
+    expectedSendDate: v.pipe(
+      v.string("Please pick the date you will send us the document"),
+      v.minLength(1, "Please pick the date you will send us the document")
     ),
-    selectedInstalmentMonths: z.coerce.number().int().min(2).max(3).optional(),
-    department: z.string().optional(),
-    billingContactName: z.string().optional(),
-    billingContactEmail: z.string().optional(),
-    additionalInfo: z.string().optional(),
-    scopeDeclarationAccepted: z.literal(true, {
-      errorMap: () => ({
-        message:
-          "Tweaks edits and improves your own writing (no ghostwriting, rewriting, or plagiarism checks). Please tick the scope declaration to confirm.",
-      }),
-    }),
+    requestedReturnDate: v.pipe(
+      v.string("Please pick the date you need the document back"),
+      v.minLength(1, "Please pick the date you need the document back")
+    ),
+    supervisorSignOff: v.picklist(
+      ["yes", "no"],
+      "Please indicate whether supervisor sign-off has been obtained"
+    ),
+    supervisorDisclaimerAck: v.optional(v.boolean()),
+    requestSupervisorSignOff: v.optional(v.boolean()),
+    supervisorName: v.optional(v.string()),
+    supervisorEmail: v.optional(v.string()),
+    paymentOption: v.picklist(
+      ["full_payment", "payment_plan", "institutional_funding"],
+      "Please select a payment / funding option"
+    ),
+    selectedInstalmentMonths: v.optional(
+      v.pipe(
+        v.unknown(),
+        v.transform((val) => {
+          if (val === "" || val === undefined || val === null) return undefined;
+          const n = Number(val);
+          return Number.isNaN(n) ? undefined : Math.trunc(n);
+        }),
+        v.optional(v.pipe(v.number(), v.integer(), v.minValue(2), v.maxValue(3)))
+      )
+    ),
+    department: v.optional(v.string()),
+    billingContactName: v.optional(v.string()),
+    billingContactEmail: v.optional(v.string()),
+    additionalInfo: v.optional(v.string()),
+    scopeDeclarationAccepted: v.literal(
+      true,
+      "Tweaks edits and improves your own writing (no ghostwriting, rewriting, or plagiarism checks). Please tick the scope declaration to confirm."
+    ),
 
     // --- Anti-Spam ---
-    hp_website: z.string().optional(),
-    _formTime: z.string().optional(),
-  })
-  .superRefine((data, ctx) => {
-    // 1. Institution Other
-    if (
-      data.institutionId === "Other" &&
-      (!data.institutionOther || data.institutionOther.trim().length < 2)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["institutionOther"],
-        message: "Please enter the name of your institution",
-      });
-    }
-
-    // 2. Degree Level Other
-    if (
-      data.degreeLevel === "Other" &&
-      (!data.degreeLevelOther || data.degreeLevelOther.trim().length < 2)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["degreeLevelOther"],
-        message: "Please specify your degree designator",
-      });
-    }
-
-    // 3. Document Type Other
-    if (
-      data.documentType === "Other" &&
-      (!data.documentTypeOther || data.documentTypeOther.trim().length < 2)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["documentTypeOther"],
-        message: "Please specify your document type",
-      });
-    }
-
-    // 4. Whole or Part -> Which Part
-    if (
-      data.wholeOrPart === "part" &&
-      (!data.whichPart || data.whichPart.trim().length < 2)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["whichPart"],
-        message: "Please specify which part of the document you are sending (e.g. Chapter 4 of 6)",
-      });
-    }
-
-    // 5. Referencing Style Other
-    if (
-      data.referencingStyle === "Other" &&
-      (!data.referencingStyleOther ||
-        data.referencingStyleOther.trim().length < 2)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["referencingStyleOther"],
-        message: "Please specify your referencing style",
-      });
-    }
-
-    // 6. Cross-field date validation: Return date must be after send date by at least minimum turnaround
-    if (data.expectedSendDate && data.requestedReturnDate) {
-      const sendDate = new Date(data.expectedSendDate);
-      const returnDate = new Date(data.requestedReturnDate);
-      if (!isNaN(sendDate.getTime()) && !isNaN(returnDate.getTime())) {
+    hp_website: v.optional(v.string()),
+    _formTime: v.optional(v.string()),
+  }),
+  // 1. Institution Other
+  v.forward(
+    v.partialCheck(
+      [["institutionId"], ["institutionOther"]],
+      (input) =>
+        input.institutionId !== "Other" ||
+        Boolean(input.institutionOther && input.institutionOther.trim().length >= 2),
+      "Please enter the name of your institution"
+    ),
+    ["institutionOther"]
+  ),
+  // 2. Degree Level Other
+  v.forward(
+    v.partialCheck(
+      [["degreeLevel"], ["degreeLevelOther"]],
+      (input) =>
+        input.degreeLevel !== "Other" ||
+        Boolean(input.degreeLevelOther && input.degreeLevelOther.trim().length >= 2),
+      "Please specify your degree designator"
+    ),
+    ["degreeLevelOther"]
+  ),
+  // 3. Document Type Other
+  v.forward(
+    v.partialCheck(
+      [["documentType"], ["documentTypeOther"]],
+      (input) =>
+        input.documentType !== "Other" ||
+        Boolean(input.documentTypeOther && input.documentTypeOther.trim().length >= 2),
+      "Please specify your document type"
+    ),
+    ["documentTypeOther"]
+  ),
+  // 4. Whole or Part -> Which Part
+  v.forward(
+    v.partialCheck(
+      [["wholeOrPart"], ["whichPart"]],
+      (input) =>
+        input.wholeOrPart !== "part" ||
+        Boolean(input.whichPart && input.whichPart.trim().length >= 2),
+      "Please specify which part of the document you are sending (e.g. Chapter 4 of 6)"
+    ),
+    ["whichPart"]
+  ),
+  // 5. Referencing Style Other
+  v.forward(
+    v.partialCheck(
+      [["referencingStyle"], ["referencingStyleOther"]],
+      (input) =>
+        input.referencingStyle !== "Other" ||
+        Boolean(
+          input.referencingStyleOther &&
+            input.referencingStyleOther.trim().length >= 2
+        ),
+      "Please specify your referencing style"
+    ),
+    ["referencingStyleOther"]
+  ),
+  // 6. Cross-field date validation: Return date must be after send date by at least minimum turnaround
+  v.forward(
+    v.partialCheck(
+      [["expectedSendDate"], ["requestedReturnDate"], ["services"], ["deliverySpeed"]],
+      (input) => {
+        if (!input.expectedSendDate || !input.requestedReturnDate) return true;
+        const sendDate = new Date(input.expectedSendDate);
+        const returnDate = new Date(input.requestedReturnDate);
+        if (isNaN(sendDate.getTime()) || isNaN(returnDate.getTime())) return true;
         const minDays = getMinimumTurnaroundDays(
-          data.services,
-          data.deliverySpeed
+          input.services,
+          input.deliverySpeed
         );
         const minReturnDate = new Date(sendDate);
         minReturnDate.setDate(minReturnDate.getDate() + minDays);
-
-        if (returnDate < minReturnDate) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["requestedReturnDate"],
-            message: `Return date must be at least ${minDays} day${minDays > 1 ? "s" : ""} after the date you send us the document (${minReturnDate.toISOString().split("T")[0]} or later).`,
-          });
+        return returnDate >= minReturnDate;
+      },
+      "Return date must respect the minimum turnaround time after the date you send us the document."
+    ),
+    ["requestedReturnDate"]
+  ),
+  // 7. Supervisor Sign-Off = "no" requires acknowledging the disclaimer
+  v.forward(
+    v.partialCheck(
+      [["supervisorSignOff"], ["supervisorDisclaimerAck"]],
+      (input) =>
+        input.supervisorSignOff !== "no" || Boolean(input.supervisorDisclaimerAck),
+      "Please acknowledge the supervisor sign-off disclaimer before submitting."
+    ),
+    ["supervisorDisclaimerAck"]
+  ),
+  // 8a. Requesting supervisor sign-off requires supervisor name
+  v.forward(
+    v.partialCheck(
+      [["supervisorSignOff"], ["requestSupervisorSignOff"], ["supervisorName"]],
+      (input) =>
+        !(input.supervisorSignOff === "no" && input.requestSupervisorSignOff) ||
+        Boolean(input.supervisorName && input.supervisorName.trim().length >= 2),
+      "Supervisor name is required to send a sign-off request"
+    ),
+    ["supervisorName"]
+  ),
+  // 8b. Requesting supervisor sign-off requires institutional supervisor email
+  v.forward(
+    v.partialCheck(
+      [["supervisorSignOff"], ["requestSupervisorSignOff"], ["supervisorEmail"]],
+      (input) => {
+        if (!(input.supervisorSignOff === "no" && input.requestSupervisorSignOff)) {
+          return true;
         }
-      }
-    }
+        if (!input.supervisorEmail || !input.supervisorEmail.includes("@")) {
+          return false;
+        }
+        return isInstitutionalEmail(input.supervisorEmail);
+      },
+      "Supervisor email is required and must be at an institutional domain (not a personal Gmail, Yahoo, or Outlook address)"
+    ),
+    ["supervisorEmail"]
+  ),
+  // 9a. Institutional Funding requires department
+  v.forward(
+    v.partialCheck(
+      [["paymentOption"], ["department"]],
+      (input) =>
+        input.paymentOption !== "institutional_funding" ||
+        Boolean(input.department && input.department.trim().length >= 2),
+      "Department is required when institution funded"
+    ),
+    ["department"]
+  ),
+  // 9b. Institutional Funding requires billing contact name
+  v.forward(
+    v.partialCheck(
+      [["paymentOption"], ["billingContactName"]],
+      (input) =>
+        input.paymentOption !== "institutional_funding" ||
+        Boolean(
+          input.billingContactName && input.billingContactName.trim().length >= 2
+        ),
+      "Billing contact name is required when institution funded"
+    ),
+    ["billingContactName"]
+  ),
+  // 9c. Institutional Funding requires valid billing contact email
+  v.forward(
+    v.partialCheck(
+      [["paymentOption"], ["billingContactEmail"]],
+      (input) =>
+        input.paymentOption !== "institutional_funding" ||
+        Boolean(
+          input.billingContactEmail &&
+            SIMPLE_EMAIL_REGEX.test(input.billingContactEmail.trim())
+        ),
+      "A valid billing contact email is required when institution funded"
+    ),
+    ["billingContactEmail"]
+  )
+);
 
-    // 7. Supervisor Sign-Off = "no" requires acknowledging the disclaimer
-    if (data.supervisorSignOff === "no" && !data.supervisorDisclaimerAck) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["supervisorDisclaimerAck"],
-        message:
-          "Please acknowledge the supervisor sign-off disclaimer before submitting.",
-      });
-    }
+export type ContactFormData = v.InferOutput<typeof contactSchema>;
 
-    // 8. Requesting supervisor sign-off requires supervisor name and institutional email
-    if (data.supervisorSignOff === "no" && data.requestSupervisorSignOff) {
-      if (!data.supervisorName || data.supervisorName.trim().length < 2) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["supervisorName"],
-          message: "Supervisor name is required to send a sign-off request",
-        });
-      }
-      if (!data.supervisorEmail || !data.supervisorEmail.includes("@")) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["supervisorEmail"],
-          message: "Supervisor email is required to send a sign-off request",
-        });
-      } else if (!isInstitutionalEmail(data.supervisorEmail)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["supervisorEmail"],
-          message:
-            "Supervisor email must be at an institutional domain (not a personal Gmail, Yahoo, or Outlook address)",
-        });
-      }
-    }
-
-    // 9. Institutional Funding requires department, billing contact name, and billing contact email
-    if (data.paymentOption === "institutional_funding") {
-      if (!data.department || data.department.trim().length < 2) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["department"],
-          message: "Department is required when institution funded",
-        });
-      }
-      if (
-        !data.billingContactName ||
-        data.billingContactName.trim().length < 2
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["billingContactName"],
-          message: "Billing contact name is required when institution funded",
-        });
-      }
-      if (
-        !data.billingContactEmail ||
-        !z.string().email().safeParse(data.billingContactEmail.trim()).success
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["billingContactEmail"],
-          message:
-            "A valid billing contact email is required when institution funded",
-        });
-      }
-    }
-  });
-
-export type ContactFormData = z.infer<typeof contactSchema>;
+export const CONTACT_FORM_STEPS = [
+  {
+    id: 1,
+    title: "Your Details",
+    subtitle: "Client & academic context",
+    fields: [
+      "firstName",
+      "surname",
+      "email",
+      "whatsapp",
+      "institutionId",
+      "institutionOther",
+      "degreeLevel",
+      "degreeLevelOther",
+      "degreeProgramme",
+      "researchTitle",
+      "referralSource",
+    ] as (keyof ContactFormData)[],
+  },
+  {
+    id: 2,
+    title: "Document & Pages",
+    subtitle: "Scope & page count",
+    fields: [
+      "documentType",
+      "documentTypeOther",
+      "wholeOrPart",
+      "whichPart",
+      "pageCount",
+      "referencePageCount",
+    ] as (keyof ContactFormData)[],
+  },
+  {
+    id: 3,
+    title: "Services & Speed",
+    subtitle: "Rate card & turnaround",
+    fields: [
+      "services",
+      "deliverySpeed",
+      "mainGoal",
+      "concerns",
+    ] as (keyof ContactFormData)[],
+  },
+  {
+    id: 4,
+    title: "Style & Upload",
+    subtitle: "Referencing & preferences",
+    fields: [
+      "referencingStyle",
+      "referencingStyleOther",
+      "trackedChanges",
+      "trackedChangesOther",
+      "certificate",
+    ] as (keyof ContactFormData)[],
+  },
+  {
+    id: 5,
+    title: "Dates & Payment",
+    subtitle: "Sign-off & quote summary",
+    fields: [
+      "expectedSendDate",
+      "requestedReturnDate",
+      "supervisorSignOff",
+      "supervisorDisclaimerAck",
+      "requestSupervisorSignOff",
+      "supervisorName",
+      "supervisorEmail",
+      "paymentOption",
+      "selectedInstalmentMonths",
+      "department",
+      "billingContactName",
+      "billingContactEmail",
+      "additionalInfo",
+      "scopeDeclarationAccepted",
+    ] as (keyof ContactFormData)[],
+  },
+] as const;

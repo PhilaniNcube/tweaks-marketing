@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { render } from "@react-email/components";
+import * as v from "valibot";
 import { contactSchema } from "@/lib/validations/contact";
 import { ContactNotificationEmail } from "@/components/emails/contact-notification";
 import { ContactConfirmationEmail } from "@/components/emails/contact-confirmation";
@@ -134,19 +135,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const validatedFields = contactSchema.safeParse(rawData);
+    const validatedFields = v.safeParse(contactSchema, rawData);
 
     if (!validatedFields.success) {
       return NextResponse.json(
         {
           success: false,
-          errors: validatedFields.error.flatten().fieldErrors,
+          errors: v.flatten<typeof contactSchema>(validatedFields.issues).nested,
         },
         { status: 400 }
       );
     }
 
-    const { data: parsedData } = validatedFields;
+    const parsedData = validatedFields.output;
 
     // 4. Process file attachment if present
     const file = formData.get("file") as File | null;
