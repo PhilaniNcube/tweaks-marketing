@@ -178,11 +178,11 @@ export function ContactNotificationEmail({
                   </tr>
                   <tr>
                     <td className="py-[6px] font-semibold text-slate-500">
-                      Word / Page Count:
+                      Page Count:
                     </td>
                     <td className="py-[6px] text-slate-900 font-semibold">
-                      {data.wordCount.toLocaleString()} words ({data.pageCount}{" "}
-                      billable pages)
+                      {data.pageCount} billable pages
+                      {data.wordCount ? ` (${data.wordCount.toLocaleString()} words)` : ""}
                     </td>
                   </tr>
                   <tr>

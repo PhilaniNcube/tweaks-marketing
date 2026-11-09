@@ -79,7 +79,6 @@ function ContactForm() {
   const searchParams = useSearchParams();
   const [fileName, setFileName] = useState("");
   const [isPending, setIsPending] = useState(false);
-  const [pageCountManuallyEdited, setPageCountManuallyEdited] = useState(false);
 
   // CRM database lookups
   const [catalog, setCatalog] = useState<Service[]>(() =>
@@ -179,7 +178,6 @@ function ContactForm() {
       documentTypeOther: "",
       wholeOrPart: "whole",
       whichPart: "",
-      wordCount: undefined as unknown as number,
       pageCount: undefined as unknown as number,
       referencePageCount: 0,
       services: [],
@@ -274,7 +272,6 @@ function ContactForm() {
     if (defaultPages && !isNaN(Number(defaultPages))) {
       const p = Math.max(1, Number(defaultPages));
       setValue("pageCount", p);
-      setValue("wordCount", p * 300);
     }
 
     if (speedParam === "express" || speedParam === "standard") {
@@ -287,7 +284,6 @@ function ContactForm() {
   const watchedDegreeLevel = watch("degreeLevel");
   const watchedDocumentType = watch("documentType");
   const watchedWholeOrPart = watch("wholeOrPart");
-  const watchedWordCount = watch("wordCount");
   const watchedPageCount = watch("pageCount");
   const watchedRefPageCount = watch("referencePageCount");
   const watchedServices = watch("services") || [];
@@ -300,17 +296,6 @@ function ContactForm() {
   const watchedSelectedMonths = watch("selectedInstalmentMonths");
   const watchedTrackedChanges = watch("trackedChanges");
   const watchedScopeDeclaration = watch("scopeDeclarationAccepted");
-
-  // Auto-convert Word Count -> Page Count at 300 words per page unless manually overridden
-  const wordsPerPage = Number(settings.words_per_page || "300") || 300;
-  useEffect(() => {
-    const wc = Number(watchedWordCount);
-    if (!pageCountManuallyEdited && !isNaN(wc) && wc > 0) {
-      setValue("pageCount", Math.max(1, Math.ceil(wc / wordsPerPage)), {
-        shouldValidate: true,
-      });
-    }
-  }, [watchedWordCount, pageCountManuallyEdited, wordsPerPage, setValue]);
 
   // Calculate earliest allowed return date based on expectedSendDate + longest selected service turnaround
   const minTurnaroundDays = useMemo(
@@ -335,7 +320,6 @@ function ContactForm() {
         selectedServices: watchedServices,
         pageCount: Number(watchedPageCount) || 0,
         referencePageCount: Number(watchedRefPageCount) || 0,
-        wordCount: Number(watchedWordCount) || 0,
         deliverySpeed: watchedDeliverySpeed || "standard",
         paymentOption: watchedPaymentOption || "full_payment",
         requestedInstalmentMonths: Number(watchedSelectedMonths) || undefined,
@@ -348,7 +332,6 @@ function ContactForm() {
     watchedServices,
     watchedPageCount,
     watchedRefPageCount,
-    watchedWordCount,
     watchedDeliverySpeed,
     watchedPaymentOption,
     watchedSelectedMonths,
@@ -878,8 +861,8 @@ function ContactForm() {
             Step 2: Document Scope & Volume
           </h3>
           <p className="text-xs text-slate-500 dark:text-zinc-400 font-light">
-            Enter your word count from Microsoft Word and we will automatically
-            calculate your billable pages at {wordsPerPage} words per page.
+            Enter your document page count and reference list pages so we can
+            calculate your quote based on our per-page rate card.
           </p>
         </div>
 
@@ -987,56 +970,29 @@ function ContactForm() {
           )}
         </div>
 
-        {/* Word Count, Auto-Converted Page Count, and Reference List Page Count */}
+        {/* Page Count and Reference List Page Count */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-          <div className="space-y-2">
-            <Label
-              htmlFor="wordCount"
-              className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
-            >
-              Word Count (excl. references){" "}
-              <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="wordCount"
-              type="number"
-              min={1}
-              placeholder="e.g. 45000"
-              {...register("wordCount", {
-                onChange: () => setPageCountManuallyEdited(false),
-              })}
-              className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
-            />
-            {errors.wordCount && (
-              <p className="text-xs text-red-500">{errors.wordCount.message}</p>
-            )}
-            <p className="text-xs text-slate-400">
-              Read directly from MS Word status bar
-            </p>
-          </div>
-
           <div className="space-y-2">
             <Label
               htmlFor="pageCount"
               className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400"
             >
-              Billable Page Count <span className="text-red-500">*</span>
+              Page Count (excl. references){" "}
+              <span className="text-red-500">*</span>
             </Label>
             <Input
               id="pageCount"
               type="number"
               min={1}
-              placeholder="Auto-filled (300 words/page)"
-              {...register("pageCount", {
-                onChange: () => setPageCountManuallyEdited(true),
-              })}
+              placeholder="e.g. 120"
+              {...register("pageCount")}
               className="rounded-none border-slate-300 dark:border-zinc-800 focus-visible:ring-0 focus-visible:border-tweaks-blue bg-white dark:bg-zinc-950"
             />
             {errors.pageCount && (
               <p className="text-xs text-red-500">{errors.pageCount.message}</p>
             )}
             <p className="text-xs text-slate-400">
-              Auto-calculated at {wordsPerPage} words/page (editable)
+              Total document pages excluding your reference list
             </p>
           </div>
 

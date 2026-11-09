@@ -98,8 +98,10 @@ export function ContactConfirmationEmail({
                         Volume:
                       </td>
                       <td className="py-[4px] text-slate-900 text-right font-semibold">
-                        {data.wordCount.toLocaleString()} words ({data.pageCount}{" "}
-                        pages)
+                        {data.pageCount} pages
+                        {data.referencePageCount > 0
+                          ? ` (+ ${data.referencePageCount} reference pages)`
+                          : ""}
                       </td>
                     </tr>
                     <tr>

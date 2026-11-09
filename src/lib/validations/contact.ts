@@ -155,9 +155,10 @@ export const contactSchema = z
     }),
     whichPart: z.string().optional(),
     wordCount: z.coerce
-      .number({ invalid_type_error: "Word count is required" })
+      .number()
       .int()
-      .min(1, { message: "Word count must be at least 1" }),
+      .min(0)
+      .optional(),
     pageCount: z.coerce
       .number({ invalid_type_error: "Page count is required" })
       .int()

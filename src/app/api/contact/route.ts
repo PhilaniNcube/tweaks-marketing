@@ -55,7 +55,7 @@ export function parseBriefFormData(formData: FormData) {
     documentTypeOther: getOptionalString("documentTypeOther"),
     wholeOrPart: getString("wholeOrPart"),
     whichPart: getOptionalString("whichPart"),
-    wordCount: getString("wordCount"),
+    wordCount: getOptionalString("wordCount"),
     pageCount: getString("pageCount"),
     referencePageCount: getString("referencePageCount") || "0",
     services: getArray("services"),

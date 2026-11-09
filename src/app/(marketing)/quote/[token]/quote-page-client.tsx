@@ -658,8 +658,11 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
                 ({project.documentType})
               </p>
               <p className="text-xs text-slate-500">
-                Volume: {project.wordCount.toLocaleString()} words (
-                {project.pageCount} pages) | Delivery:{" "}
+                Volume: {project.pageCount} pages
+                {project.referencePageCount > 0
+                  ? ` (+ ${project.referencePageCount} ref pages)`
+                  : ""}{" "}
+                | Delivery:{" "}
                 <span className="uppercase font-semibold">
                   {quote.deliverySpeed}
                 </span>

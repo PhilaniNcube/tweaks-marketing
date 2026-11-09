@@ -505,7 +505,6 @@ export function ProjectDetailClient({
               <div className="flex justify-between">
                 <dt className="text-slate-500">Document Volume</dt>
                 <dd className="font-mono">
-                  {project.wordCount.toLocaleString("en-ZA")} words /{" "}
                   {project.pageCount} pages ({project.referencePageCount} ref p.)
                 </dd>
               </div>

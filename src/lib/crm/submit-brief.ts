@@ -250,7 +250,7 @@ export async function recordBriefAndGenerateQuote(
       documentTypeOther: data.documentTypeOther?.trim() || null,
       wholeOrPart: data.wholeOrPart,
       whichPart: data.wholeOrPart === "part" ? data.whichPart?.trim() : null,
-      wordCount: data.wordCount,
+      wordCount: data.wordCount ?? 0,
       pageCount: data.pageCount,
       referencePageCount: data.referencePageCount,
       referencingStyle: data.referencingStyle,
