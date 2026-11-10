@@ -274,7 +274,7 @@ export function Step1ClientDetails({
               >
                 <ComboboxInput
                   id="degreeProgramme"
-                  placeholder="e.g. Chemistry, Educational Psychology, Sociology"
+                  placeholder="Search the list or type your own programme..."
                   aria-invalid={!!errors.degreeProgramme}
                   showClear
                   className="w-full"
@@ -282,7 +282,8 @@ export function Step1ClientDetails({
                 />
                 <ComboboxContent>
                   <ComboboxEmpty>
-                    No match. Keep typing to use your own programme name.
+                    Not in the list? Keep typing — your own programme name will
+                    be used.
                   </ComboboxEmpty>
                   <ComboboxList>
                     {(item) => (
@@ -295,16 +296,22 @@ export function Step1ClientDetails({
               </Combobox>
             )}
           />
-          <FieldDescription>
-            Appears alongside your degree designator on your completion
-            certificate (e.g.{" "}
-            <em>
-              {watchedDegreeLevel && watchedDegreeLevel !== "Other"
-                ? watchedDegreeLevel
-                : "MSc"}{" "}
-              Chemistry
-            </em>
-            ).
+          <FieldDescription className="space-y-1">
+            <span className="block">
+              Start typing to search the list, or simply type your own
+              programme name if it isn&apos;t there.
+            </span>
+            <span className="block">
+              Appears alongside your degree designator on your completion
+              certificate (e.g.{" "}
+              <em>
+                {watchedDegreeLevel && watchedDegreeLevel !== "Other"
+                  ? watchedDegreeLevel
+                  : "MSc"}{" "}
+                Chemistry
+              </em>
+              ).
+            </span>
           </FieldDescription>
           <FieldError errors={[errors.degreeProgramme]} />
         </Field>
