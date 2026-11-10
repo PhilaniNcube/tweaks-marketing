@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { useFormContext } from "react-hook-form";
+import { Controller, useFormContext } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import {
   Field,
@@ -14,6 +14,14 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import { REFERRAL_SOURCES } from "@/lib/validations/contact";
 import type {
   ContactFormValues,
@@ -34,6 +42,7 @@ export function Step1ClientDetails({
   degreeProgrammes,
 }: Step1ClientDetailsProps) {
   const {
+    control,
     register,
     watch,
     formState: { errors },
@@ -241,19 +250,51 @@ export function Step1ClientDetails({
           <FieldLabel htmlFor="degreeProgramme">
             Degree Programme <span className="text-destructive">*</span>
           </FieldLabel>
-          <Input
-            id="degreeProgramme"
-            type="text"
-            list="degree-programme-suggestions"
-            placeholder="e.g. Chemistry, Educational Psychology, Sociology"
-            aria-invalid={!!errors.degreeProgramme}
-            {...register("degreeProgramme")}
+          <Controller
+            control={control}
+            name="degreeProgramme"
+            render={({ field }) => (
+              <Combobox
+                items={orderedProgrammeSuggestions}
+                value={field.value || null}
+                onValueChange={(value) => field.onChange(value ?? "")}
+                onInputValueChange={(inputValue, details) => {
+                  // Keep free-text entry working: anything typed (including
+                  // paste) or cleared becomes the field value, not just the
+                  // items picked from the list.
+                  if (
+                    details.reason === "input-change" ||
+                    details.reason === "input-clear"
+                  ) {
+                    if (inputValue !== field.value) {
+                      field.onChange(inputValue);
+                    }
+                  }
+                }}
+              >
+                <ComboboxInput
+                  id="degreeProgramme"
+                  placeholder="e.g. Chemistry, Educational Psychology, Sociology"
+                  aria-invalid={!!errors.degreeProgramme}
+                  showClear
+                  className="w-full"
+                  onBlur={field.onBlur}
+                />
+                <ComboboxContent>
+                  <ComboboxEmpty>
+                    No match. Keep typing to use your own programme name.
+                  </ComboboxEmpty>
+                  <ComboboxList>
+                    {(item) => (
+                      <ComboboxItem key={item} value={item}>
+                        {item}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+            )}
           />
-          <datalist id="degree-programme-suggestions">
-            {orderedProgrammeSuggestions.map((prog) => (
-              <option key={prog} value={prog} />
-            ))}
-          </datalist>
           <FieldDescription>
             Appears alongside your degree designator on your completion
             certificate (e.g.{" "}
