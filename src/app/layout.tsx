@@ -3,6 +3,7 @@ import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { JotaiProvider } from "@/components/providers/jotai-provider";
+import { getBaseUrl } from "@/lib/app-url";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -11,9 +12,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_BASE_URL || "https://tweaks.co.za"
-  ),
+  metadataBase: new URL(getBaseUrl()),
   title: {
     default: "Tweaks Academic Editing",
     template: "%s | Tweaks Academic Editing",

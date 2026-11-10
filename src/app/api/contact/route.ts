@@ -15,6 +15,7 @@ import {
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { getAppUrl } from "@/lib/app-url";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -205,10 +206,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const origin =
-      request.headers.get("origin") ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "https://www.tweaks.co.za";
+    const origin = request.headers.get("origin") || getAppUrl();
     const quoteUrl = `${origin}/quote/${crmResult.quoteToken}`;
     const fullName = `${parsedData.firstName} ${parsedData.surname}`.trim();
 

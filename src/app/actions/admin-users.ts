@@ -3,28 +3,24 @@
 import crypto from "crypto";
 import { db } from "@/db";
 import { user, account, verification, editors } from "@/db/schema";
-import { eq, and, gt, desc } from "drizzle-orm";
+import { eq, gt, desc } from "drizzle-orm";
 import { requireAdminSession } from "@/lib/auth-server";
 import { hashPassword } from "better-auth/crypto";
 import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { AdminInvitationEmail } from "@/components/emails/admin-invitation";
+import { getAppUrl } from "@/lib/app-url";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
 function getBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
-  }
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  return "http://localhost:3000";
+  return getAppUrl();
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 export interface UserItem {
@@ -225,11 +221,11 @@ export async function createAdminUserAction(input: {
     }
 
     return { success: true };
-  } catch (err: any) {
+  } catch (err) {
     console.error("Failed to create admin user:", err);
     return {
       success: false,
-      error: err?.message || "Failed to create user account.",
+      error: getErrorMessage(err, "Failed to create user account."),
     };
   }
 }
@@ -331,11 +327,11 @@ export async function inviteAdminUserAction(input: {
       emailSent,
       expiresAt,
     };
-  } catch (err: any) {
+  } catch (err) {
     console.error("Failed to generate invite:", err);
     return {
       success: false,
-      error: err?.message || "Failed to generate invite.",
+      error: getErrorMessage(err, "Failed to generate invite."),
     };
   }
 }
@@ -576,11 +572,11 @@ export async function acceptAdminInviteAction(input: {
       success: true,
       email: matchedInvite.email,
     };
-  } catch (err: any) {
+  } catch (err) {
     console.error("Failed to accept invite:", err);
     return {
       success: false,
-      error: err?.message || "Failed to set up your account.",
+      error: getErrorMessage(err, "Failed to set up your account."),
     };
   }
 }

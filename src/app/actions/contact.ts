@@ -18,6 +18,7 @@ import {
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { getAppUrl } from "@/lib/app-url";
 import type { CalculatedQuoteResult } from "@/lib/pricing/quote-calculator";
 
 const resend = process.env.RESEND_API_KEY
@@ -136,10 +137,7 @@ export async function submitContactForm(
       }
     }
 
-    const origin =
-      hdrs.get("origin") ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "https://www.tweaks.co.za";
+    const origin = hdrs.get("origin") || getAppUrl();
     const quoteUrl = `${origin}/quote/${crmResult.quoteToken}`;
     const fullName = `${parsedData.firstName} ${parsedData.surname}`.trim();
 

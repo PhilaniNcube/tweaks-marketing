@@ -3,12 +3,35 @@ import { db } from "@/db";
 import { payments, quotes, projects } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || "";
 const PAYSTACK_BASE_URL = "https://api.paystack.co";
+
+/**
+ * Read the secret key at call time so runtime env changes (and test keys)
+ * are always picked up correctly.
+ *
+ * NOTE: This key must never be exposed to the browser. Paystack uses the same
+ * secret key to sign webhook payloads, so there is no separate webhook secret.
+ */
+export function getPaystackSecretKey(): string {
+  return process.env.PAYSTACK_SECRET_KEY?.trim() || "";
+}
+
+export function isPaystackConfigured(): boolean {
+  return getPaystackSecretKey().length > 0;
+}
+
+/**
+ * Local/dev-only simulation so the payment flow can be tested without a
+ * Paystack account. This is deliberately disabled in production: allowing it
+ * there would let anyone mark an invoice as paid for free.
+ */
+function isSimulationAllowed(): boolean {
+  return !isPaystackConfigured() && process.env.NODE_ENV !== "production";
+}
 
 export interface InitializePaystackInput {
   email: string;
-  /** Amount in ZAR cents (Paystack expects kobo/cents as integer) */
+  /** Amount in ZAR cents (Paystack expects the subunit as an integer) */
   amountCents: number;
   reference: string;
   callbackUrl: string;
@@ -32,7 +55,18 @@ export interface InitializePaystackResponse {
 export async function initializePaystackTransaction(
   input: InitializePaystackInput
 ): Promise<InitializePaystackResponse> {
-  if (!PAYSTACK_SECRET_KEY) {
+  const secretKey = getPaystackSecretKey();
+
+  if (!secretKey) {
+    if (!isSimulationAllowed()) {
+      return {
+        success: false,
+        reference: input.reference,
+        error:
+          "Paystack is not configured. Set PAYSTACK_SECRET_KEY before accepting payments.",
+      };
+    }
+
     const simUrl = new URL(input.callbackUrl);
     simUrl.searchParams.set("reference", input.reference);
     simUrl.searchParams.set("simulated", "true");
@@ -49,7 +83,7 @@ export async function initializePaystackTransaction(
     const response = await fetch(`${PAYSTACK_BASE_URL}/transaction/initialize`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+        Authorization: `Bearer ${secretKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -89,17 +123,94 @@ export async function initializePaystackTransaction(
 
 /**
  * Verifies a Paystack webhook HMAC SHA-512 signature.
+ * Paystack sends the hex digest of the raw request body in `x-paystack-signature`.
  */
 export function verifyPaystackWebhookSignature(
   rawBody: string,
   signature: string | null
 ): boolean {
-  if (!PAYSTACK_SECRET_KEY || !signature) return false;
-  const hash = crypto
-    .createHmac("sha512", PAYSTACK_SECRET_KEY)
+  const secretKey = getPaystackSecretKey();
+  if (!secretKey || !signature) return false;
+
+  const expected = crypto
+    .createHmac("sha512", secretKey)
     .update(rawBody)
-    .digest("hex");
-  return hash === signature;
+    .digest();
+  const provided = Buffer.from(signature, "hex");
+
+  if (provided.length !== expected.length) return false;
+  return crypto.timingSafeEqual(provided, expected);
+}
+
+async function appendPaymentNote(paymentId: string, note: string) {
+  const [row] = await db
+    .select({ notes: payments.notes })
+    .from(payments)
+    .where(eq(payments.id, paymentId))
+    .limit(1);
+
+  const nextNotes = [row?.notes, note].filter(Boolean).join(" | ");
+  await db
+    .update(payments)
+    .set({ notes: nextNotes })
+    .where(eq(payments.id, paymentId));
+}
+
+/**
+ * Marks a pending payment as failed (e.g. from a `charge.failed` webhook).
+ * Successful or refunded payments are never downgraded.
+ */
+export async function markPaymentFailed(reference: string, reason?: string) {
+  const [paymentRow] = await db
+    .select()
+    .from(payments)
+    .where(eq(payments.paystackReference, reference))
+    .limit(1);
+
+  if (!paymentRow) return null;
+  if (paymentRow.status === "success" || paymentRow.status === "refunded") {
+    return paymentRow;
+  }
+
+  await db
+    .update(payments)
+    .set({
+      status: "failed",
+      notes: reason
+        ? [paymentRow.notes, reason].filter(Boolean).join(" | ")
+        : paymentRow.notes,
+    })
+    .where(eq(payments.id, paymentRow.id));
+
+  return paymentRow;
+}
+
+/**
+ * Marks a payment as refunded and recalculates the quote/project state so the
+ * outstanding balance comes back.
+ */
+export async function markPaymentRefunded(reference: string) {
+  const [paymentRow] = await db
+    .select()
+    .from(payments)
+    .where(eq(payments.paystackReference, reference))
+    .limit(1);
+
+  if (!paymentRow) return null;
+
+  if (paymentRow.status !== "refunded") {
+    await db
+      .update(payments)
+      .set({
+        status: "refunded",
+        notes: [paymentRow.notes, "Refunded via Paystack webhook."]
+          .filter(Boolean)
+          .join(" | "),
+      })
+      .where(eq(payments.id, paymentRow.id));
+  }
+
+  return recalculateQuoteAndProjectFromPayments(paymentRow.quoteId);
 }
 
 /**
@@ -126,6 +237,15 @@ export async function settlePaymentAndRecalculateQuote(params: {
     .limit(1);
 
   if (!paymentRow) return null;
+
+  // Idempotent: webhooks and the browser callback can both verify the same
+  // reference. Re-settling should only recalculate, never double-count.
+  if (paymentRow.status === "success") {
+    return recalculateQuoteAndProjectFromPayments(
+      paymentRow.quoteId,
+      paymentRow.paidAt || nowIso
+    );
+  }
 
   const receiptNumber =
     paymentRow.receiptNumber ||
@@ -268,14 +388,42 @@ export async function recalculateQuoteAndProjectFromPayments(
   return updatedQuote;
 }
 
+export interface VerifyPaystackResult {
+  success: boolean;
+  error?: string;
+  /** Signals the caller (e.g. the webhook) that a retry may succeed. */
+  retryable?: boolean;
+  alreadySettled?: boolean;
+  simulated?: boolean;
+  quote?: {
+    totalFeeCents: number;
+    paidToDateCents: number;
+    balanceCents: number;
+  };
+}
+
+function toQuoteSummary(
+  quote: typeof quotes.$inferSelect | null | undefined
+): VerifyPaystackResult["quote"] {
+  if (!quote) return undefined;
+  return {
+    totalFeeCents: quote.totalFeeCents,
+    paidToDateCents: quote.paidToDateCents,
+    balanceCents: quote.balanceCents,
+  };
+}
+
 /**
  * Verifies a Paystack reference against Paystack's API (or simulated local mode)
  * and settles the payment in the database.
+ *
+ * The Paystack API is the source of truth: status, amount and currency are all
+ * checked before a payment is marked successful.
  */
 export async function verifyAndSettlePaystackReference(
   reference: string,
   simulated = false
-) {
+): Promise<VerifyPaystackResult> {
   const [paymentRow] = await db
     .select()
     .from(payments)
@@ -287,17 +435,35 @@ export async function verifyAndSettlePaystackReference(
   }
 
   if (paymentRow.status === "success") {
-    return { success: true, alreadySettled: true, payment: paymentRow };
+    return { success: true, alreadySettled: true };
   }
 
-  if (!PAYSTACK_SECRET_KEY && simulated) {
-    const updatedQuote = await settlePaymentAndRecalculateQuote({
-      paymentId: paymentRow.id,
-      transactionId: `SIM_TX_${Date.now()}`,
-      channel: "card (simulated)",
-      feesCents: 0,
-    });
-    return { success: true, simulated: true, quote: updatedQuote };
+  if (paymentRow.status === "refunded") {
+    return { success: false, error: "This payment has already been refunded." };
+  }
+
+  const secretKey = getPaystackSecretKey();
+
+  if (!secretKey) {
+    if (simulated && isSimulationAllowed()) {
+      const updatedQuote = await settlePaymentAndRecalculateQuote({
+        paymentId: paymentRow.id,
+        transactionId: `SIM_TX_${Date.now()}`,
+        channel: "card (simulated)",
+        feesCents: 0,
+      });
+      return {
+        success: true,
+        simulated: true,
+        quote: toQuoteSummary(updatedQuote),
+      };
+    }
+
+    return {
+      success: false,
+      error:
+        "Paystack is not configured. Set PAYSTACK_SECRET_KEY to verify payments.",
+    };
   }
 
   try {
@@ -305,30 +471,95 @@ export async function verifyAndSettlePaystackReference(
       `${PAYSTACK_BASE_URL}/transaction/verify/${encodeURIComponent(reference)}`,
       {
         headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          Authorization: `Bearer ${secretKey}`,
         },
       }
     );
     const json = await res.json();
 
-    if (res.ok && json.status && json.data?.status === "success") {
-      const updatedQuote = await settlePaymentAndRecalculateQuote({
-        paymentId: paymentRow.id,
-        transactionId: String(json.data.id),
-        channel: json.data.channel || "card",
-        feesCents: Number(json.data.fees || 0),
-        paidAt: json.data.paid_at || new Date().toISOString(),
-      });
-      return { success: true, quote: updatedQuote };
+    if (!res.ok || !json.status || !json.data) {
+      return {
+        success: false,
+        error: json.message || "Could not verify payment with Paystack.",
+        retryable: res.status >= 500,
+      };
     }
 
+    const data = json.data as {
+      status?: string;
+      amount?: number;
+      currency?: string;
+      channel?: string;
+      fees?: number;
+      id?: number | string;
+      paid_at?: string;
+      gateway_response?: string;
+    };
+
+    if (data.status === "failed" || data.status === "abandoned") {
+      await markPaymentFailed(reference, `Paystack status: ${data.status}`);
+      return {
+        success: false,
+        error: data.gateway_response || `Payment ${data.status}.`,
+      };
+    }
+
+    if (data.status !== "success") {
+      return {
+        success: false,
+        error:
+          data.gateway_response ||
+          `Payment is ${data.status || "not complete"} yet.`,
+      };
+    }
+
+    const paidCurrency = String(data.currency || "").toUpperCase();
+    if (paidCurrency && paidCurrency !== paymentRow.currency.toUpperCase()) {
+      await appendPaymentNote(
+        paymentRow.id,
+        `Currency mismatch: Paystack returned ${paidCurrency}, expected ${paymentRow.currency}.`
+      );
+      return {
+        success: false,
+        error: "Payment currency does not match this invoice.",
+      };
+    }
+
+    const paidAmountCents = Number(data.amount);
+    if (
+      !Number.isFinite(paidAmountCents) ||
+      paidAmountCents !== paymentRow.amountCents
+    ) {
+      await appendPaymentNote(
+        paymentRow.id,
+        `Amount mismatch: Paystack returned ${data.amount}, expected ${paymentRow.amountCents}. Needs manual reconciliation.`
+      );
+      return {
+        success: false,
+        error:
+          "The amount received does not match this invoice. Please contact us so we can reconcile it.",
+      };
+    }
+
+    const updatedQuote = await settlePaymentAndRecalculateQuote({
+      paymentId: paymentRow.id,
+      transactionId:
+        data.id !== undefined ? String(data.id) : undefined,
+      channel: data.channel || "card",
+      feesCents: Number(data.fees || 0),
+      paidAt: data.paid_at || new Date().toISOString(),
+    });
+
     return {
-      success: false,
-      error: json.data?.gateway_response || json.message || "Payment not completed",
+      success: true,
+      quote: toQuoteSummary(updatedQuote),
     };
   } catch (err) {
     console.error("Error verifying Paystack payment:", err);
-    return { success: false, error: "Failed to verify payment with Paystack." };
+    return {
+      success: false,
+      error: "Failed to verify payment with Paystack.",
+      retryable: true,
+    };
   }
 }
-

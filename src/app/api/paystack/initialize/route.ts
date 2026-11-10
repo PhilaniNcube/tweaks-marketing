@@ -3,31 +3,79 @@ import { db } from "@/db";
 import { quotes, clients, payments, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { initializePaystackTransaction } from "@/lib/paystack";
+import { getAppUrl, getConfiguredAppUrl } from "@/lib/app-url";
+import type { PaymentOption } from "@/db/schema";
+
+const PAYMENT_TYPES = [
+  "deposit",
+  "full_payment",
+  "instalment_1",
+  "instalment_2",
+  "instalment_3",
+  "balance",
+] as const;
+
+type PaymentType = (typeof PAYMENT_TYPES)[number];
+
+const PAYMENT_OPTIONS = [
+  "full_payment",
+  "payment_plan",
+  "institutional_funding",
+] as const;
+
+/**
+ * Returns a trusted absolute origin for the Paystack callback URL.
+ * Prefers the configured app URL, then the request origin only when it is a
+ * known host, so a spoofed Origin header cannot redirect the client elsewhere.
+ */
+function resolveAppOrigin(request: NextRequest): string {
+  const configured = getConfiguredAppUrl();
+  if (configured) return configured;
+
+  const origin = request.headers.get("origin");
+  const allowed =
+    /^https?:\/\/(localhost(:\d+)?|([a-z0-9-]+\.)*tweaks\.co\.za|([a-z0-9-]+\.)*vercel\.app)$/i;
+
+  if (origin && allowed.test(origin)) return origin.replace(/\/$/, "");
+
+  // Preview deployments resolve to their own Vercel URL; production and local
+  // fall back to the canonical/local origin.
+  return getAppUrl();
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = (await request.json()) as {
+      quoteToken?: string;
+      paymentOption?: PaymentOption;
+      selectedInstalmentMonths?: number;
+      paymentType?: PaymentType;
+    };
+
     const {
       quoteToken,
       paymentOption,
       selectedInstalmentMonths,
       paymentType,
-    } = body as {
-      quoteToken: string;
-      paymentOption?: "full_payment" | "payment_plan" | "institutional_funding";
-      selectedInstalmentMonths?: number;
-      paymentType?:
-        | "deposit"
-        | "full_payment"
-        | "instalment_1"
-        | "instalment_2"
-        | "instalment_3"
-        | "balance";
-    };
+    } = body;
 
-    if (!quoteToken) {
+    if (!quoteToken || typeof quoteToken !== "string") {
       return NextResponse.json(
         { success: false, error: "Missing quote token." },
+        { status: 400 }
+      );
+    }
+
+    if (paymentOption && !PAYMENT_OPTIONS.includes(paymentOption)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid payment option." },
+        { status: 400 }
+      );
+    }
+
+    if (paymentType && !PAYMENT_TYPES.includes(paymentType)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid payment type." },
         { status: 400 }
       );
     }
@@ -45,6 +93,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (quote.outcome === "declined" || quote.outcome === "expired") {
+      return NextResponse.json(
+        { success: false, error: "This quote is no longer payable." },
+        { status: 400 }
+      );
+    }
+
     const [client] = await db
       .select()
       .from(clients)
@@ -58,31 +113,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update quote if client changed payment option or instalment months before first payment
+    if (!client.email?.trim()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "A valid email address is required to pay online.",
+        },
+        { status: 400 }
+      );
+    }
+
     const effectiveOption = paymentOption || quote.paymentOption;
+
+    if (effectiveOption === "institutional_funding") {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Institutional quotes are settled by purchase order (PO), not online payment.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Update quote if client changed payment option or instalment months before first payment
+    const requestedMonths =
+      typeof selectedInstalmentMonths === "number" &&
+      Number.isFinite(selectedInstalmentMonths)
+        ? selectedInstalmentMonths
+        : quote.selectedInstalmentMonths;
+
     const cappedMonths =
       effectiveOption === "payment_plan"
         ? Math.min(
             quote.maxInstalmentMonths,
-            Math.max(
-              2,
-              selectedInstalmentMonths || quote.selectedInstalmentMonths
-            )
+            Math.max(2, requestedMonths)
           )
         : quote.maxInstalmentMonths;
 
-    const depositPercentage =
-      effectiveOption === "payment_plan"
-        ? 50
-        : effectiveOption === "institutional_funding"
-          ? 0
-          : 100;
+    const depositPercentage = effectiveOption === "payment_plan" ? 50 : 100;
     const depositRequiredCents =
       effectiveOption === "payment_plan"
         ? Math.round(quote.totalFeeCents * 0.5)
-        : effectiveOption === "institutional_funding"
-          ? 0
-          : quote.totalFeeCents;
+        : quote.totalFeeCents;
 
     const nowIso = new Date().toISOString();
 
@@ -128,7 +201,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine exact amount to charge now
-    const resolvedPaymentType =
+    const resolvedPaymentType: PaymentType =
       paymentType ||
       (effectiveOption === "payment_plan" && quote.paidToDateCents === 0
         ? "deposit"
@@ -172,15 +245,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Reference always starts with the quoteNumber for clean reconciliation
-    const shortRand = crypto.randomUUID().slice(0, 4).toUpperCase();
+    // Reference always starts with the quoteNumber for clean reconciliation.
+    // 8 random characters keeps collisions effectively impossible.
+    const shortRand = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
     const paystackReference = `${quote.quoteNumber}-${shortRand}`;
 
-    const origin =
-      request.headers.get("origin") ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "https://www.tweaks.co.za";
+    const origin = resolveAppOrigin(request);
     const callbackUrl = `${origin}/quote/${quote.token}`;
+
+    // Create the pending payment before calling Paystack so the webhook can
+    // always find the reference, even if this request times out afterwards.
+    const [pendingPayment] = await db
+      .insert(payments)
+      .values({
+        projectId: quote.projectId,
+        quoteId: quote.id,
+        clientId: client.id,
+        paymentType: resolvedPaymentType,
+        amountCents: amountToChargeCents,
+        currency: "ZAR",
+        method: "paystack",
+        status: "pending",
+        paystackReference,
+      })
+      .returning();
 
     const initResult = await initializePaystackTransaction({
       email: client.email,
@@ -197,6 +285,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (!initResult.success || !initResult.authorizationUrl) {
+      await db
+        .update(payments)
+        .set({
+          status: "failed",
+          notes:
+            initResult.error || "Could not initialize Paystack checkout.",
+        })
+        .where(eq(payments.id, pendingPayment.id));
+
       return NextResponse.json(
         {
           success: false,
@@ -206,18 +303,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await db.insert(payments).values({
-      projectId: quote.projectId,
-      quoteId: quote.id,
-      clientId: client.id,
-      paymentType: resolvedPaymentType,
-      amountCents: amountToChargeCents,
-      currency: "ZAR",
-      method: "paystack",
-      status: "pending",
-      paystackReference: initResult.reference,
-      paystackAccessCode: initResult.accessCode || null,
-    });
+    await db
+      .update(payments)
+      .set({
+        paystackReference: initResult.reference,
+        paystackAccessCode: initResult.accessCode || null,
+      })
+      .where(eq(payments.id, pendingPayment.id));
 
     return NextResponse.json({
       success: true,
@@ -233,4 +325,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

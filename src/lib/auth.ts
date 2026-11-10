@@ -4,27 +4,18 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { count } from "drizzle-orm";
+import { getAppUrl, getTrustedOrigins } from "@/lib/app-url";
 
-const resolvedBaseUrl =
-  process.env.BETTER_AUTH_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  (process.env.VERCEL_BRANCH_URL
-    ? `https://${process.env.VERCEL_BRANCH_URL}`
-    : process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000");
+const resolvedBaseUrl = process.env.BETTER_AUTH_URL || getAppUrl();
 
-const trustedOrigins = [
-  "http://localhost:3000",
-  "https://tweaks.co.za",
-  "https://www.tweaks.co.za",
-  ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
-  ...(process.env.NEXT_PUBLIC_APP_URL ? [process.env.NEXT_PUBLIC_APP_URL] : []),
-  ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
-  ...(process.env.VERCEL_BRANCH_URL
-    ? [`https://${process.env.VERCEL_BRANCH_URL}`]
-    : []),
-];
+const trustedOrigins = Array.from(
+  new Set([
+    ...getTrustedOrigins(),
+    ...(process.env.BETTER_AUTH_URL
+      ? [process.env.BETTER_AUTH_URL.replace(/\/+$/, "")]
+      : []),
+  ])
+);
 
 export const auth = betterAuth({
   baseURL: resolvedBaseUrl,
