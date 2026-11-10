@@ -199,7 +199,7 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
     }
   };
 
-  const handleAcceptInstitutionalOrPlan = async () => {
+  const handleAcceptQuote = async (options?: { payLater?: boolean }) => {
     if (paymentOption === "institutional_funding") {
       if (!department.trim() || !billingContactName.trim() || !billingContactEmail.trim()) {
         toast.error(
@@ -223,7 +223,9 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
         description:
           paymentOption === "institutional_funding"
             ? "Your institutional invoice details have been updated. Please share this quote PDF with your finance office to raise a Purchase Order."
-            : "Your payment option has been saved.",
+            : options?.payLater
+              ? "Your quote and payment option are confirmed. No payment has been taken — you can return to this link and pay whenever you're ready."
+              : "Your payment option has been saved.",
       });
       router.refresh();
     } else {
@@ -810,6 +812,27 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
               Accept Quote & Complete Payment
             </h3>
 
+            {quote.outcome === "accepted" && (
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5 text-xs">
+                  <p className="font-bold text-emerald-900 dark:text-emerald-200">
+                    Quote accepted
+                    {quote.acceptedAt
+                      ? ` on ${new Date(quote.acceptedAt).toLocaleDateString("en-ZA")}`
+                      : ""}
+                  </p>
+                  <p className="text-emerald-800 dark:text-emerald-300">
+                    {paymentOption === "institutional_funding"
+                      ? "Awaiting your institution's purchase order. No payment has been taken."
+                      : quote.paidToDateCents > 0
+                        ? `We have received ${formatZarFromCents(quote.paidToDateCents)} so far. The outstanding balance can be paid below at any time.`
+                        : "No payment has been taken yet — you can return to this link and pay whenever you're ready."}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Payment Option Picker (editable before first payment) */}
             {quote.paidToDateCents === 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -984,7 +1007,7 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
 
                 <Button
                   type="button"
-                  onClick={handleAcceptInstitutionalOrPlan}
+                  onClick={() => handleAcceptQuote()}
                   disabled={isAccepting}
                   className="bg-tweaks-blue hover:bg-tweaks-red text-white rounded-none font-bold cursor-pointer"
                 >
@@ -1010,26 +1033,56 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
                     </p>
                   </div>
 
-                  <Button
-                    type="button"
-                    onClick={() => handlePayWithPaystack()}
-                    disabled={isPaying}
-                    className="w-full bg-tweaks-red hover:bg-tweaks-blue text-white rounded-none py-6 font-bold cursor-pointer"
-                  >
-                    {isPaying ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <CreditCard className="h-4 w-4 mr-2" />
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      onClick={() => handlePayWithPaystack()}
+                      disabled={isPaying}
+                      className="w-full bg-tweaks-red hover:bg-tweaks-blue text-white rounded-none py-6 font-bold cursor-pointer"
+                    >
+                      {isPaying ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <CreditCard className="h-4 w-4 mr-2" />
+                      )}
+                      {quote.paidToDateCents === 0 &&
+                      paymentOption === "payment_plan"
+                        ? `Accept & Pay 50% Deposit (${formatZarFromCents(
+                            depositCents
+                          )})`
+                        : `Accept & Pay ${formatZarFromCents(
+                            nextPayableAmountCents
+                          )} via Paystack`}
+                    </Button>
+
+                    {quote.paidToDateCents === 0 && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleAcceptQuote({ payLater: true })}
+                          disabled={isPaying || isAccepting}
+                          className="w-full rounded-none py-5 font-bold border-slate-300 dark:border-zinc-700 cursor-pointer"
+                        >
+                          {isAccepting ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                          )}
+                          {quote.outcome === "accepted"
+                            ? "Save Payment Option"
+                            : "Accept Quote — I'll Pay Later"}
+                        </Button>
+
+                        <p className="text-[11px] text-slate-500 text-center leading-relaxed">
+                          Accepting confirms your booking and locks in your
+                          payment option. Nothing is charged now, and this quote
+                          link stays open so you can pay whenever you&apos;re
+                          ready.
+                        </p>
+                      </>
                     )}
-                    {quote.paidToDateCents === 0 &&
-                    paymentOption === "payment_plan"
-                      ? `Accept & Pay 50% Deposit (${formatZarFromCents(
-                          depositCents
-                        )})`
-                      : `Accept & Pay ${formatZarFromCents(
-                          nextPayableAmountCents
-                        )} via Paystack`}
-                  </Button>
+                  </div>
                 </div>
 
                 {/* Bank Transfer (EFT) Instructions */}
