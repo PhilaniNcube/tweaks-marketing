@@ -19,6 +19,20 @@ import {
 import { seedCrmDatabase } from "./seed.ts";
 import { calculateQuoteFromCatalog } from "../lib/pricing/quote-calculator.ts";
 
+/**
+ * Demo deliverables are committed under `public/demo/` so that seeded projects
+ * always resolve. These previously pointed at `https://files.tweaks.co.za`, a
+ * host that was never provisioned (NXDOMAIN), which left every demo download
+ * link dead in the CRM and on the client quote page.
+ */
+const DEMO_FILES = {
+  manuscript: "/demo/manuscript.docx",
+  editedDoc: "/demo/edited.docx",
+  editingReport: "/demo/editing-report.pdf",
+  referencingReport: "/demo/referencing-report.pdf",
+  walkthrough: "/demo/walkthrough.mp4",
+} as const;
+
 interface DemoProjectSeed {
   firstName: string;
   surname: string;
@@ -713,8 +727,8 @@ export async function seedDemoProjects() {
               : "Yes, both versions",
           certificateRequested: demo.certificate ?? false,
           additionalInfo: "Demo seed record — safe to delete.",
-          uploadedFileName: `demo-${suffix}-manuscript.docx`,
-          uploadedFileUrl: `https://files.tweaks.co.za/demo/${suffix}/manuscript.docx`,
+          uploadedFileName: "demo-manuscript.docx",
+          uploadedFileUrl: DEMO_FILES.manuscript,
           paymentOption: demo.paymentOption,
           department:
             demo.paymentOption === "institutional_funding"
@@ -750,18 +764,12 @@ export async function seedDemoProjects() {
           releaseWork,
           workReady,
           workReadyAt: workReady ? timestampAt(createdOffset + 8) : null,
-          editedDocUrl: workReady
-            ? `https://files.tweaks.co.za/demo/${suffix}/edited.docx`
-            : null,
-          editingReportUrl: workReady
-            ? `https://files.tweaks.co.za/demo/${suffix}/editing-report.pdf`
-            : null,
-          referencingReportUrl: workReady
-            ? `https://files.tweaks.co.za/demo/${suffix}/referencing-report.pdf`
-            : null,
+          editedDocUrl: workReady ? DEMO_FILES.editedDoc : null,
+          editingReportUrl: workReady ? DEMO_FILES.editingReport : null,
+          referencingReportUrl: workReady ? DEMO_FILES.referencingReport : null,
           walkthroughVideoUrl:
             demo.stage === "complete" || demo.stage === "review"
-              ? `https://files.tweaks.co.za/demo/${suffix}/walkthrough.mp4`
+              ? DEMO_FILES.walkthrough
               : null,
           clientOpenedAt: demo.stage === "review" ? timestampAt(-1) : null,
           reviewClosesAt: demo.stage === "review" ? timestampAt(2) : null,

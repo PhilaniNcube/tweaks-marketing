@@ -1,0 +1,10 @@
+# Binary deliverables: never apply line-ending conversion. Without this, Git
+# treats PDFs as text and rewrites their bytes on checkout, corrupting the
+# cross-reference table and making the file unreadable.
+*.pdf -text
+*.docx -text
+*.mp4 -text
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.webp -text
