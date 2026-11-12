@@ -206,8 +206,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const origin = request.headers.get("origin") || getAppUrl();
-    const quoteUrl = `${origin}/quote/${crmResult.quoteToken}`;
+    // Emailed links must always use the canonical deployment URL. The request
+    // `Origin` header can be a preview alias, the apex domain, or a spoofed
+    // value, none of which should be baked into a client-facing email.
+    const appUrl = getAppUrl();
+    const quoteUrl = `${appUrl}/quote/${crmResult.quoteToken}`;
     const fullName = `${parsedData.firstName} ${parsedData.surname}`.trim();
 
     // 6. Send Email Notifications via Resend (non-blocking if API key not configured locally)
@@ -254,7 +257,7 @@ export async function POST(request: NextRequest) {
           parsedData.supervisorEmail &&
           parsedData.supervisorName
         ) {
-          const supervisorUrl = `${origin}/supervisor/sign-off/${crmResult.supervisorSignOffToken}`;
+          const supervisorUrl = `${appUrl}/supervisor/sign-off/${crmResult.supervisorSignOffToken}`;
           await resend.emails.send({
             from: "Tweaks Academic Editing <hello@tweaks.co.za>",
             to: [parsedData.supervisorEmail],
