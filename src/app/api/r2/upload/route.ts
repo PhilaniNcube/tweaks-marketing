@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Cloudflare R2 is not configured yet. Add R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, and R2_BUCKET_NAME to your environment variables.",
+            "File storage is not configured yet. Please contact your system administrator.",
         },
         { status: 400 }
       );
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Failed to upload file to R2.",
+          error instanceof Error ? error.message : "Failed to upload file.",
       },
       { status: 500 }
     );

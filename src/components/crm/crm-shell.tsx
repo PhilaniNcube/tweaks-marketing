@@ -34,50 +34,61 @@ const NAV_ITEMS = [
   {
     href: "/dashboard",
     label: "Operations Dashboard",
+    editorLabel: "Editorial Dashboard",
     icon: LayoutDashboard,
     exact: true,
+    adminOnly: false,
   },
   {
     href: "/projects",
     label: "Projects & Pipeline",
+    editorLabel: "My Projects & Pipeline",
     icon: FolderKanban,
     exact: false,
+    adminOnly: false,
   },
   {
     href: "/projects/new",
     label: "New Project Intake",
     icon: PlusCircle,
     exact: true,
+    adminOnly: true,
   },
   {
     href: "/quotes",
     label: "Quotes",
     icon: FileSpreadsheet,
     exact: false,
+    adminOnly: true,
   },
   {
     href: "/payments",
     label: "Payments & POs",
     icon: CreditCard,
     exact: false,
+    adminOnly: true,
   },
   {
     href: "/institutions",
     label: "Institutions",
     icon: Building2,
     exact: false,
+    adminOnly: true,
   },
   {
     href: "/archive",
     label: "Archive",
+    editorLabel: "Completed & Archive",
     icon: Archive,
     exact: false,
+    adminOnly: false,
   },
   {
     href: "/settings",
     label: "Rate Card & Settings",
     icon: Settings,
     exact: false,
+    adminOnly: true,
   },
 ];
 
@@ -85,6 +96,11 @@ export function CrmShell({ children, currentUser }: CrmShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const isAdmin = (currentUser.role || "admin") === "admin";
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => isAdmin || !item.adminOnly
+  );
 
   const isActive = (href: string, exact: boolean) => {
     if (exact) return pathname === href;
@@ -114,28 +130,32 @@ export function CrmShell({ children, currentUser }: CrmShellProps) {
                 Tweaks CRM
               </p>
               <p className="text-[10px] font-bold uppercase tracking-widest text-tweaks-blue mt-0.5">
-                Operations Suite
+                {isAdmin ? "Operations Suite" : "Editorial Workspace"}
               </p>
             </div>
           </Link>
         </div>
 
-        {/* Quick Action CTA */}
-        <div className="p-4 border-b border-slate-100 dark:border-zinc-800/70">
-          <Link
-            href="/projects/new"
-            className="w-full py-2.5 px-3 bg-tweaks-blue hover:bg-tweaks-red text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
-          >
-            <PlusCircle className="h-3.5 w-3.5" />
-            Log New Project Brief
-          </Link>
-        </div>
+        {/* Quick Action CTA (Admin only) */}
+        {isAdmin && (
+          <div className="p-4 border-b border-slate-100 dark:border-zinc-800/70">
+            <Link
+              href="/projects/new"
+              className="w-full py-2.5 px-3 bg-tweaks-blue hover:bg-tweaks-red text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
+            >
+              <PlusCircle className="h-3.5 w-3.5" />
+              Log New Project Brief
+            </Link>
+          </div>
+        )}
 
         {/* Navigation Links */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href, item.exact);
+            const displayLabel =
+              !isAdmin && item.editorLabel ? item.editorLabel : item.label;
             return (
               <Link
                 key={item.href}
@@ -147,7 +167,7 @@ export function CrmShell({ children, currentUser }: CrmShellProps) {
                 }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span>{item.label}</span>
+                <span>{displayLabel}</span>
               </Link>
             );
           })}
@@ -209,9 +229,11 @@ export function CrmShell({ children, currentUser }: CrmShellProps) {
               </button>
             </div>
             <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-              {NAV_ITEMS.map((item) => {
+              {visibleNavItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href, item.exact);
+                const displayLabel =
+                  !isAdmin && item.editorLabel ? item.editorLabel : item.label;
                 return (
                   <Link
                     key={item.href}
@@ -224,7 +246,7 @@ export function CrmShell({ children, currentUser }: CrmShellProps) {
                     }`}
                   >
                     <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
+                    <span>{displayLabel}</span>
                   </Link>
                 );
               })}
@@ -247,13 +269,15 @@ export function CrmShell({ children, currentUser }: CrmShellProps) {
             </button>
             <span className="text-sm font-black">Tweaks CRM</span>
           </div>
-          <Link
-            href="/projects/new"
-            className="px-2.5 py-1.5 bg-tweaks-blue text-white text-xs font-bold flex items-center gap-1"
-          >
-            <PlusCircle className="h-3.5 w-3.5" />
-            New
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/projects/new"
+              className="px-2.5 py-1.5 bg-tweaks-blue text-white text-xs font-bold flex items-center gap-1"
+            >
+              <PlusCircle className="h-3.5 w-3.5" />
+              New
+            </Link>
+          )}
         </header>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">

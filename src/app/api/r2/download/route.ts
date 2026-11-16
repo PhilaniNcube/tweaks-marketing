@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     if (!isR2Configured()) {
       return NextResponse.json(
-        { error: "Cloudflare R2 is not configured." },
+        { error: "File storage is not configured." },
         { status: 400 }
       );
     }

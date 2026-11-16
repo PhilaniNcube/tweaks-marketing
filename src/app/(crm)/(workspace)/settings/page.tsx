@@ -1,4 +1,5 @@
 import React from "react";
+import { redirect } from "next/navigation";
 import { getAdminCrmDashboardData } from "@/app/actions/crm";
 import { getAdminUsersAction } from "@/app/actions/admin-users";
 import { getServerSession } from "@/lib/auth-server";
@@ -11,10 +12,15 @@ export const metadata = {
 };
 
 export default async function SettingsPage() {
-  const [data, adminUsersData, session] = await Promise.all([
+  const session = await getServerSession();
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
+  if (!isAdmin) {
+    redirect("/dashboard");
+  }
+
+  const [data, adminUsersData] = await Promise.all([
     getAdminCrmDashboardData(),
     getAdminUsersAction(),
-    getServerSession(),
   ]);
 
   return (

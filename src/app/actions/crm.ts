@@ -303,11 +303,23 @@ export async function recordClientOpenedPackage(quoteToken: string) {
   }
 }
 
+const EDITORIAL_STAGES: ProjectStage[] = [
+  "accepted",
+  "in_progress",
+  "work_ready",
+  "review",
+  "complete",
+];
+
 /**
  * Loads all data for the built-in Admin CRM Workspace (/dashboard, /projects, /quotes, /payments, /institutions, /archive, /settings).
+ * When the current user has role = "editor", scopes projects to their assigned work and strips all fee/payment figures.
  */
 export async function getAdminCrmDashboardData() {
-  await requireCrmSession();
+  const session = await requireCrmSession();
+  const isAdmin = (session.user as { role?: string }).role === "admin";
+  const userEmail = (session.user.email || "").trim().toLowerCase();
+
   try {
     let allServices = await db
       .select()
@@ -331,7 +343,7 @@ export async function getAdminCrmDashboardData() {
       allInstitutions,
       allDegreeLevels,
       allDegreeProgrammes,
-      allEditors,
+      allEditorsRaw,
       allSettings,
       allRules,
       allCertificates,
@@ -349,6 +361,30 @@ export async function getAdminCrmDashboardData() {
       db.select().from(rateCardRules).orderBy(asc(rateCardRules.priority)),
       db.select().from(certificates),
     ]);
+
+    const allEditors = [...allEditorsRaw];
+    let currentEditor =
+      allEditors.find((e) => e.email.toLowerCase() === userEmail) || null;
+
+    if (!isAdmin && !currentEditor && userEmail) {
+      try {
+        const [inserted] = await db
+          .insert(editors)
+          .values({
+            name: session.user.name || userEmail.split("@")[0],
+            email: userEmail,
+            role: "editor",
+            isActive: true,
+          })
+          .returning();
+        if (inserted) {
+          currentEditor = inserted;
+          allEditors.push(inserted);
+        }
+      } catch {
+        // Ignore race condition on unique email
+      }
+    }
 
     const settingsMap: Record<string, string> = {};
     for (const s of DEFAULT_CRM_SETTINGS) {
@@ -391,7 +427,50 @@ export async function getAdminCrmDashboardData() {
       };
     });
 
-    const activeEnrichedProjects = enrichedProjects.filter(
+    // Scope and sanitize rows for Editor role
+    const scopedProjects = isAdmin
+      ? enrichedProjects
+      : enrichedProjects
+          .filter(
+            (row) =>
+              Boolean(currentEditor) &&
+              row.project.assignedEditorId === currentEditor!.id &&
+              (EDITORIAL_STAGES.includes(row.project.stage) ||
+                Boolean(row.project.archivedAt))
+          )
+          .map((row) => ({
+            ...row,
+            project: {
+              ...row.project,
+              billingContactName: null,
+              billingContactEmail: null,
+              accessToken: "",
+              supervisorSignOffToken: null,
+            },
+            quote: row.quote
+              ? {
+                  ...row.quote,
+                  token: "",
+                  subtotalCents: 0,
+                  discountCents: 0,
+                  totalFeeCents: 0,
+                  paidToDateCents: 0,
+                  balanceCents: 0,
+                  instalmentAmountCents: null,
+                  poNumber: null,
+                  poDate: null,
+                }
+              : null,
+            items: row.items.map((item) => ({
+              ...item,
+              unitStandardRateCents: 0,
+              unitExpressSurchargeCents: 0,
+              lineTotalCents: 0,
+            })),
+            payments: [],
+          }));
+
+    const activeEnrichedProjects = scopedProjects.filter(
       (row) => !row.project.archivedAt
     );
 
@@ -520,42 +599,48 @@ export async function getAdminCrmDashboardData() {
     }
 
     return {
-      rows: enrichedProjects,
-      services: allServices,
-      rateCardRules: allRules,
+      isAdmin,
+      currentEditor,
+      rows: scopedProjects,
+      services: isAdmin ? allServices : [],
+      rateCardRules: isAdmin ? allRules : [],
       institutions: allInstitutions,
       degreeLevels: allDegreeLevels,
       degreeProgrammes: allDegreeProgrammes,
-      editors: allEditors,
-      settings: settingsMap,
-      pendingInstitutions: allInstitutions.filter(
-        (i) => i.status === "pending_review"
-      ),
-      pendingDegreeLevels: allDegreeLevels.filter(
-        (d) => d.status === "pending_review"
-      ),
+      editors: isAdmin ? allEditors : currentEditor ? [currentEditor] : [],
+      settings: isAdmin ? settingsMap : ({} as Record<string, string>),
+      pendingInstitutions: isAdmin
+        ? allInstitutions.filter((i) => i.status === "pending_review")
+        : [],
+      pendingDegreeLevels: isAdmin
+        ? allDegreeLevels.filter((d) => d.status === "pending_review")
+        : [],
       kpis: {
         totalProjects: activeEnrichedProjects.length,
         archivedProjectsCount:
-          enrichedProjects.length - activeEnrichedProjects.length,
-        totalQuotedCents,
-        totalPaidCents,
-        totalOutstandingCents,
-        releasedOnPoExposureCents,
-        poReleasesCount,
-        flaggedDuplicatesCount,
+          scopedProjects.length - activeEnrichedProjects.length,
+        totalQuotedCents: isAdmin ? totalQuotedCents : 0,
+        totalPaidCents: isAdmin ? totalPaidCents : 0,
+        totalOutstandingCents: isAdmin ? totalOutstandingCents : 0,
+        releasedOnPoExposureCents: isAdmin ? releasedOnPoExposureCents : 0,
+        poReleasesCount: isAdmin ? poReleasesCount : 0,
+        flaggedDuplicatesCount: isAdmin ? flaggedDuplicatesCount : 0,
         liveCapacityCount,
         pagesInHand,
-        feesOnLiveWorkCents,
-        unpaidFinishedWorkCents,
-        conversionRatePercent,
+        feesOnLiveWorkCents: isAdmin ? feesOnLiveWorkCents : 0,
+        unpaidFinishedWorkCents: isAdmin ? unpaidFinishedWorkCents : 0,
+        conversionRatePercent: isAdmin ? conversionRatePercent : 0,
         stageCounts,
-        monthlyTrends,
+        monthlyTrends: isAdmin
+          ? monthlyTrends
+          : monthlyTrends.map((m) => ({ ...m, quotedCents: 0, paidCents: 0 })),
       },
     };
   } catch (error) {
     console.error("Error loading Admin CRM dashboard data:", error);
     return {
+      isAdmin,
+      currentEditor: null,
       rows: [],
       services: [],
       rateCardRules: [],
@@ -598,8 +683,9 @@ export async function getAdminCrmDashboardData() {
 }
 
 /**
- * Admin action: updates a project's stage, handover package links, workReady flag,
+ * Updates a project's stage, handover package links, workReady flag,
  * and auto-generates the Completion Certificate when stage reaches "complete".
+ * Editors can only update projects assigned to them and cannot alter quote outcomes or non-editorial stages.
  */
 export async function updateAdminProjectWorkflow(input: {
   projectId: string;
@@ -613,7 +699,8 @@ export async function updateAdminProjectWorkflow(input: {
   quoteOutcome?: QuoteOutcome;
   whyLost?: WhyLost;
 }) {
-  await requireCrmSession();
+  const session = await requireCrmSession();
+  const isAdmin = (session.user as { role?: string }).role === "admin";
   try {
     const [project] = await db
       .select()
@@ -623,6 +710,29 @@ export async function updateAdminProjectWorkflow(input: {
 
     if (!project) {
       return { success: false as const, error: "Project not found." };
+    }
+
+    if (!isAdmin) {
+      const userEmail = (session.user.email || "").trim().toLowerCase();
+      const [editorRecord] = await db
+        .select()
+        .from(editors)
+        .where(eq(editors.email, userEmail))
+        .limit(1);
+
+      if (!editorRecord || project.assignedEditorId !== editorRecord.id) {
+        return {
+          success: false as const,
+          error: "You can only update projects assigned to you.",
+        };
+      }
+
+      if (!EDITORIAL_STAGES.includes(input.stage)) {
+        return {
+          success: false as const,
+          error: "Editors can only move projects between editorial stages.",
+        };
+      }
     }
 
     const now = new Date();
@@ -659,7 +769,7 @@ export async function updateAdminProjectWorkflow(input: {
       })
       .where(eq(projects.id, project.id));
 
-    if (input.quoteOutcome) {
+    if (isAdmin && input.quoteOutcome) {
       await db
         .update(quotes)
         .set({
@@ -745,7 +855,7 @@ export async function recordInstitutionalPurchaseOrder(input: {
   poDate: string;
   paymentTermsDays?: number;
 }) {
-  await requireCrmSession();
+  await requireAdminSession();
   try {
     const [quote] = await db
       .select()
@@ -810,7 +920,7 @@ export async function recordManualPayment(input: {
   reference?: string;
   notes?: string;
 }) {
-  await requireCrmSession();
+  await requireAdminSession();
   try {
     const [quote] = await db
       .select()
@@ -866,7 +976,7 @@ export async function recordManualPayment(input: {
 }
 
 export async function resolveDuplicateProjectFlag(projectId: string) {
-  await requireCrmSession();
+  await requireAdminSession();
   try {
     await db
       .update(projects)
@@ -968,7 +1078,7 @@ export async function reviewQueueItemAction(input: {
   id: string;
   decision: "approved" | "rejected";
 }) {
-  await requireCrmSession();
+  await requireAdminSession();
   try {
     if (input.kind === "institution") {
       await db
@@ -996,7 +1106,7 @@ export async function updateServiceRateCardItem(input: {
   quickbooksItemId?: string;
   isActive: boolean;
 }) {
-  await requireCrmSession();
+  await requireAdminSession();
   try {
     await db
       .update(services)
@@ -1020,7 +1130,7 @@ export async function assignProjectEditorAction(input: {
   projectId: string;
   editorId: string | null;
 }) {
-  await requireCrmSession();
+  await requireAdminSession();
   try {
     await db
       .update(projects)
@@ -1042,8 +1152,36 @@ export async function updateProjectStageQuickAction(input: {
   whyLost?: WhyLost;
   whyLostNotes?: string;
 }) {
-  await requireCrmSession();
+  const session = await requireCrmSession();
+  const isAdmin = (session.user as { role?: string }).role === "admin";
   try {
+    if (!isAdmin) {
+      const userEmail = (session.user.email || "").trim().toLowerCase();
+      const [editorRecord] = await db
+        .select()
+        .from(editors)
+        .where(eq(editors.email, userEmail))
+        .limit(1);
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.id, input.projectId))
+        .limit(1);
+
+      if (!project || !editorRecord || project.assignedEditorId !== editorRecord.id) {
+        return {
+          success: false as const,
+          error: "You can only update projects assigned to you.",
+        };
+      }
+      if (!EDITORIAL_STAGES.includes(input.stage)) {
+        return {
+          success: false as const,
+          error: "Editors can only move projects between editorial stages.",
+        };
+      }
+    }
+
     const nowIso = new Date().toISOString();
     await db
       .update(projects)
@@ -1054,7 +1192,7 @@ export async function updateProjectStageQuickAction(input: {
       })
       .where(eq(projects.id, input.projectId));
 
-    if (input.quoteOutcome || input.whyLost || input.whyLostNotes) {
+    if (isAdmin && (input.quoteOutcome || input.whyLost || input.whyLostNotes)) {
       await db
         .update(quotes)
         .set({
@@ -1083,7 +1221,7 @@ export async function updateQuoteOutcomeAction(input: {
   whyLostNotes?: string;
   validUntil?: string;
 }) {
-  await requireCrmSession();
+  await requireAdminSession();
   try {
     const nowIso = new Date().toISOString();
     const [quote] = await db
@@ -1143,7 +1281,7 @@ export async function upsertEditorAction(input: {
   role?: "admin" | "editor";
   isActive?: boolean;
 }) {
-  await requireCrmSession();
+  await requireAdminSession();
   try {
     if (input.id) {
       await db
@@ -1176,7 +1314,7 @@ export async function updateCrmSettingAction(input: {
   value: string;
   description?: string;
 }) {
-  await requireCrmSession();
+  await requireAdminSession();
   try {
     const nowIso = new Date().toISOString();
     const cleanValue = input.value.trim();
@@ -1219,7 +1357,7 @@ export async function updateRateCardRuleAction(input: {
   effectValue: string;
   isActive: boolean;
 }) {
-  await requireCrmSession();
+  await requireAdminSession();
   try {
     await db
       .update(rateCardRules)
@@ -1249,7 +1387,7 @@ export async function upsertInstitutionAction(input: {
   defaultPaymentTermsDays?: number;
   status?: "approved" | "pending_review" | "rejected";
 }) {
-  await requireCrmSession();
+  await requireAdminSession();
   try {
     if (input.id) {
       await db
@@ -1317,7 +1455,7 @@ export async function createInternalProjectAction(input: {
   initialStage?: ProjectStage;
   internalNotes?: string;
 }) {
-  await requireCrmSession();
+  await requireAdminSession();
   try {
     const result = await recordBriefAndGenerateQuote({
       firstName: input.firstName,

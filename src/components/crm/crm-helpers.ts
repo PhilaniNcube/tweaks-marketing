@@ -51,6 +51,18 @@ export const KANBAN_STAGES: Array<{
   { stage: "complete", title: "Complete", subtitle: "Signed off & certified" },
 ];
 
+export const EDITORIAL_KANBAN_STAGES = KANBAN_STAGES.filter(
+  (s) => s.stage !== "enquiry" && s.stage !== "quote_sent"
+);
+
+export const EDITORIAL_STAGE_LABELS: Partial<Record<ProjectStage, string>> = {
+  accepted: "Assigned / Ready to Start",
+  in_progress: "Editing in Progress",
+  work_ready: "Quality Check / Work Ready",
+  review: "72h Review Window",
+  complete: "Complete",
+};
+
 export const PAYMENT_OPTION_LABELS: Record<PaymentOption, string> = {
   full_payment: "Option 1: Full Payment",
   payment_plan: "Option 2: 50% Deposit + Plan",

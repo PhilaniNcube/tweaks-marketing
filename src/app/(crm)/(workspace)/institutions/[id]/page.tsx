@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   ArrowLeft,
   Building2,
@@ -28,6 +28,9 @@ export default async function InstitutionDetailPage({
 }) {
   const { id } = await params;
   const data = await getAdminCrmDashboardData();
+  if (!data.isAdmin) {
+    redirect("/dashboard");
+  }
   const institution = data.institutions.find((i) => i.id === id);
 
   if (!institution) {

@@ -39,12 +39,14 @@ export default async function ArchivePage() {
         </p>
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white mt-0.5 flex items-center gap-2.5">
           <Archive className="h-6 w-6 text-tweaks-blue" />
-          Archived &amp; Closed Projects ({archivedRows.length})
+          {isAdmin
+            ? `Archived & Closed Projects (${archivedRows.length})`
+            : `My Completed & Archived Projects (${archivedRows.length})`}
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Historical repository of archived, completed, closed, and lost
-          projects. Admins can restore archived records or permanently delete
-          them directly from this list.
+          {isAdmin
+            ? "Historical repository of archived, completed, closed, and lost projects. Admins can restore archived records or permanently delete them directly from this list."
+            : "Historical repository of your completed and archived editorial assignments."}
         </p>
       </div>
 
@@ -56,8 +58,12 @@ export default async function ArchivePage() {
               <th className="py-3 px-4">Client &amp; Research Title</th>
               <th className="py-3 px-3">Institution &amp; Degree</th>
               <th className="py-3 px-3">Final Stage</th>
-              <th className="py-3 px-3">Closure / Why Lost Reason</th>
-              <th className="py-3 px-3">Final Fee &amp; Paid</th>
+              <th className="py-3 px-3">
+                {isAdmin ? "Closure / Why Lost Reason" : "Completion Summary"}
+              </th>
+              <th className="py-3 px-3">
+                {isAdmin ? "Final Fee & Paid" : "Services & Volume"}
+              </th>
               <th className="py-3 px-3">Certificate</th>
               <th className="py-3 px-4 text-right">Record</th>
             </tr>
@@ -122,7 +128,7 @@ export default async function ArchivePage() {
                     <span className="text-emerald-700 font-semibold">
                       Successfully delivered &amp; completed
                     </span>
-                  ) : r.quote?.whyLost ? (
+                  ) : isAdmin && r.quote?.whyLost ? (
                     <div>
                       <span className="font-bold text-red-600 uppercase text-[10px]">
                         {r.quote.whyLost.replace("_", " ")}
@@ -135,19 +141,32 @@ export default async function ArchivePage() {
                     </div>
                   ) : (
                     <span className="text-slate-400">
-                      {r.project.internalNotes || "Closed"}
+                      {r.project.internalNotes || "Archived"}
                     </span>
                   )}
                 </td>
 
-                <td className="py-3.5 px-3 font-mono">
-                  <div className="font-bold">
-                    {formatZarFromCents(r.quote?.totalFeeCents)}
-                  </div>
-                  <div className="text-[10px] text-emerald-600">
-                    Paid: {formatZarFromCents(r.quote?.paidToDateCents)}
-                  </div>
-                </td>
+                {isAdmin ? (
+                  <td className="py-3.5 px-3 font-mono">
+                    <div className="font-bold">
+                      {formatZarFromCents(r.quote?.totalFeeCents)}
+                    </div>
+                    <div className="text-[10px] text-emerald-600">
+                      Paid: {formatZarFromCents(r.quote?.paidToDateCents)}
+                    </div>
+                  </td>
+                ) : (
+                  <td className="py-3.5 px-3">
+                    <div className="font-semibold text-slate-800 dark:text-zinc-200 line-clamp-1 max-w-xs">
+                      {r.items.length > 0
+                        ? r.items.map((i) => i.serviceName).join(", ")
+                        : r.project.documentType}
+                    </div>
+                    <div className="text-[10px] font-mono text-slate-500">
+                      {r.project.pageCount} pages • {r.project.deliverySpeed}
+                    </div>
+                  </td>
+                )}
 
                 <td className="py-3.5 px-3">
                   {r.certificate ? (

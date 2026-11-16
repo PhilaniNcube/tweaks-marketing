@@ -25,6 +25,7 @@ import {
 import {
   formatZarFromCents,
   STAGE_LABELS,
+  EDITORIAL_STAGE_LABELS,
   PAYMENT_OPTION_LABELS,
   QUOTE_OUTCOME_LABELS,
   getReturnScheduleStatus,
@@ -132,17 +133,17 @@ export function ProjectDetailClient({
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
-        toast.error(json.error || "R2 upload failed");
+        toast.error(json.error || "File upload failed");
       } else {
         if (slot === "editedDoc") setEditedDocUrl(json.url);
         if (slot === "editingReport") setEditingReportUrl(json.url);
         if (slot === "referencingReport") setReferencingReportUrl(json.url);
         if (slot === "walkthroughVideo") setWalkthroughVideoUrl(json.url);
-        toast.success(`Uploaded ${file.name} to Cloudflare R2`);
+        toast.success(`Uploaded ${file.name}`);
         router.refresh();
       }
     } catch {
-      toast.error("Failed to upload file to Cloudflare R2");
+      toast.error("Failed to upload file");
     } finally {
       setUploadingSlot(null);
     }
@@ -289,8 +290,8 @@ export function ProjectDetailClient({
           </p>
         </div>
 
-        {/* Shareable Client Quote / Status Portal Link */}
-        {quote && (
+        {/* Shareable Client Quote / Status Portal Link (Admin only) */}
+        {isAdmin && quote && quote.token && (
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -315,8 +316,8 @@ export function ProjectDetailClient({
         )}
       </div>
 
-      {/* Duplicate Flag Banner */}
-      {project.isDuplicateFlag && !project.duplicateResolved && (
+      {/* Duplicate Flag Banner (Admin only) */}
+      {isAdmin && project.isDuplicateFlag && !project.duplicateResolved && (
         <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 text-xs text-amber-900 dark:text-amber-200">
             <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
@@ -396,7 +397,7 @@ export function ProjectDetailClient({
               <div className="flex justify-between gap-2">
                 <dt className="text-slate-500">Institution</dt>
                 <dd className="font-semibold text-right">
-                  {row.institution ? (
+                  {isAdmin && row.institution ? (
                     <Link
                       href={`/institutions/${row.institution.id}`}
                       className="text-tweaks-blue hover:underline"
@@ -420,7 +421,7 @@ export function ProjectDetailClient({
                   <dd className="text-right">{project.department}</dd>
                 </div>
               )}
-              {project.billingContactName && (
+              {isAdmin && project.billingContactName && (
                 <div className="flex justify-between gap-2">
                   <dt className="text-slate-500">Billing Contact</dt>
                   <dd className="text-right">
@@ -442,7 +443,7 @@ export function ProjectDetailClient({
                 </dd>
               </div>
               <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 space-y-2">
-                <dt className="text-slate-500">Client Source Document (R2)</dt>
+                <dt className="text-slate-500">Client Source Document</dt>
                 <dd className="flex flex-wrap items-center justify-between gap-2">
                   {project.uploadedFileUrl ? (
                     <a
@@ -466,7 +467,7 @@ export function ProjectDetailClient({
                     <Upload className="h-3 w-3" />
                     {uploadingSlot === "clientBrief"
                       ? "Uploading..."
-                      : "Upload to R2"}
+                      : "Upload File"}
                     <input
                       type="file"
                       className="hidden"
@@ -532,19 +533,27 @@ export function ProjectDetailClient({
                 <UserCheck className="h-3.5 w-3.5 text-tweaks-blue" />
                 Assigned Editor
               </label>
-              <select
-                disabled={isPending}
-                value={project.assignedEditorId || "unassigned"}
-                onChange={(e) => handleEditorChange(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-semibold"
-              >
-                <option value="unassigned">Unassigned</option>
-                {editors.map((ed) => (
-                  <option key={ed.id} value={ed.id}>
-                    {ed.name} ({ed.email})
-                  </option>
-                ))}
-              </select>
+              {isAdmin ? (
+                <select
+                  disabled={isPending}
+                  value={project.assignedEditorId || "unassigned"}
+                  onChange={(e) => handleEditorChange(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-semibold"
+                >
+                  <option value="unassigned">Unassigned</option>
+                  {editors.map((ed) => (
+                    <option key={ed.id} value={ed.id}>
+                      {ed.name} ({ed.email})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="px-3 py-2 text-xs border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 font-semibold text-slate-800 dark:text-zinc-200">
+                  {row.assignedEditor
+                    ? `${row.assignedEditor.name} (${row.assignedEditor.email})`
+                    : "Assigned to you"}
+                </div>
+              )}
             </div>
           </div>
 
@@ -590,7 +599,7 @@ export function ProjectDetailClient({
                 </p>
               )}
 
-              {project.supervisorSignOffToken && (
+              {isAdmin && project.supervisorSignOffToken && (
                 <button
                   type="button"
                   onClick={() =>
@@ -609,16 +618,18 @@ export function ProjectDetailClient({
           </div>
         </div>
 
-        {/* COLUMN 2: Service Breakdown, Payments & Institutional PO */}
+        {/* COLUMN 2: Service Selections (with Fee Breakdown + Payments/PO for Admin, or Editorial Scope for Editor) */}
         <div className="space-y-6">
-          {/* Service Selections & Fee Breakdown */}
+          {/* Service Selections */}
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-2">
               <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
                 <FileText className="h-4 w-4 text-tweaks-blue" />
-                Service Selections &amp; Fee Breakdown
+                {isAdmin
+                  ? "Service Selections & Fee Breakdown"
+                  : "Selected Services"}
               </h2>
-              {quote && (
+              {isAdmin && quote && (
                 <span className="text-[10px] font-bold uppercase px-2 py-0.5 bg-slate-100 dark:bg-zinc-800">
                   {QUOTE_OUTCOME_LABELS[quote.outcome]}
                 </span>
@@ -635,22 +646,41 @@ export function ProjectDetailClient({
                     <p className="font-bold text-slate-900 dark:text-white">
                       {item.serviceName}
                     </p>
-                    <p className="text-[10px] text-slate-500 font-mono">
-                      Qty: {item.quantity} ×{" "}
-                      {formatZarFromCents(item.unitStandardRateCents)}
-                      {item.unitExpressSurchargeCents > 0
-                        ? ` (+${formatZarFromCents(item.unitExpressSurchargeCents)} exp)`
-                        : ""}
-                    </p>
+                    {isAdmin ? (
+                      <p className="text-[10px] text-slate-500 font-mono">
+                        Qty: {item.quantity} ×{" "}
+                        {formatZarFromCents(item.unitStandardRateCents)}
+                        {item.unitExpressSurchargeCents > 0
+                          ? ` (+${formatZarFromCents(item.unitExpressSurchargeCents)} exp)`
+                          : ""}
+                      </p>
+                    ) : (
+                      <p className="text-[10px] text-slate-500 font-mono">
+                        Volume / Qty: {item.quantity} (
+                        {item.pricingBasis.replace(/_/g, " ")}) •{" "}
+                        {project.deliverySpeed.toUpperCase()}
+                      </p>
+                    )}
                   </div>
-                  <span className="font-mono font-bold">
-                    {formatZarFromCents(item.lineTotalCents)}
-                  </span>
+                  {isAdmin ? (
+                    <span className="font-mono font-bold">
+                      {formatZarFromCents(item.lineTotalCents)}
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-tweaks-blue/10 text-tweaks-blue shrink-0">
+                      Qty: {item.quantity}
+                    </span>
+                  )}
                 </div>
               ))}
+              {items.length === 0 && (
+                <p className="py-3 text-slate-500">
+                  {project.documentType}
+                </p>
+              )}
             </div>
 
-            {quote && (
+            {isAdmin && quote && (
               <div className="pt-3 border-t border-slate-200 dark:border-zinc-800 space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-500">
                   <span>Payment Option</span>
@@ -680,8 +710,67 @@ export function ProjectDetailClient({
             )}
           </div>
 
-          {/* Log Manual EFT / Payment */}
-          {quote && (
+          {/* Editorial Scope & Manuscript Specifications (Shown for Editors instead of Payments/POs) */}
+          {!isAdmin && (
+            <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-5 space-y-4">
+              <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-zinc-800 pb-2">
+                Manuscript Scope &amp; Specifications
+              </h2>
+              <dl className="space-y-2.5 text-xs">
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Document Type</dt>
+                  <dd className="font-bold text-right">{project.documentType}</dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Whole or Part</dt>
+                  <dd className="font-semibold text-right capitalize">
+                    {project.wholeOrPart === "part"
+                      ? `Part (${project.whichPart || "Specified chapters"})`
+                      : "Whole Document"}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Word Count</dt>
+                  <dd className="font-mono text-right">
+                    {project.wordCount.toLocaleString("en-ZA")} words
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Manuscript Pages</dt>
+                  <dd className="font-mono text-right">
+                    {project.pageCount} pages
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Reference List Pages</dt>
+                  <dd className="font-mono text-right">
+                    {project.referencePageCount} ref pages
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Referencing Style</dt>
+                  <dd className="font-semibold text-right">
+                    {project.referencingStyle}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Tracked Changes</dt>
+                  <dd className="font-semibold text-right">
+                    {project.trackedChanges}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <dt className="text-slate-500">Editing Certificate</dt>
+                  <dd className="font-semibold text-right">
+                    {project.certificateRequested ? "Requested" : "No"}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
+          {/* Log Manual EFT / Payment (Admin only) */}
+          {isAdmin && quote && (
             <form
               onSubmit={handleRecordPayment}
               className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-5 space-y-3"
@@ -785,8 +874,8 @@ export function ProjectDetailClient({
             </form>
           )}
 
-          {/* Institutional PO Recording (Option 3) */}
-          {quote && (
+          {/* Institutional PO Recording (Option 3, Admin only) */}
+          {isAdmin && quote && (
             <form
               onSubmit={handleRecordPo}
               className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-5 space-y-3"
@@ -835,35 +924,37 @@ export function ProjectDetailClient({
 
         {/* COLUMN 3: Work Release Gatekeeper, Handover Package & Certificate */}
         <div className="space-y-6">
-          {/* Work Release Gatekeeper Status Banner */}
-          <div
-            className={`p-5 border space-y-2 ${
-              project.releaseWork
-                ? "bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800"
-                : "bg-amber-50/70 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                {project.releaseWork ? (
-                  <>
-                    <Unlock className="h-4 w-4 text-emerald-600" />
-                    Work Release Gate: OPEN
-                  </>
-                ) : (
-                  <>
-                    <Lock className="h-4 w-4 text-amber-600" />
-                    Work Release Gate: LOCKED
-                  </>
-                )}
-              </span>
+          {/* Work Release Gatekeeper Status Banner (Admin only) */}
+          {isAdmin && (
+            <div
+              className={`p-5 border space-y-2 ${
+                project.releaseWork
+                  ? "bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800"
+                  : "bg-amber-50/70 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                  {project.releaseWork ? (
+                    <>
+                      <Unlock className="h-4 w-4 text-emerald-600" />
+                      Work Release Gate: OPEN
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="h-4 w-4 text-amber-600" />
+                      Work Release Gate: LOCKED
+                    </>
+                  )}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
+                {project.releaseWork
+                  ? "Balance is R0 (or an approved Institutional PO is logged). Once you mark 'Work Ready' below, the client can immediately download their edited files."
+                  : "Balance is still outstanding and no Institutional PO is recorded. Even if 'Work Ready' is ticked, download links remain locked on the client page until payment clears."}
+              </p>
             </div>
-            <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
-              {project.releaseWork
-                ? "Balance is R0 (or an approved Institutional PO is logged). Once you mark 'Work Ready' below, the client can immediately download their edited files."
-                : "Balance is still outstanding and no Institutional PO is recorded. Even if 'Work Ready' is ticked, download links remain locked on the client page until payment clears."}
-            </p>
-          </div>
+          )}
 
           {/* Workflow Stage & Handover Package Form */}
           <form
@@ -874,7 +965,11 @@ export function ProjectDetailClient({
               Handover Package &amp; Stage Control
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div
+              className={`grid grid-cols-1 ${
+                isAdmin ? "sm:grid-cols-2" : ""
+              } gap-3 text-xs`}
+            >
               <div>
                 <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                   Project Stage
@@ -884,7 +979,9 @@ export function ProjectDetailClient({
                   onChange={(e) => setStage(e.target.value as ProjectStage)}
                   className="w-full px-2.5 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-bold"
                 >
-                  {Object.entries(STAGE_LABELS).map(([k, label]) => (
+                  {Object.entries(
+                    isAdmin ? STAGE_LABELS : EDITORIAL_STAGE_LABELS
+                  ).map(([k, label]) => (
                     <option key={k} value={k}>
                       {label}
                     </option>
@@ -892,48 +989,51 @@ export function ProjectDetailClient({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
-                  Quote Outcome
-                </label>
-                <select
-                  value={quoteOutcome}
-                  onChange={(e) =>
-                    setQuoteOutcome(e.target.value as QuoteOutcome)
-                  }
-                  className="w-full px-2.5 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-semibold"
-                >
-                  {Object.entries(QUOTE_OUTCOME_LABELS).map(([k, label]) => (
-                    <option key={k} value={k}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {isAdmin && (
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    Quote Outcome
+                  </label>
+                  <select
+                    value={quoteOutcome}
+                    onChange={(e) =>
+                      setQuoteOutcome(e.target.value as QuoteOutcome)
+                    }
+                    className="w-full px-2.5 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-semibold"
+                  >
+                    {Object.entries(QUOTE_OUTCOME_LABELS).map(([k, label]) => (
+                      <option key={k} value={k}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
-            {(quoteOutcome === "declined" ||
-              quoteOutcome === "expired" ||
-              stage === "lost") && (
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
-                  Why Lost / Declined Reason
-                </label>
-                <select
-                  value={whyLost}
-                  onChange={(e) => setWhyLost(e.target.value as WhyLost | "")}
-                  className="w-full px-2.5 py-2 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950"
-                >
-                  <option value="">Select reason...</option>
-                  <option value="price">Price / Budget</option>
-                  <option value="turnaround">Turnaround Time</option>
-                  <option value="went_elsewhere">Went Elsewhere</option>
-                  <option value="no_reply">No Reply</option>
-                  <option value="scope_changed">Scope Changed</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-            )}
+            {isAdmin &&
+              (quoteOutcome === "declined" ||
+                quoteOutcome === "expired" ||
+                stage === "lost") && (
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    Why Lost / Declined Reason
+                  </label>
+                  <select
+                    value={whyLost}
+                    onChange={(e) => setWhyLost(e.target.value as WhyLost | "")}
+                    className="w-full px-2.5 py-2 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950"
+                  >
+                    <option value="">Select reason...</option>
+                    <option value="price">Price / Budget</option>
+                    <option value="turnaround">Turnaround Time</option>
+                    <option value="went_elsewhere">Went Elsewhere</option>
+                    <option value="no_reply">No Reply</option>
+                    <option value="scope_changed">Scope Changed</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              )}
 
             <label className="flex items-center gap-2.5 p-3 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 cursor-pointer">
               <input
@@ -947,7 +1047,7 @@ export function ProjectDetailClient({
                   Mark Work Ready for Client Handover
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  Publishes package links (gated by releaseWork).
+                  Makes completed deliverables ready for client download.
                 </p>
               </div>
             </label>
@@ -956,13 +1056,13 @@ export function ProjectDetailClient({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[10px] font-bold uppercase text-slate-500">
-                    1. Edited Document (R2 Upload or URL)
+                    1. Edited Document (Upload or Link)
                   </label>
                   <label className="text-[10px] font-bold text-tweaks-blue hover:underline inline-flex items-center gap-1 cursor-pointer">
                     <Upload className="h-3 w-3" />
                     {uploadingSlot === "editedDoc"
                       ? "Uploading..."
-                      : "Upload File to R2"}
+                      : "Upload File"}
                     <input
                       type="file"
                       className="hidden"
@@ -975,7 +1075,7 @@ export function ProjectDetailClient({
                 </div>
                 <input
                   type="text"
-                  placeholder="Upload to R2 or paste URL..."
+                  placeholder="Upload a file or paste download link..."
                   value={editedDocUrl}
                   onChange={(e) => setEditedDocUrl(e.target.value)}
                   className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-[11px]"
@@ -984,13 +1084,13 @@ export function ProjectDetailClient({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[10px] font-bold uppercase text-slate-500">
-                    2. Editing Report (R2 Upload or URL)
+                    2. Editing Report (Upload or Link)
                   </label>
                   <label className="text-[10px] font-bold text-tweaks-blue hover:underline inline-flex items-center gap-1 cursor-pointer">
                     <Upload className="h-3 w-3" />
                     {uploadingSlot === "editingReport"
                       ? "Uploading..."
-                      : "Upload File to R2"}
+                      : "Upload File"}
                     <input
                       type="file"
                       className="hidden"
@@ -1003,7 +1103,7 @@ export function ProjectDetailClient({
                 </div>
                 <input
                   type="text"
-                  placeholder="Upload to R2 or paste URL..."
+                  placeholder="Upload a file or paste download link..."
                   value={editingReportUrl}
                   onChange={(e) => setEditingReportUrl(e.target.value)}
                   className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-[11px]"
@@ -1012,13 +1112,13 @@ export function ProjectDetailClient({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[10px] font-bold uppercase text-slate-500">
-                    3. Referencing Report (R2 Upload or URL)
+                    3. Referencing Report (Upload or Link)
                   </label>
                   <label className="text-[10px] font-bold text-tweaks-blue hover:underline inline-flex items-center gap-1 cursor-pointer">
                     <Upload className="h-3 w-3" />
                     {uploadingSlot === "referencingReport"
                       ? "Uploading..."
-                      : "Upload File to R2"}
+                      : "Upload File"}
                     <input
                       type="file"
                       className="hidden"
@@ -1031,7 +1131,7 @@ export function ProjectDetailClient({
                 </div>
                 <input
                   type="text"
-                  placeholder="Upload to R2 or paste URL..."
+                  placeholder="Upload a file or paste download link..."
                   value={referencingReportUrl}
                   onChange={(e) => setReferencingReportUrl(e.target.value)}
                   className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-[11px]"
@@ -1040,13 +1140,13 @@ export function ProjectDetailClient({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[10px] font-bold uppercase text-slate-500">
-                    4. Walkthrough Video (R2 Upload or Loom/Drive URL)
+                    4. Walkthrough Video (Upload or Video Link)
                   </label>
                   <label className="text-[10px] font-bold text-tweaks-blue hover:underline inline-flex items-center gap-1 cursor-pointer">
                     <Upload className="h-3 w-3" />
                     {uploadingSlot === "walkthroughVideo"
                       ? "Uploading..."
-                      : "Upload Video to R2"}
+                      : "Upload Video"}
                     <input
                       type="file"
                       accept="video/*"
@@ -1060,7 +1160,7 @@ export function ProjectDetailClient({
                 </div>
                 <input
                   type="text"
-                  placeholder="Upload video to R2 or paste Loom URL..."
+                  placeholder="Upload a video or paste Loom/Drive link..."
                   value={walkthroughVideoUrl}
                   onChange={(e) => setWalkthroughVideoUrl(e.target.value)}
                   className="w-full px-2.5 py-1.5 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-[11px]"
