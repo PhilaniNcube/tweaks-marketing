@@ -10,6 +10,7 @@ import {
   Check,
   Clock,
   AlertCircle,
+  Pencil,
 } from "lucide-react";
 import {
   formatZarFromCents,
@@ -285,6 +286,13 @@ export function QuotesClient({ rows }: QuotesClientProps) {
                         className="p-1.5 border border-slate-200 dark:border-zinc-700 text-slate-600 hover:text-tweaks-blue"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
+                      </Link>
+                      <Link
+                        href={`/quotes/${q.id}/edit`}
+                        className="px-2.5 py-1.5 border border-slate-300 dark:border-zinc-700 text-[11px] font-bold hover:bg-slate-100 dark:hover:bg-zinc-800 flex items-center gap-1"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Edit Quote
                       </Link>
                       <button
                         type="button"

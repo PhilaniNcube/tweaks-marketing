@@ -21,6 +21,7 @@ import {
   FileText,
   Upload,
   Download,
+  Pencil,
 } from "lucide-react";
 import {
   formatZarFromCents,
@@ -292,7 +293,14 @@ export function ProjectDetailClient({
 
         {/* Shareable Client Quote / Status Portal Link (Admin only) */}
         {isAdmin && quote && quote.token && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/quotes/${quote.id}/edit`}
+              className="px-3 py-2 text-xs font-bold border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-slate-50 flex items-center gap-1.5"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit Quote
+            </Link>
             <button
               type="button"
               onClick={() => copyUrl(`/quote/${quote.token}`, "quote")}

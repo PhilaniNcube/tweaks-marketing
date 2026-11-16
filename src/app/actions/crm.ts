@@ -20,6 +20,7 @@ import {
   type PaymentOption,
   type QuoteOutcome,
   type WhyLost,
+  paymentOptionValues,
 } from "@/db/schema";
 import { eq, desc, asc } from "drizzle-orm";
 import { refresh } from "next/cache";
@@ -28,6 +29,7 @@ import { DEFAULT_CRM_SETTINGS } from "@/db/seed-data";
 import { seedCrmDatabase } from "@/db/seed";
 import { requireAdminSession, requireCrmSession } from "@/lib/auth-server";
 import { recordBriefAndGenerateQuote } from "@/lib/crm/submit-brief";
+import { calculateQuote } from "@/lib/pricing/quote-calculator.server";
 
 /**
  * Fetches everything needed for the interactive client Quote, Payment, Status & Handover page (/quote/[token]).
@@ -1270,6 +1272,286 @@ export async function updateQuoteOutcomeAction(input: {
     return { success: true as const };
   } catch {
     return { success: false as const, error: "Failed to update quote outcome." };
+  }
+}
+
+/**
+ * Re-quotes an existing project from the live rate card.
+ *
+ * Used when a client misstated or changed their needs after the original quote
+ * was generated. The quote keeps its number and client token, so the client's
+ * existing link reflects the revised scope. Recorded payments are preserved and
+ * the balance is recalculated against the new total.
+ */
+export async function updateQuoteScopeAction(input: {
+  quoteId: string;
+  services: string[];
+  degreeLevel: string;
+  wordCount: number;
+  pageCount: number;
+  referencePageCount: number;
+  deliverySpeed: "standard" | "express";
+  paymentOption: PaymentOption;
+  selectedInstalmentMonths?: number;
+  validUntil?: string;
+  requestedReturnDate?: string;
+  /** Resets the quote to Awaiting Reply and restarts the validity window */
+  reissue?: boolean;
+  /** Optional internal audit note appended to the project */
+  changeReason?: string;
+}) {
+  await requireAdminSession();
+  try {
+    const nowIso = new Date().toISOString();
+
+    const [quote] = await db
+      .select()
+      .from(quotes)
+      .where(eq(quotes.id, input.quoteId))
+      .limit(1);
+
+    if (!quote) {
+      return { success: false as const, error: "Quote not found." };
+    }
+
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, quote.projectId))
+      .limit(1);
+
+    if (!project) {
+      return { success: false as const, error: "Project not found." };
+    }
+
+    const selectedServices = Array.from(
+      new Set(
+        input.services.map((service) => service.trim()).filter(Boolean)
+      )
+    );
+
+    if (selectedServices.length === 0) {
+      return {
+        success: false as const,
+        error: "Select at least one service to quote.",
+      };
+    }
+
+    if (!paymentOptionValues.includes(input.paymentOption)) {
+      return {
+        success: false as const,
+        error: "Select a valid payment option.",
+      };
+    }
+
+    if (
+      input.deliverySpeed !== "standard" &&
+      input.deliverySpeed !== "express"
+    ) {
+      return {
+        success: false as const,
+        error: "Select a valid delivery speed.",
+      };
+    }
+
+    const wordCount = Math.max(0, Math.round(input.wordCount || 0));
+    const pageCount = Math.max(1, Math.round(input.pageCount || 0));
+    const referencePageCount = Math.max(
+      0,
+      Math.min(500, Math.round(input.referencePageCount || 0))
+    );
+    const degreeLevel = input.degreeLevel?.trim() || project.degreeLevel || "";
+    const requestedInstalmentMonths =
+      typeof input.selectedInstalmentMonths === "number" &&
+      Number.isFinite(input.selectedInstalmentMonths)
+        ? Math.max(1, Math.round(input.selectedInstalmentMonths))
+        : undefined;
+
+    const quoteSummary = await calculateQuote({
+      selectedServices,
+      pageCount,
+      referencePageCount,
+      wordCount,
+      deliverySpeed: input.deliverySpeed,
+      paymentOption: input.paymentOption,
+      requestedInstalmentMonths,
+      degreeLevel,
+    });
+
+    if (quoteSummary.totalFeeCents < quote.paidToDateCents) {
+      return {
+        success: false as const,
+        error:
+          "The revised total is lower than the amount already paid on this quote. Adjust or refund the recorded payments before reducing the quote.",
+      };
+    }
+
+    // Determine the validity window for re-issued quotes from CRM settings.
+    let validUntil = input.validUntil?.trim() || quote.validUntil;
+    if (input.reissue) {
+      const [validitySetting] = await db
+        .select()
+        .from(crmSettings)
+        .where(eq(crmSettings.key, "quote_validity_days"))
+        .limit(1);
+      const validityDays = Math.max(
+        1,
+        Number(validitySetting?.value || 14) || 14
+      );
+      validUntil = new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+    }
+
+    const isPaymentPlan = input.paymentOption === "payment_plan";
+    const hasPayments = quote.paidToDateCents > 0;
+    const reissueAsUnpaid = Boolean(input.reissue) && !hasPayments;
+
+    // A revised quote with payments already recorded needs its instalment
+    // schedule to cover the remaining balance, otherwise the scheduled totals
+    // would no longer add up to the new quote total.
+    const revisedInstalmentAmountsCents = (() => {
+      if (!isPaymentPlan) return [] as number[];
+
+      const months =
+        quoteSummary.selectedInstalmentMonths ||
+        quoteSummary.maxInstalmentMonths;
+
+      if (!hasPayments) return quoteSummary.instalmentAmountsCents;
+      if (months <= 0) return [] as number[];
+
+      const remainingCents = Math.max(
+        0,
+        quoteSummary.totalFeeCents - quote.paidToDateCents
+      );
+      const baseInstalment = Math.floor(remainingCents / months);
+      const remainder = remainingCents - baseInstalment * months;
+
+      return Array.from({ length: months }, (_, index) =>
+        index === months - 1 ? baseInstalment + remainder : baseInstalment
+      );
+    })();
+
+    const changeReason = input.changeReason?.trim().slice(0, 500);
+    const auditNote = changeReason
+      ? `[${nowIso.slice(0, 10)}] Quote ${quote.quoteNumber} revised — ${changeReason}`
+      : null;
+    const internalNotes = auditNote
+      ? project.internalNotes
+        ? `${project.internalNotes}\n${auditNote}`
+        : auditNote
+      : project.internalNotes;
+
+    const resetStage =
+      reissueAsUnpaid &&
+      (project.stage === "lost" ||
+        project.stage === "accepted" ||
+        project.stage === "enquiry");
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(projects)
+        .set({
+          degreeLevel,
+          wordCount,
+          pageCount,
+          referencePageCount,
+          deliverySpeed: input.deliverySpeed,
+          paymentOption: input.paymentOption,
+          requestedReturnDate:
+            input.requestedReturnDate?.trim() || project.requestedReturnDate,
+          stage: resetStage ? "quote_sent" : project.stage,
+          internalNotes,
+          updatedAt: nowIso,
+        })
+        .where(eq(projects.id, project.id));
+
+      await tx
+        .update(quotes)
+        .set({
+          deliverySpeed: input.deliverySpeed,
+          subtotalCents: quoteSummary.subtotalCents,
+          expressSurchargeCents: quoteSummary.expressSurchargeCents,
+          discountCents: quoteSummary.discountCents,
+          totalFeeCents: quoteSummary.totalFeeCents,
+          paymentOption: input.paymentOption,
+          maxInstalmentMonths: quoteSummary.maxInstalmentMonths,
+          selectedInstalmentMonths:
+            quoteSummary.selectedInstalmentMonths ||
+            quoteSummary.maxInstalmentMonths,
+          depositPercentage: quoteSummary.depositPercentage,
+          depositRequiredCents: quoteSummary.depositRequiredCents,
+          balanceCents: Math.max(
+            0,
+            quoteSummary.totalFeeCents - quote.paidToDateCents
+          ),
+          instalment1AmountCents: isPaymentPlan
+            ? revisedInstalmentAmountsCents[0] ?? null
+            : null,
+          instalment2AmountCents: isPaymentPlan
+            ? revisedInstalmentAmountsCents[1] ?? null
+            : null,
+          instalment3AmountCents: isPaymentPlan
+            ? revisedInstalmentAmountsCents[2] ?? null
+            : null,
+          instalment1DueDate: isPaymentPlan ? quote.instalment1DueDate : null,
+          instalment2DueDate: isPaymentPlan ? quote.instalment2DueDate : null,
+          instalment3DueDate: isPaymentPlan ? quote.instalment3DueDate : null,
+          institutionalStatus:
+            input.paymentOption === "institutional_funding"
+              ? quote.poNumber
+                ? "awaiting_institution"
+                : "awaiting_po"
+              : "not_applicable",
+          outcome: input.reissue
+            ? hasPayments
+              ? "accepted"
+              : "awaiting_reply"
+            : quote.outcome,
+          whyLost: input.reissue ? null : quote.whyLost,
+          whyLostNotes: input.reissue ? null : quote.whyLostNotes,
+          sentAt: input.reissue ? nowIso : quote.sentAt,
+          acceptedAt: reissueAsUnpaid ? null : quote.acceptedAt,
+          validUntil,
+          updatedAt: nowIso,
+        })
+        .where(eq(quotes.id, quote.id));
+
+      await tx.delete(quoteItems).where(eq(quoteItems.quoteId, quote.id));
+      for (const item of quoteSummary.items) {
+        await tx.insert(quoteItems).values({
+          quoteId: quote.id,
+          projectId: project.id,
+          serviceId: item.serviceId,
+          serviceName: item.serviceName,
+          pricingBasis: item.pricingBasis,
+          quantity: item.quantity,
+          unitStandardRateCents: item.unitStandardRateCents,
+          unitExpressSurchargeCents: item.unitExpressSurchargeCents,
+          appliedAdjustmentCents: item.appliedAdjustmentCents,
+          lineTotalCents: item.lineTotalCents,
+        });
+      }
+    });
+
+    // Re-derive paid/balance, the release-work gate, and institutional status
+    // from the recorded payments against the revised total.
+    await recalculateQuoteAndProjectFromPayments(quote.id);
+
+    refresh();
+
+    return {
+      success: true as const,
+      quoteNumber: quote.quoteNumber,
+      previousTotalFeeCents: quote.totalFeeCents,
+      totalFeeCents: quoteSummary.totalFeeCents,
+    };
+  } catch (error) {
+    console.error("Error updating quote scope:", error);
+    return {
+      success: false as const,
+      error: "Failed to update quote. Check the scope details and try again.",
+    };
   }
 }
 
