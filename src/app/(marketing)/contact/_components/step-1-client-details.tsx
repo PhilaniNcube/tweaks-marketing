@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useMemo } from "react";
-import { Controller, useFormContext } from "react-hook-form";
+import React from "react";
+import { useFormContext } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import {
   Field,
@@ -14,35 +14,23 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "@/components/ui/combobox";
 import { REFERRAL_SOURCES } from "@/lib/validations/contact";
 import type {
   ContactFormValues,
   LookupInstitution,
   LookupDegreeLevel,
-  LookupProgramme,
 } from "./types";
 
 interface Step1ClientDetailsProps {
   institutions: LookupInstitution[];
   degreeLevels: LookupDegreeLevel[];
-  degreeProgrammes: LookupProgramme[];
 }
 
 export function Step1ClientDetails({
   institutions,
   degreeLevels,
-  degreeProgrammes,
 }: Step1ClientDetailsProps) {
   const {
-    control,
     register,
     watch,
     formState: { errors },
@@ -50,46 +38,6 @@ export function Step1ClientDetails({
 
   const watchedInstitutionId = watch("institutionId");
   const watchedDegreeLevel = watch("degreeLevel");
-
-  const orderedProgrammeSuggestions = useMemo(() => {
-    const seen = new Set<string>();
-    const instMatched: string[] = [];
-    const others: string[] = [];
-
-    for (const p of degreeProgrammes) {
-      const key = p.name.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      if (watchedInstitutionId && p.institutionId === watchedInstitutionId) {
-        instMatched.push(p.name);
-      } else {
-        others.push(p.name);
-      }
-    }
-
-    const commonDefaults = [
-      "Business Administration",
-      "Public Health",
-      "Educational Psychology",
-      "Computer Science",
-      "Information Systems",
-      "Sociology",
-      "Chemistry",
-      "Mechanical Engineering",
-      "Law",
-      "Development Studies",
-      "Nursing Science",
-      "Finance",
-      "Accounting",
-    ];
-    for (const def of commonDefaults) {
-      if (!seen.has(def.toLowerCase())) {
-        others.push(def);
-      }
-    }
-
-    return [...instMatched, ...others];
-  }, [degreeProgrammes, watchedInstitutionId]);
 
   return (
     <div className="animate-in fade-in space-y-6 duration-200">
@@ -250,68 +198,23 @@ export function Step1ClientDetails({
           <FieldLabel htmlFor="degreeProgramme">
             Degree Programme <span className="text-destructive">*</span>
           </FieldLabel>
-          <Controller
-            control={control}
-            name="degreeProgramme"
-            render={({ field }) => (
-              <Combobox
-                items={orderedProgrammeSuggestions}
-                value={field.value || null}
-                onValueChange={(value) => field.onChange(value ?? "")}
-                onInputValueChange={(inputValue, details) => {
-                  // Keep free-text entry working: anything typed (including
-                  // paste) or cleared becomes the field value, not just the
-                  // items picked from the list.
-                  if (
-                    details.reason === "input-change" ||
-                    details.reason === "input-clear"
-                  ) {
-                    if (inputValue !== field.value) {
-                      field.onChange(inputValue);
-                    }
-                  }
-                }}
-              >
-                <ComboboxInput
-                  id="degreeProgramme"
-                  placeholder="Search the list or type your own programme..."
-                  aria-invalid={!!errors.degreeProgramme}
-                  showClear
-                  className="w-full"
-                  onBlur={field.onBlur}
-                />
-                <ComboboxContent>
-                  <ComboboxEmpty>
-                    Not in the list? Keep typing — your own programme name will
-                    be used.
-                  </ComboboxEmpty>
-                  <ComboboxList>
-                    {(item) => (
-                      <ComboboxItem key={item} value={item}>
-                        {item}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-            )}
+          <Input
+            id="degreeProgramme"
+            type="text"
+            placeholder="e.g. Chemistry, Educational Psychology, Sociology"
+            aria-invalid={!!errors.degreeProgramme}
+            {...register("degreeProgramme")}
           />
-          <FieldDescription className="space-y-1">
-            <span className="block">
-              Start typing to search the list, or simply type your own
-              programme name if it isn&apos;t there.
-            </span>
-            <span className="block">
-              Appears alongside your degree designator on your completion
-              certificate (e.g.{" "}
-              <em>
-                {watchedDegreeLevel && watchedDegreeLevel !== "Other"
-                  ? watchedDegreeLevel
-                  : "MSc"}{" "}
-                Chemistry
-              </em>
-              ).
-            </span>
+          <FieldDescription>
+            Type the full programme name exactly as it should appear on your
+            completion certificate (e.g.{" "}
+            <em>
+              {watchedDegreeLevel && watchedDegreeLevel !== "Other"
+                ? watchedDegreeLevel
+                : "MSc"}{" "}
+              Chemistry
+            </em>
+            ).
           </FieldDescription>
           <FieldError errors={[errors.degreeProgramme]} />
         </Field>

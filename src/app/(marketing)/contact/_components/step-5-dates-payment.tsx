@@ -26,14 +26,12 @@ import type { ContactFormValues } from "./types";
 
 interface Step5DatesPaymentProps {
   todayIso: string;
-  minReturnDateIso: string;
   liveQuote: CalculatedQuoteResult;
   settings: Record<string, string>;
 }
 
 export function Step5DatesPayment({
   todayIso,
-  minReturnDateIso,
   liveQuote,
   settings,
 }: Step5DatesPaymentProps) {
@@ -79,26 +77,11 @@ export function Step5DatesPayment({
             aria-invalid={!!errors.expectedSendDate}
             {...register("expectedSendDate")}
           />
-          <FieldError errors={[errors.expectedSendDate]} />
-        </Field>
-
-        <Field data-invalid={!!errors.requestedReturnDate}>
-          <FieldLabel htmlFor="requestedReturnDate">
-            When do you need it back?{" "}
-            <span className="text-destructive">*</span>
-          </FieldLabel>
-          <Input
-            id="requestedReturnDate"
-            type="date"
-            min={minReturnDateIso}
-            aria-invalid={!!errors.requestedReturnDate}
-            {...register("requestedReturnDate")}
-          />
           <FieldDescription>
-            Earliest return date based on selected services:{" "}
-            <strong>{minReturnDateIso}</strong>
+            Your return date is calculated for you from this date and the
+            services you selected.
           </FieldDescription>
-          <FieldError errors={[errors.requestedReturnDate]} />
+          <FieldError errors={[errors.expectedSendDate]} />
         </Field>
       </FieldGroup>
 

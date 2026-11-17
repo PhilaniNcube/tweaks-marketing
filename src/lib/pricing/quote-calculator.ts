@@ -350,23 +350,20 @@ export function calculateQuoteFromCatalog(
     }
   }
 
-  // Turnaround calculation (longest selected service governs earliest return date)
-  const minDays =
+  // Turnaround calculation: services are worked through one after another,
+  // so each selected service adds its own time (they do not run in parallel).
+  const sumBy = (
+    pick: (svc: Service) => number,
+    fallback: number
+  ): number =>
     matchedServices.length > 0
-      ? Math.max(...matchedServices.map((s) => s.standardTurnaroundMinDays))
-      : 3;
-  const maxDays =
-    matchedServices.length > 0
-      ? Math.max(...matchedServices.map((s) => s.standardTurnaroundMaxDays))
-      : 5;
-  const expressMinHours =
-    matchedServices.length > 0
-      ? Math.max(...matchedServices.map((s) => s.expressTurnaroundMinHours))
-      : 24;
-  const expressMaxHours =
-    matchedServices.length > 0
-      ? Math.max(...matchedServices.map((s) => s.expressTurnaroundMaxHours))
-      : 48;
+      ? matchedServices.reduce((total, svc) => total + pick(svc), 0)
+      : fallback;
+
+  const minDays = sumBy((s) => s.standardTurnaroundMinDays, 3);
+  const maxDays = sumBy((s) => s.standardTurnaroundMaxDays, 5);
+  const expressMinHours = sumBy((s) => s.expressTurnaroundMinHours, 24);
+  const expressMaxHours = sumBy((s) => s.expressTurnaroundMaxHours, 48);
 
   const minimumReturnOffsetDays = isExpress
     ? Math.ceil(expressMinHours / 24)

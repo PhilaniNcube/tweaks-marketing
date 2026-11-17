@@ -25,7 +25,6 @@ import { valibotResolver } from "@hookform/resolvers/valibot";
 import {
   contactSchema,
   CONTACT_FORM_STEPS,
-  getMinimumTurnaroundDays,
 } from "@/lib/validations/contact";
 import {
   submitContactForm,
@@ -139,7 +138,6 @@ export function ContactQuoteForm({
       referencingStyle: "",
       referencingStyleOther: "",
       expectedSendDate: initialDefaults.todayIso,
-      requestedReturnDate: "",
       supervisorSignOff: "yes",
       supervisorDisclaimerAck: false,
       requestSupervisorSignOff: false,
@@ -169,24 +167,8 @@ export function ContactQuoteForm({
   const watchedRefPageCount = watch("referencePageCount");
   const watchedServices = watch("services") || [];
   const watchedDeliverySpeed = watch("deliverySpeed");
-  const watchedExpectedSendDate = watch("expectedSendDate");
   const watchedPaymentOption = watch("paymentOption");
   const watchedSelectedMonths = watch("selectedInstalmentMonths");
-
-  const minTurnaroundDays = useMemo(
-    () => getMinimumTurnaroundDays(watchedServices, watchedDeliverySpeed),
-    [watchedServices, watchedDeliverySpeed]
-  );
-
-  const minReturnDateIso = useMemo(() => {
-    const base = watchedExpectedSendDate
-      ? new Date(watchedExpectedSendDate)
-      : new Date(initialDefaults.todayIso);
-    if (isNaN(base.getTime())) return initialDefaults.todayIso;
-    const minDate = new Date(base);
-    minDate.setDate(minDate.getDate() + minTurnaroundDays);
-    return minDate.toISOString().split("T")[0];
-  }, [watchedExpectedSendDate, minTurnaroundDays, initialDefaults.todayIso]);
 
   const liveQuote = useMemo(() => {
     return calculateQuoteFromCatalog(
@@ -516,7 +498,6 @@ export function ContactQuoteForm({
             <Step1ClientDetails
               institutions={lookups.institutions}
               degreeLevels={lookups.degreeLevels}
-              degreeProgrammes={lookups.degreeProgrammes}
             />
           )}
 
@@ -539,7 +520,6 @@ export function ContactQuoteForm({
           {currentStep === 5 && (
             <Step5DatesPayment
               todayIso={initialDefaults.todayIso}
-              minReturnDateIso={minReturnDateIso}
               liveQuote={liveQuote}
               settings={lookups.settings}
             />

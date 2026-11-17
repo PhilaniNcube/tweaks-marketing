@@ -13,6 +13,7 @@ import { eq, and, gte, desc } from "drizzle-orm";
 import { ContactFormData } from "@/lib/validations/contact";
 import { calculateQuote } from "@/lib/pricing/quote-calculator.server";
 import type { CalculatedQuoteResult } from "@/lib/pricing/quote-calculator";
+import { addDaysToIsoDate } from "@/lib/date-utils";
 
 export interface BriefSubmissionDatabaseResult {
   clientId: string;
@@ -26,6 +27,8 @@ export interface BriefSubmissionDatabaseResult {
   isDuplicateFlag: boolean;
   duplicateOfProjectId: string | null;
   supervisorSignOffToken: string | null;
+  /** Derived return date (send date + total turnaround of all services) */
+  requestedReturnDate: string;
 }
 
 /**
@@ -233,6 +236,14 @@ export async function recordBriefAndGenerateQuote(
     ? crypto.randomUUID()
     : null;
 
+  // The client never picks a return date: it follows from the date they send
+  // the document plus the total turnaround of every selected service (they are
+  // worked through one after another, so their days add up).
+  const requestedReturnDate = addDaysToIsoDate(
+    data.expectedSendDate,
+    quoteSummary.turnaround.minimumReturnOffsetDays
+  );
+
   const [createdProject] = await db
     .insert(projects)
     .values({
@@ -257,7 +268,7 @@ export async function recordBriefAndGenerateQuote(
       referencingStyleOther: data.referencingStyleOther?.trim() || null,
       deliverySpeed: data.deliverySpeed,
       expectedSendDate: data.expectedSendDate,
-      requestedReturnDate: data.requestedReturnDate,
+      requestedReturnDate,
       mainGoal: data.mainGoal.trim(),
       concerns: data.concerns?.trim() || null,
       trackedChanges: data.trackedChanges,
@@ -364,6 +375,7 @@ export async function recordBriefAndGenerateQuote(
     isDuplicateFlag,
     duplicateOfProjectId,
     supervisorSignOffToken,
+    requestedReturnDate,
   };
 }
 

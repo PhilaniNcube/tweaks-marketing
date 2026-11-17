@@ -67,7 +67,6 @@ export function parseBriefFormData(formData: FormData) {
     referencingStyle: getString("referencingStyle"),
     referencingStyleOther: getOptionalString("referencingStyleOther"),
     expectedSendDate: getString("expectedSendDate"),
-    requestedReturnDate: getString("requestedReturnDate"),
     supervisorSignOff: getString("supervisorSignOff"),
     supervisorDisclaimerAck: getBoolean("supervisorDisclaimerAck"),
     requestSupervisorSignOff: getBoolean("requestSupervisorSignOff"),
@@ -212,13 +211,18 @@ export async function POST(request: NextRequest) {
     const appUrl = getAppUrl();
     const quoteUrl = `${appUrl}/quote/${crmResult.quoteToken}`;
     const fullName = `${parsedData.firstName} ${parsedData.surname}`.trim();
+    // The return date is derived server-side, so use the recorded value.
+    const emailData = {
+      ...parsedData,
+      requestedReturnDate: crmResult.requestedReturnDate,
+    };
 
     // 6. Send Email Notifications via Resend (non-blocking if API key not configured locally)
     if (resend) {
       try {
         const notificationHtml = await render(
           ContactNotificationEmail({
-            data: parsedData,
+            data: emailData,
             institutionName: crmResult.institutionName,
             quoteNumber: crmResult.quoteNumber,
             quoteSummary: crmResult.quoteSummary,
@@ -237,7 +241,7 @@ export async function POST(request: NextRequest) {
 
         const confirmationHtml = await render(
           ContactConfirmationEmail({
-            data: parsedData,
+            data: emailData,
             quoteNumber: crmResult.quoteNumber,
             quoteSummary: crmResult.quoteSummary,
             quoteUrl,

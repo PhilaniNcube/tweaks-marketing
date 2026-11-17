@@ -13,20 +13,11 @@ export interface LookupDegreeLevel {
   category?: string;
 }
 
-export interface LookupProgramme {
-  id: string;
-  institutionId?: string | null;
-  degreeLevel?: string | null;
-  name: string;
-  usageCount: number;
-}
-
 export interface ContactLookupsData {
   services: Service[];
   rules: RateCardRule[];
   institutions: LookupInstitution[];
   degreeLevels: LookupDegreeLevel[];
-  degreeProgrammes: LookupProgramme[];
   settings: Record<string, string>;
 }
 

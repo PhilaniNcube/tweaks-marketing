@@ -143,12 +143,17 @@ export async function submitContactForm(
     const appUrl = getAppUrl();
     const quoteUrl = `${appUrl}/quote/${crmResult.quoteToken}`;
     const fullName = `${parsedData.firstName} ${parsedData.surname}`.trim();
+    // The return date is derived server-side, so use the recorded value.
+    const emailData = {
+      ...parsedData,
+      requestedReturnDate: crmResult.requestedReturnDate,
+    };
 
     if (resend) {
       try {
         const notificationHtml = await render(
           ContactNotificationEmail({
-            data: parsedData,
+            data: emailData,
             institutionName: crmResult.institutionName,
             quoteNumber: crmResult.quoteNumber,
             quoteSummary: crmResult.quoteSummary,
@@ -167,7 +172,7 @@ export async function submitContactForm(
 
         const confirmationHtml = await render(
           ContactConfirmationEmail({
-            data: parsedData,
+            data: emailData,
             quoteNumber: crmResult.quoteNumber,
             quoteSummary: crmResult.quoteSummary,
             quoteUrl,

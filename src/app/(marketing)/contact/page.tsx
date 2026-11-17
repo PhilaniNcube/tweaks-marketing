@@ -5,13 +5,12 @@ import {
   services,
   institutions,
   degreeLevels,
-  degreeProgrammes,
   crmSettings,
   rateCardRules,
   type Service,
   type RateCardRule,
 } from "@/db/schema";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import {
   DEFAULT_SERVICES,
   DEFAULT_INSTITUTIONS,
@@ -78,7 +77,6 @@ function getFallbackLookups(): ContactLookupsData {
       designator: d.designator,
       category: d.category,
     })),
-    degreeProgrammes: [],
     settings: settingsMap,
   };
 }
@@ -108,7 +106,6 @@ async function getContactLookups(): Promise<ContactLookupsData> {
     const [
       approvedInstitutions,
       approvedDegreeLevels,
-      approvedProgrammes,
       settingsRows,
       activeRules,
     ] = await Promise.all([
@@ -122,11 +119,6 @@ async function getContactLookups(): Promise<ContactLookupsData> {
         .from(degreeLevels)
         .where(eq(degreeLevels.status, "approved"))
         .orderBy(asc(degreeLevels.sortOrder)),
-      db
-        .select()
-        .from(degreeProgrammes)
-        .where(eq(degreeProgrammes.status, "approved"))
-        .orderBy(desc(degreeProgrammes.usageCount), asc(degreeProgrammes.name)),
       db.select().from(crmSettings),
       db
         .select()
@@ -165,13 +157,6 @@ async function getContactLookups(): Promise<ContactLookupsData> {
               category: deg.category,
             }))
           : fallback.degreeLevels,
-      degreeProgrammes: approvedProgrammes.map((prog) => ({
-        id: prog.id,
-        institutionId: prog.institutionId,
-        degreeLevel: prog.degreeLevel,
-        name: prog.name,
-        usageCount: prog.usageCount,
-      })),
       settings: settingsMap,
     };
   } catch (error) {

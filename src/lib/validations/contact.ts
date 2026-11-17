@@ -66,50 +66,6 @@ export const DOCUMENT_TYPES = [
   "Other",
 ] as const;
 
-export const SERVICE_TURNAROUND_RULES: Record<
-  string,
-  { minStandardDays: number; minExpressHours: number }
-> = {
-  "academic-editing": { minStandardDays: 3, minExpressHours: 24 },
-  "Academic editing": { minStandardDays: 3, minExpressHours: 24 },
-  "reference-checking": { minStandardDays: 3, minExpressHours: 24 },
-  "Reference checking": { minStandardDays: 3, minExpressHours: 24 },
-  "reference-list-editing": { minStandardDays: 2, minExpressHours: 24 },
-  "Reference list editing": { minStandardDays: 2, minExpressHours: 24 },
-  formatting: { minStandardDays: 5, minExpressHours: 48 },
-  Formatting: { minStandardDays: 5, minExpressHours: 48 },
-  "journal-article-proposal-editing": {
-    minStandardDays: 7,
-    minExpressHours: 48,
-  },
-  "Journal article and proposal editing": {
-    minStandardDays: 7,
-    minExpressHours: 48,
-  },
-  "abstract-editing": { minStandardDays: 3, minExpressHours: 24 },
-  "Abstract editing": { minStandardDays: 3, minExpressHours: 24 },
-};
-
-export function getMinimumTurnaroundDays(
-  services: string[],
-  deliverySpeed: "standard" | "express"
-): number {
-  if (!services || services.length === 0)
-    return deliverySpeed === "express" ? 1 : 3;
-  let maxMinDays = 1;
-  for (const svc of services) {
-    const rule = SERVICE_TURNAROUND_RULES[svc];
-    if (rule) {
-      const days =
-        deliverySpeed === "express"
-          ? Math.ceil(rule.minExpressHours / 24)
-          : rule.minStandardDays;
-      if (days > maxMinDays) maxMinDays = days;
-    }
-  }
-  return maxMinDays;
-}
-
 export const contactSchema = v.pipe(
   v.object({
     // --- Step 1: Client & Academic Context ---
@@ -252,10 +208,9 @@ export const contactSchema = v.pipe(
       v.string("Please pick the date you will send us the document"),
       v.minLength(1, "Please pick the date you will send us the document")
     ),
-    requestedReturnDate: v.pipe(
-      v.string("Please pick the date you need the document back"),
-      v.minLength(1, "Please pick the date you need the document back")
-    ),
+    // Derived on the server from the send date + the selected services, so the
+    // client never has to choose it.
+    requestedReturnDate: v.optional(v.string()),
     supervisorSignOff: v.picklist(
       ["yes", "no"],
       "Please indicate whether supervisor sign-off has been obtained"
@@ -350,28 +305,7 @@ export const contactSchema = v.pipe(
     ),
     ["referencingStyleOther"]
   ),
-  // 6. Cross-field date validation: Return date must be after send date by at least minimum turnaround
-  v.forward(
-    v.partialCheck(
-      [["expectedSendDate"], ["requestedReturnDate"], ["services"], ["deliverySpeed"]],
-      (input) => {
-        if (!input.expectedSendDate || !input.requestedReturnDate) return true;
-        const sendDate = new Date(input.expectedSendDate);
-        const returnDate = new Date(input.requestedReturnDate);
-        if (isNaN(sendDate.getTime()) || isNaN(returnDate.getTime())) return true;
-        const minDays = getMinimumTurnaroundDays(
-          input.services,
-          input.deliverySpeed
-        );
-        const minReturnDate = new Date(sendDate);
-        minReturnDate.setDate(minReturnDate.getDate() + minDays);
-        return returnDate >= minReturnDate;
-      },
-      "Return date must respect the minimum turnaround time after the date you send us the document."
-    ),
-    ["requestedReturnDate"]
-  ),
-  // 7. Supervisor Sign-Off = "no" requires acknowledging the disclaimer
+  // 6. Supervisor Sign-Off = "no" requires acknowledging the disclaimer
   v.forward(
     v.partialCheck(
       [["supervisorSignOff"], ["supervisorDisclaimerAck"]],
@@ -512,7 +446,6 @@ export const CONTACT_FORM_STEPS = [
     subtitle: "Sign-off & quote summary",
     fields: [
       "expectedSendDate",
-      "requestedReturnDate",
       "supervisorSignOff",
       "supervisorDisclaimerAck",
       "requestSupervisorSignOff",

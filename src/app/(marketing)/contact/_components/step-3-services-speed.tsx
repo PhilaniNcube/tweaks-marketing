@@ -173,8 +173,9 @@ export function Step3ServicesSpeed({
                 </FieldTitle>
                 <FieldDescription>
                   {liveQuote.turnaround.minDays} to{" "}
-                  {liveQuote.turnaround.maxDays} days from when we receive your
-                  document. Standard rate card applies.
+                  {liveQuote.turnaround.maxDays} days in total for the services
+                  selected — we work through them one after another. Standard
+                  rate card applies.
                 </FieldDescription>
               </FieldContent>
             </Field>
@@ -201,8 +202,9 @@ export function Step3ServicesSpeed({
                 </FieldTitle>
                 <FieldDescription>
                   {liveQuote.turnaround.expressMinHours} to{" "}
-                  {liveQuote.turnaround.expressMaxHours} hours priority
-                  turnaround. Express surcharge applies to selected services.
+                  {liveQuote.turnaround.expressMaxHours} hours in total, working
+                  through each selected service in priority sequence. Express
+                  surcharge applies.
                 </FieldDescription>
               </FieldContent>
             </Field>
