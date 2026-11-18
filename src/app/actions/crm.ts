@@ -30,6 +30,7 @@ import { seedCrmDatabase } from "@/db/seed";
 import { requireAdminSession, requireCrmSession } from "@/lib/auth-server";
 import { recordBriefAndGenerateQuote } from "@/lib/crm/submit-brief";
 import { calculateQuote } from "@/lib/pricing/quote-calculator.server";
+import { sendClientPortalUploadInvitationEmail } from "@/lib/crm/portal-notification";
 
 /**
  * Fetches everything needed for the interactive client Quote, Payment, Status & Handover page (/quote/[token]).
@@ -253,6 +254,13 @@ export async function acceptQuoteAndSelectOption(input: {
         updatedAt: nowIso,
       })
       .where(eq(projects.id, quote.projectId));
+
+    if (input.paymentOption === "institutional_funding") {
+      await sendClientPortalUploadInvitationEmail({
+        quoteId: quote.id,
+        trigger: "institutional_accepted",
+      });
+    }
 
     return { success: true as const };
   } catch (error) {
@@ -780,6 +788,14 @@ export async function updateAdminProjectWorkflow(input: {
       .where(eq(projects.id, project.id));
 
     if (isAdmin && input.quoteOutcome) {
+      const existingQuotes =
+        input.quoteOutcome === "accepted"
+          ? await db
+              .select()
+              .from(quotes)
+              .where(eq(quotes.projectId, project.id))
+          : [];
+
       await db
         .update(quotes)
         .set({
@@ -788,6 +804,18 @@ export async function updateAdminProjectWorkflow(input: {
           updatedAt: nowIso,
         })
         .where(eq(quotes.projectId, project.id));
+
+      for (const q of existingQuotes) {
+        if (
+          q.outcome !== "accepted" &&
+          q.paymentOption === "institutional_funding"
+        ) {
+          await sendClientPortalUploadInvitationEmail({
+            quoteId: q.id,
+            trigger: "institutional_accepted",
+          });
+        }
+      }
     }
 
     // Automatically issue Completion Certificate when stage reaches "complete"
@@ -905,6 +933,16 @@ export async function recordInstitutionalPurchaseOrder(input: {
 
     await recalculateQuoteAndProjectFromPayments(quote.id);
 
+    if (
+      cleanPo &&
+      (quote.outcome !== "accepted" || cleanPo !== (quote.poNumber || ""))
+    ) {
+      await sendClientPortalUploadInvitationEmail({
+        quoteId: quote.id,
+        trigger: "institutional_accepted",
+      });
+    }
+
     return { success: true as const };
   } catch (error) {
     console.error("Error recording institutional PO:", error);
@@ -974,6 +1012,13 @@ export async function recordManualPayment(input: {
     });
 
     await recalculateQuoteAndProjectFromPayments(quote.id, nowIso);
+
+    await sendClientPortalUploadInvitationEmail({
+      quoteId: quote.id,
+      trigger: "payment_recorded",
+      paymentAmountCents: amountCents,
+      receiptNumber,
+    });
 
     return { success: true as const };
   } catch (error) {
@@ -1203,6 +1248,14 @@ export async function updateProjectStageQuickAction(input: {
       .where(eq(projects.id, input.projectId));
 
     if (isAdmin && (input.quoteOutcome || input.whyLost || input.whyLostNotes)) {
+      const existingQuotes =
+        input.quoteOutcome === "accepted"
+          ? await db
+              .select()
+              .from(quotes)
+              .where(eq(quotes.projectId, input.projectId))
+          : [];
+
       await db
         .update(quotes)
         .set({
@@ -1212,6 +1265,18 @@ export async function updateProjectStageQuickAction(input: {
           updatedAt: nowIso,
         })
         .where(eq(quotes.projectId, input.projectId));
+
+      for (const q of existingQuotes) {
+        if (
+          q.outcome !== "accepted" &&
+          q.paymentOption === "institutional_funding"
+        ) {
+          await sendClientPortalUploadInvitationEmail({
+            quoteId: q.id,
+            trigger: "institutional_accepted",
+          });
+        }
+      }
     }
 
     // Push the fresh server render back with the action response so the
@@ -1275,6 +1340,16 @@ export async function updateQuoteOutcomeAction(input: {
         .update(projects)
         .set({ stage: "accepted", updatedAt: nowIso })
         .where(eq(projects.id, quote.projectId));
+
+      if (
+        quote.outcome !== "accepted" &&
+        quote.paymentOption === "institutional_funding"
+      ) {
+        await sendClientPortalUploadInvitationEmail({
+          quoteId: quote.id,
+          trigger: "institutional_accepted",
+        });
+      }
     }
 
     return { success: true as const };

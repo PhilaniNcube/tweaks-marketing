@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { db } from "@/db";
 import { payments, quotes, projects } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { sendClientPortalUploadInvitationEmail } from "@/lib/crm/portal-notification";
 
 const PAYSTACK_BASE_URL = "https://api.paystack.co";
 
@@ -267,7 +268,19 @@ export async function settlePaymentAndRecalculateQuote(params: {
     })
     .where(eq(payments.id, paymentRow.id));
 
-  return recalculateQuoteAndProjectFromPayments(paymentRow.quoteId, nowIso);
+  const updatedQuote = await recalculateQuoteAndProjectFromPayments(
+    paymentRow.quoteId,
+    nowIso
+  );
+
+  await sendClientPortalUploadInvitationEmail({
+    quoteId: paymentRow.quoteId,
+    trigger: "payment_recorded",
+    paymentAmountCents: paymentRow.amountCents,
+    receiptNumber,
+  });
+
+  return updatedQuote;
 }
 
 /**
