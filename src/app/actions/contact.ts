@@ -9,6 +9,7 @@ import { parseBriefFormData } from "@/app/api/contact/route";
 import { recordBriefAndGenerateQuote } from "@/lib/crm/submit-brief";
 import { ContactNotificationEmail } from "@/components/emails/contact-notification";
 import { ContactConfirmationEmail } from "@/components/emails/contact-confirmation";
+import { SupervisorConfirmationEmail } from "@/components/emails/supervisor-confirmation";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   isR2Configured,
@@ -202,30 +203,22 @@ export async function submitContactForm(
           const academicContext = [crmResult.institutionName, degreeSummary]
             .filter(Boolean)
             .join(", ");
+          const supervisorHtml = await render(
+            SupervisorConfirmationEmail({
+              supervisorName: parsedData.supervisorName,
+              studentName: fullName,
+              academicContext: academicContext || undefined,
+              researchTitle: parsedData.researchTitle,
+              supervisorUrl,
+            })
+          );
+
           await resend.emails.send({
             from: "Tweaks Academic Editing <hello@tweaks.co.za>",
             to: [parsedData.supervisorEmail],
             cc: [parsedData.email],
             subject: `Supervisor confirmation requested: ${fullName} (${parsedData.researchTitle})`,
-            html: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0;">
-                <h2 style="color: #1B0ABD; margin-top: 0;">Supervisor Confirmation Request</h2>
-                <p>Dear ${parsedData.supervisorName},</p>
-                <p><strong>${fullName}</strong>${academicContext ? ` (${academicContext})` : ""} has submitted their manuscript titled:</p>
-                <blockquote style="border-left: 3px solid #1B0ABD; padding-left: 12px; color: #334155; font-style: italic;">
-                  ${parsedData.researchTitle}
-                </blockquote>
-                <p>They have requested your confirmation that you are aware this work is being submitted for professional language editing at this stage.</p>
-                <p style="margin: 24px 0;">
-                  <a href="${supervisorUrl}" style="background: #1B0ABD; color: #ffffff; padding: 12px 20px; text-decoration: none; font-weight: bold; display: inline-block;">
-                    Review &amp; Confirm Sign-Off
-                  </a>
-                </p>
-                <p style="font-size: 12px; color: #64748b;">
-                  Note: Confirming only indicates awareness that the student is submitting their work for language editing at this stage; it is not an endorsement of the final edited text.
-                </p>
-              </div>
-            `,
+            html: supervisorHtml,
           });
         }
       } catch (emailErr) {

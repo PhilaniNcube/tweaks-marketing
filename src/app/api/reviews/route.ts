@@ -7,7 +7,9 @@ import { reviewSchema } from "@/lib/validations/review";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { ReviewNotificationEmail } from "@/components/emails/review-notification";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
     });
 
     // 6. Send notification email to admin via Resend
-    if (process.env.RESEND_API_KEY) {
+    if (resend) {
       try {
         const emailHtml = await render(
           ReviewNotificationEmail({

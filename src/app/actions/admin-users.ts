@@ -9,6 +9,7 @@ import { hashPassword } from "better-auth/crypto";
 import { Resend } from "resend";
 import { render } from "@react-email/components";
 import { AdminInvitationEmail } from "@/components/emails/admin-invitation";
+import { AdminAccountCreatedEmail } from "@/components/emails/admin-account-created";
 import { getAppUrl } from "@/lib/app-url";
 
 const resend = process.env.RESEND_API_KEY
@@ -196,24 +197,21 @@ export async function createAdminUserAction(input: {
     if (resend) {
       try {
         const baseUrl = getBaseUrl();
+        const welcomeHtml = await render(
+          AdminAccountCreatedEmail({
+            recipientName: cleanName,
+            recipientEmail: cleanEmail,
+            createdByEmail: session.user.email || "Administrator",
+            role,
+            loginUrl: `${baseUrl}/admin/login`,
+          })
+        );
+
         await resend.emails.send({
           from: "Tweaks CRM <hello@tweaks.co.za>",
           to: [cleanEmail],
           subject: `Your Tweaks CRM account has been created`,
-          html: `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
-              <h2 style="color: #1B0ABD; margin-top: 0;">Welcome to Tweaks CRM</h2>
-              <p>Hello ${cleanName},</p>
-              <p>Your Tweaks CRM ${role === "admin" ? "Administrator" : "Editor"} account has been created by <strong>${session.user.email}</strong>.</p>
-              <p><strong>Login details:</strong></p>
-              <ul>
-                <li><strong>Email:</strong> ${cleanEmail}</li>
-                <li><strong>Role:</strong> ${role.toUpperCase()}</li>
-                <li><strong>Login Portal:</strong> <a href="${baseUrl}/admin/login">${baseUrl}/admin/login</a></li>
-              </ul>
-              <p>You can sign in directly using the password provided to you.</p>
-            </div>
-          `,
+          html: welcomeHtml,
         });
       } catch (emailErr) {
         console.warn("Failed to send welcome email:", emailErr);

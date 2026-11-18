@@ -12,7 +12,8 @@ export default async function AdminLoginPage() {
   ]);
 
   if (session?.user) {
-    redirect("/dashboard");
+    const role = (session.user as { role?: string }).role;
+    redirect(role === "client" ? "/portal" : "/dashboard");
   }
 
   return <CrmLoginClient isFirstTimeSetup={!hasAdmin} />;

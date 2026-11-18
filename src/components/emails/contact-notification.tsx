@@ -12,6 +12,8 @@ import {
   Body,
   Container,
   Section,
+  Row,
+  Column,
   Heading,
   Text,
   Hr,
@@ -63,245 +65,260 @@ export function ContactNotificationEmail({
 
             {isDuplicateFlag && (
               <Section className="px-[20px] pt-[16px]">
-                <div className="bg-amber-50 border border-solid border-amber-300 p-[12px] text-[13px] text-amber-900 rounded">
-                  <strong>Duplicate Submission Flagged:</strong> Another brief
-                  with the same email ({data.email}) and document type (
-                  {displayDocumentType}) was submitted within the last 24 hours.
-                </div>
+                <Section className="bg-amber-50 border border-solid border-amber-300 p-[12px] rounded">
+                  <Text className="text-[13px] text-amber-900 m-0 leading-[20px]">
+                    <strong>Duplicate Submission Flagged:</strong> Another
+                    brief with the same email ({data.email}) and document type (
+                    {displayDocumentType}) was submitted within the last 24
+                    hours.
+                  </Text>
+                </Section>
               </Section>
             )}
 
             {/* Submitter & Academic Details */}
             <Section className="px-[20px] pt-[24px]">
               <Heading className="text-[#1B0ABD] text-[18px] font-semibold mb-[12px] border-b border-solid border-slate-100 pb-[6px]">
-                Client & Academic Information
+                Client &amp; Academic Information
               </Heading>
-              <table className="w-full text-left text-[14px] text-slate-600 border-collapse">
-                <tbody>
-                  <tr>
-                    <td className="py-[6px] font-semibold w-[160px] text-slate-500">
-                      Client Name:
-                    </td>
-                    <td className="py-[6px] text-slate-900 font-medium">
-                      {fullName}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Email:
-                    </td>
-                    <td className="py-[6px]">
-                      <a
-                        href={`mailto:${data.email}`}
-                        className="text-[#1B0ABD] underline font-medium"
-                      >
-                        {data.email}
-                      </a>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      WhatsApp:
-                    </td>
-                    <td className="py-[6px] text-slate-900 font-medium">
-                      {data.whatsapp}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Institution:
-                    </td>
-                    <td className="py-[6px] text-slate-900">
-                      {institutionName ||
-                        (data.institutionId && data.institutionId !== "None"
-                          ? data.institutionId
-                          : "Independent Researcher")}
-                      {data.institutionId === "Other" && data.institutionOther && (
-                        <span className="text-slate-500 italic">
-                          {" "}
-                          ({data.institutionOther})
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Degree & Programme:
-                    </td>
-                    <td className="py-[6px] text-slate-900">
-                      {formatDegreeSummary(
-                        data.degreeLevel === "Other"
-                          ? data.degreeLevelOther
-                          : data.degreeLevel,
-                        data.degreeProgramme
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Research Title:
-                    </td>
-                    <td className="py-[6px] text-slate-900 font-medium">
-                      {data.researchTitle}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Came From:
-                    </td>
-                    <td className="py-[6px] text-slate-900">
-                      {data.referralSource}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Client Name:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900 font-medium">
+                  {fullName}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Email:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px]">
+                  <Link
+                    href={`mailto:${data.email}`}
+                    className="text-[#1B0ABD] underline font-medium"
+                  >
+                    {data.email}
+                  </Link>
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  WhatsApp:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900 font-medium">
+                  {data.whatsapp}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Institution:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900">
+                  {institutionName ||
+                    (data.institutionId && data.institutionId !== "None"
+                      ? data.institutionId
+                      : "Independent Researcher")}
+                  {data.institutionId === "Other" && data.institutionOther && (
+                    <span className="text-slate-500 italic">
+                      {" "}
+                      ({data.institutionOther})
+                    </span>
+                  )}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Degree &amp; Programme:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900">
+                  {formatDegreeSummary(
+                    data.degreeLevel === "Other"
+                      ? data.degreeLevelOther
+                      : data.degreeLevel,
+                    data.degreeProgramme
+                  )}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Research Title:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900 font-medium">
+                  {data.researchTitle}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Came From:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900">
+                  {data.referralSource}
+                </Column>
+              </Row>
             </Section>
 
             {/* Document & Scope Details */}
             <Section className="px-[20px] pt-[24px]">
               <Heading className="text-[#1B0ABD] text-[18px] font-semibold mb-[12px] border-b border-solid border-slate-100 pb-[6px]">
-                Document & Scope
+                Document &amp; Scope
               </Heading>
-              <table className="w-full text-left text-[14px] text-slate-600 border-collapse">
-                <tbody>
-                  <tr>
-                    <td className="py-[6px] font-semibold w-[160px] text-slate-500">
-                      Document Type:
-                    </td>
-                    <td className="py-[6px] text-slate-900">
-                      {displayDocumentType}
-                      {data.documentTypeOther && (
-                        <span className="text-slate-500 italic">
-                          {" "}
-                          ({data.documentTypeOther})
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Scope:
-                    </td>
-                    <td className="py-[6px] text-slate-900">
-                      {data.wholeOrPart === "whole"
-                        ? "Whole document"
-                        : `Part: ${data.whichPart}`}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Page Count:
-                    </td>
-                    <td className="py-[6px] text-slate-900 font-semibold">
-                      {data.pageCount} billable pages
-                      {data.wordCount ? ` (${data.wordCount.toLocaleString()} words)` : ""}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Reference Pages:
-                    </td>
-                    <td className="py-[6px] text-slate-900">
-                      {data.referencePageCount} pages
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Services:
-                    </td>
-                    <td className="py-[6px] text-slate-900 font-medium">
-                      {data.services.join(", ")}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Delivery Speed:
-                    </td>
-                    <td className="py-[6px] text-slate-900 font-semibold uppercase">
-                      {data.deliverySpeed}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Referencing Style:
-                    </td>
-                    <td className="py-[6px] text-slate-900">
-                      {data.referencingStyle === "Other"
-                        ? data.referencingStyleOther
-                        : data.referencingStyle}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Main Goal:
-                    </td>
-                    <td className="py-[6px] text-slate-900">{data.mainGoal}</td>
-                  </tr>
-                  {data.concerns && (
-                    <tr>
-                      <td className="py-[6px] font-semibold text-slate-500">
-                        Concerns:
-                      </td>
-                      <td className="py-[6px] text-slate-900">
-                        {data.concerns}
-                      </td>
-                    </tr>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Document Type:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900">
+                  {displayDocumentType}
+                  {data.documentTypeOther && (
+                    <span className="text-slate-500 italic">
+                      {" "}
+                      ({data.documentTypeOther})
+                    </span>
                   )}
-                </tbody>
-              </table>
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Scope:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900">
+                  {data.wholeOrPart === "whole"
+                    ? "Whole document"
+                    : `Part: ${data.whichPart}`}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Page Count:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900 font-semibold">
+                  {data.pageCount} billable pages
+                  {data.wordCount
+                    ? ` (${data.wordCount.toLocaleString()} words)`
+                    : ""}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Reference Pages:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900">
+                  {data.referencePageCount} pages
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Services:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900 font-medium">
+                  {data.services.join(", ")}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Delivery Speed:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900 font-semibold uppercase">
+                  {data.deliverySpeed}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Referencing Style:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900">
+                  {data.referencingStyle === "Other"
+                    ? data.referencingStyleOther
+                    : data.referencingStyle}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Main Goal:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900">
+                  {data.mainGoal}
+                </Column>
+              </Row>
+
+              {data.concerns && (
+                <Row>
+                  <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                    Concerns:
+                  </Column>
+                  <Column className="py-[6px] align-top text-[14px] text-slate-900">
+                    {data.concerns}
+                  </Column>
+                </Row>
+              )}
             </Section>
 
             {/* Logistics & Supervisor Sign-Off */}
             <Section className="px-[20px] pt-[24px]">
               <Heading className="text-[#1B0ABD] text-[18px] font-semibold mb-[12px] border-b border-solid border-slate-100 pb-[6px]">
-                Dates, Sign-Off & Funding
+                Dates, Sign-Off &amp; Funding
               </Heading>
-              <table className="w-full text-left text-[14px] text-slate-600 border-collapse">
-                <tbody>
-                  <tr>
-                    <td className="py-[6px] font-semibold w-[160px] text-slate-500">
-                      Document Send Date:
-                    </td>
-                    <td className="py-[6px] text-slate-900">
-                      {data.expectedSendDate}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Requested Return:
-                    </td>
-                    <td className="py-[6px] text-[#FF2216] font-bold">
-                      {data.requestedReturnDate}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Supervisor Sign-Off:
-                    </td>
-                    <td className="py-[6px] text-slate-900">
-                      {data.supervisorSignOff === "not_applicable"
-                        ? "Not applicable (non-degree / independent)"
-                        : data.supervisorSignOff === "yes"
-                          ? "Yes (Declared by student)"
-                          : data.requestSupervisorSignOff
-                            ? `No (Request emailed to ${data.supervisorName} <${data.supervisorEmail}>)`
-                            : "No (Disclaimer acknowledged)"}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">
-                      Payment Option:
-                    </td>
-                    <td className="py-[6px] text-slate-900 font-medium">
-                      {data.paymentOption === "full_payment"
-                        ? "Full payment"
-                        : data.paymentOption === "payment_plan"
-                          ? "Payment plan (50% deposit)"
-                          : `Institutional funding (${data.department} — ${data.billingContactName} <${data.billingContactEmail}>)`}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Document Send Date:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900">
+                  {data.expectedSendDate}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Requested Return:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-[#FF2216] font-bold">
+                  {data.requestedReturnDate}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Supervisor Sign-Off:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900">
+                  {data.supervisorSignOff === "not_applicable"
+                    ? "Not applicable (non-degree / independent)"
+                    : data.supervisorSignOff === "yes"
+                      ? "Yes (Declared by student)"
+                      : data.requestSupervisorSignOff
+                        ? `No (Request emailed to ${data.supervisorName} <${data.supervisorEmail}>)`
+                        : "No (Disclaimer acknowledged)"}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[160px] align-top text-[14px] font-semibold text-slate-500">
+                  Payment Option:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900 font-medium">
+                  {data.paymentOption === "full_payment"
+                    ? "Full payment"
+                    : data.paymentOption === "payment_plan"
+                      ? "Payment plan (50% deposit)"
+                      : `Institutional funding (${data.department} — ${data.billingContactName} <${data.billingContactEmail}>)`}
+                </Column>
+              </Row>
             </Section>
 
             {/* Auto-Calculated Quote Summary */}
@@ -310,34 +327,34 @@ export function ContactNotificationEmail({
                 <Heading className="text-[#1B0ABD] text-[18px] font-semibold mb-[12px] border-b border-solid border-slate-100 pb-[6px]">
                   Auto-Calculated Quote ({quoteNumber})
                 </Heading>
-                <div className="bg-slate-50 p-[14px] rounded border border-solid border-slate-200 text-[14px]">
-                  <p className="m-0 mb-[6px]">
+                <Section className="bg-slate-50 p-[14px] rounded border border-solid border-slate-200">
+                  <Text className="text-[14px] text-slate-800 m-0 mb-[6px]">
                     <strong>Total Fee:</strong>{" "}
                     {formatZarFromCents(quoteSummary.totalFeeCents)}
-                  </p>
-                  <p className="m-0 mb-[6px]">
+                  </Text>
+                  <Text className="text-[14px] text-slate-800 m-0 mb-[6px]">
                     <strong>Deposit Required:</strong>{" "}
                     {formatZarFromCents(quoteSummary.depositRequiredCents)} (
                     {quoteSummary.depositPercentage}%)
-                  </p>
+                  </Text>
                   {quoteSummary.paymentOption === "payment_plan" && (
-                    <p className="m-0 mb-[6px]">
+                    <Text className="text-[14px] text-slate-800 m-0 mb-[6px]">
                       <strong>Payment Plan Eligibility:</strong> Up to{" "}
                       {quoteSummary.maxInstalmentMonths} months (selected:{" "}
                       {quoteSummary.selectedInstalmentMonths} months)
-                    </p>
+                    </Text>
                   )}
                   {quoteUrl && (
-                    <p className="m-0 mt-[10px]">
+                    <Text className="text-[14px] m-0 mt-[10px]">
                       <Link
                         href={quoteUrl}
                         className="text-[#1B0ABD] font-bold underline"
                       >
                         Open Interactive Quote Page &rarr;
                       </Link>
-                    </p>
+                    </Text>
                   )}
-                </div>
+                </Section>
               </Section>
             )}
 

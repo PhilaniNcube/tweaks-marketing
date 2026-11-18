@@ -806,7 +806,7 @@ export const user = sqliteTable("user", {
     .default(false)
     .notNull(),
   image: text("image"),
-  role: text("role", { enum: ["admin", "editor"] })
+  role: text("role", { enum: ["admin", "editor", "client"] })
     .default("editor")
     .notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),

@@ -19,7 +19,7 @@ interface AdminInvitePageProps {
 
 export default async function AdminInvitePage({ searchParams }: AdminInvitePageProps) {
   const session = await getServerSession();
-  if (session?.user) {
+  if (session?.user && (session.user as { role?: string }).role !== "client") {
     redirect("/dashboard");
   }
 

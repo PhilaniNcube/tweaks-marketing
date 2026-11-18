@@ -6,8 +6,10 @@ import {
   sanitizeR2FileName,
 } from "@/lib/r2";
 import { db } from "@/db";
-import { projects } from "@/db/schema";
+import { clients, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
+
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export type R2ProjectUploadSlot =
   | "clientBrief"
@@ -22,6 +24,10 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const userRole = (session.user as { role?: string }).role || "editor";
+    const userEmail = (session.user.email || "").trim().toLowerCase();
+    const isCrmStaff = userRole === "admin" || userRole === "editor";
 
     if (!isR2Configured()) {
       return NextResponse.json(
@@ -43,6 +49,59 @@ export async function POST(request: NextRequest) {
         { error: "File and projectId are required." },
         { status: 400 }
       );
+    }
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: "File exceeds the 50MB maximum upload size." },
+        { status: 400 }
+      );
+    }
+
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+
+    if (!project) {
+      return NextResponse.json({ error: "Project not found." }, { status: 404 });
+    }
+
+    if (!isCrmStaff) {
+      if (slot !== "clientBrief") {
+        return NextResponse.json(
+          { error: "Clients can only upload source manuscripts." },
+          { status: 403 }
+        );
+      }
+
+      const [client] = await db
+        .select()
+        .from(clients)
+        .where(eq(clients.id, project.clientId))
+        .limit(1);
+
+      if (!client || client.email.trim().toLowerCase() !== userEmail) {
+        return NextResponse.json(
+          { error: "You can only upload documents to your own project." },
+          { status: 403 }
+        );
+      }
+
+      if (
+        project.workReady ||
+        project.stage === "complete" ||
+        project.stage === "closed"
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Editing has already been completed for this project. Please contact us if you need further changes.",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const safeFileName = sanitizeR2FileName(file.name);

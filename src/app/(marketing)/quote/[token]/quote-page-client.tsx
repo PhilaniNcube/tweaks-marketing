@@ -19,6 +19,7 @@ import {
   Clock,
   Landmark,
   AlertTriangle,
+  FileUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -400,6 +401,32 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
                 </div>
               );
             })}
+          </div>
+
+          {/* Client Portal Manuscript Upload Callout */}
+          <div className="p-4 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <FileUp className="h-5 w-5 text-tweaks-blue shrink-0 mt-0.5" />
+              <div className="space-y-0.5 text-xs">
+                <p className="font-bold text-slate-900 dark:text-white">
+                  {project.uploadedFileName
+                    ? `Manuscript on file: ${project.uploadedFileName}`
+                    : "Manuscript not uploaded yet"}
+                </p>
+                <p className="text-slate-500 dark:text-zinc-400">
+                  {project.uploadedFileName
+                    ? "Sign in or create your client account using your quote email to review or replace your document."
+                    : "Create your client account or sign in using your quote email address to upload the document you want edited."}
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/portal/login?email=${encodeURIComponent(client.email)}`}
+              className="px-4 py-2.5 bg-tweaks-blue hover:bg-tweaks-red text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 shrink-0 transition-colors"
+            >
+              <FileUp className="h-3.5 w-3.5" />
+              Upload Manuscript in Client Portal
+            </Link>
           </div>
 
           {/* Delivery Package Section (Shown when editor marks workReady = true) */}

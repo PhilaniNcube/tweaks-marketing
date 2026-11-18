@@ -110,3 +110,5 @@ export function AdminInvitationEmail({
   );
 }
 
+export default AdminInvitationEmail;
+

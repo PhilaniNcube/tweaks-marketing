@@ -158,6 +158,17 @@ export default function Navbar() {
           >
             Contact
           </Link>
+
+          <Link
+            href="/portal"
+            className={`text-sm font-medium transition-colors hover:text-indigo-600 ${
+              pathname?.startsWith("/portal")
+                ? "text-indigo-600 font-semibold"
+                : "text-muted-foreground"
+            }`}
+          >
+            Client Portal
+          </Link>
         </nav>
 
         {/* CTA Button */}
@@ -248,6 +259,17 @@ export default function Navbar() {
                     }`}
                   >
                     Contact
+                  </Link>
+                  <Link
+                    href="/portal"
+                    onClick={() => setOpen(false)}
+                    className={`text-base font-semibold px-2 py-1 rounded-none transition-colors ${
+                      pathname?.startsWith("/portal")
+                        ? "text-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/20"
+                        : "text-foreground"
+                    }`}
+                  >
+                    Client Portal
                   </Link>
                 </div>
                 <div className="grid gap-2">

@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Check,
   ExternalLink,
+  FileUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useForm, FormProvider, type Resolver } from "react-hook-form";
@@ -163,6 +164,7 @@ export function ContactQuoteForm({
   const { register, handleSubmit, watch, trigger } = methods;
 
   // Watch reactive fields for live quote & turnaround calculation
+  const watchedEmail = watch("email");
   const watchedDegreeLevel = watch("degreeLevel");
   const watchedPageCount = watch("pageCount");
   const watchedRefPageCount = watch("referencePageCount");
@@ -325,6 +327,19 @@ export function ContactQuoteForm({
         )}
 
         <div className="flex flex-wrap justify-center gap-3 pt-2">
+          <Button
+            asChild
+            className="bg-tweaks-red hover:bg-tweaks-blue text-white rounded-none font-bold transition-colors"
+          >
+            <Link
+              href={`/portal/login?mode=signup&email=${encodeURIComponent(
+                watchedEmail || ""
+              )}`}
+            >
+              <FileUp className="mr-2 h-4 w-4" />
+              Create Client Account &amp; Upload Document
+            </Link>
+          </Button>
           {state.quoteToken && (
             <Button
               asChild

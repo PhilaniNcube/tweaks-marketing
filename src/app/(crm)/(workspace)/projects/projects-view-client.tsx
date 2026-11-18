@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   ExternalLink,
   UserCheck,
+  ArrowRight,
 } from "lucide-react";
 import {
   formatZarFromCents,
@@ -1013,25 +1014,35 @@ export function ProjectsViewClient({
                           </span>
                         </div>
 
-                        <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px]">
-                          {isAdmin ? (
-                            <span className="font-mono font-bold text-slate-900 dark:text-white">
-                              {formatZarFromCents(row.quote?.totalFeeCents)}
+                        <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2 text-[11px]">
+                          <div className="min-w-0">
+                            {isAdmin ? (
+                              <span className="font-mono font-bold text-slate-900 dark:text-white block truncate">
+                                {formatZarFromCents(row.quote?.totalFeeCents)}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-tweaks-blue block truncate">
+                                {row.items.length > 0
+                                  ? `${row.items.length} service${row.items.length === 1 ? "" : "s"}`
+                                  : row.project.documentType}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-500 block truncate">
+                              {isAdmin
+                                ? row.assignedEditor
+                                  ? `Ed: ${row.assignedEditor.name}`
+                                  : "Unassigned"
+                                : row.project.referencingStyle}
                             </span>
-                          ) : (
-                            <span className="text-[10px] font-semibold text-tweaks-blue truncate max-w-[140px]">
-                              {row.items.length > 0
-                                ? `${row.items.length} service${row.items.length === 1 ? "" : "s"}`
-                                : row.project.documentType}
-                            </span>
-                          )}
-                          <span className="text-[10px] text-slate-500">
-                            {isAdmin
-                              ? row.assignedEditor
-                                ? `Ed: ${row.assignedEditor.name}`
-                                : "Unassigned"
-                              : row.project.referencingStyle}
-                          </span>
+                          </div>
+                          <Link
+                            href={`/projects/${row.project.id}`}
+                            draggable={false}
+                            className="px-2.5 py-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-bold hover:bg-tweaks-blue dark:hover:bg-tweaks-blue dark:hover:text-white transition-colors inline-flex items-center gap-1 shrink-0"
+                          >
+                            Open Project
+                            <ArrowRight className="h-3 w-3" />
+                          </Link>
                         </div>
                       </div>
                         </motion.div>

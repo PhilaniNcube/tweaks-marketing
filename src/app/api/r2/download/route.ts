@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth-server";
 import { getR2PresignedDownloadUrl, isR2Configured } from "@/lib/r2";
 import { db } from "@/db";
-import { projects, quotes } from "@/db/schema";
+import { clients, projects, quotes } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const projectId = searchParams.get("projectId") || "";
+    const slot = searchParams.get("slot") || "";
     const key = searchParams.get("key") || "";
     const fileName = searchParams.get("name") || undefined;
     const clientToken = searchParams.get("token") || "";
@@ -29,17 +30,13 @@ export async function GET(request: NextRequest) {
 
     // 1. Check if requester is an authenticated CRM Admin / Editor
     const session = await getServerSession();
-    const isAdminOrEditor = Boolean(session?.user);
+    const userRole = (session?.user as { role?: string } | undefined)?.role;
+    const isAdminOrEditor = Boolean(
+      session?.user && (userRole === "admin" || userRole === "editor")
+    );
 
-    // 2. If not a CRM user, verify Client Token + Work Release Gatekeeper
+    // 2. If not a CRM staff member, verify Client Token or Client Session ownership
     if (!isAdminOrEditor) {
-      if (!clientToken) {
-        return NextResponse.json(
-          { error: "Authentication or valid client token required." },
-          { status: 401 }
-        );
-      }
-
       const [project] = await db
         .select()
         .from(projects)
@@ -56,31 +53,56 @@ export async function GET(request: NextRequest) {
         .where(eq(quotes.projectId, project.id))
         .limit(1);
 
-      const tokenMatches =
-        project.accessToken === clientToken || quote?.token === clientToken;
+      const tokenMatches = Boolean(
+        clientToken &&
+          (project.accessToken === clientToken || quote?.token === clientToken)
+      );
 
-      if (!tokenMatches) {
-        return NextResponse.json({ error: "Invalid token." }, { status: 403 });
-      }
-
-      if (!project.workReady || !project.releaseWork) {
-        return NextResponse.json(
-          {
-            error:
-              "Work release gate is locked. Full payment or an approved Institutional PO is required before downloading deliverables.",
-          },
-          { status: 403 }
+      let sessionOwnerMatches = false;
+      const sessionEmail = (session?.user?.email || "").trim().toLowerCase();
+      if (sessionEmail) {
+        const [client] = await db
+          .select()
+          .from(clients)
+          .where(eq(clients.id, project.clientId))
+          .limit(1);
+        sessionOwnerMatches = Boolean(
+          client && client.email.trim().toLowerCase() === sessionEmail
         );
       }
 
-      if (
-        project.accessExpiresAt &&
-        new Date(project.accessExpiresAt).getTime() < Date.now()
-      ) {
+      if (!tokenMatches && !sessionOwnerMatches) {
         return NextResponse.json(
-          { error: "Download link has expired (30-day window elapsed)." },
-          { status: 410 }
+          { error: "Authentication or valid client token required." },
+          { status: 401 }
         );
+      }
+
+      const isClientSourceDoc =
+        slot === "clientBrief" ||
+        key.startsWith(`projects/${projectId}/clientBrief/`) ||
+        key.startsWith("briefs/");
+
+      if (!isClientSourceDoc) {
+        if (!project.workReady || !project.releaseWork) {
+          return NextResponse.json(
+            {
+              error:
+                "Work release gate is locked. Full payment or an approved Institutional PO is required before downloading deliverables.",
+            },
+            { status: 403 }
+          );
+        }
+
+        if (
+          project.accessExpiresAt &&
+          new Date(project.accessExpiresAt).getTime() < Date.now()
+        ) {
+          return NextResponse.json(
+            { error: "Download link has expired (30-day window elapsed)." },
+            { status: 410 }
+          );
+        }
       }
     }
 

@@ -11,12 +11,15 @@ import {
   Body,
   Container,
   Section,
+  Row,
+  Column,
   Heading,
   Text,
   Hr,
   Tailwind,
   Preview,
   Link,
+  Button,
 } from "@react-email/components";
 
 interface ContactConfirmationEmailProps {
@@ -71,85 +74,87 @@ export function ContactConfirmationEmail({
 
             {/* Brief Summary Box */}
             <Section className="px-[25px] pt-[25px]">
-              <div className="bg-slate-50 rounded-lg p-[16px] border border-solid border-slate-100">
+              <Section className="bg-slate-50 rounded-lg p-[16px] border border-solid border-slate-100">
                 <Heading className="text-slate-900 text-[14px] font-semibold m-0 uppercase tracking-wider mb-[12px]">
-                  Brief & Quote Summary
+                  Brief &amp; Quote Summary
                 </Heading>
-                <table className="w-full text-[14px] text-slate-600">
-                  <tbody>
-                    {quoteNumber && (
-                      <tr>
-                        <td className="py-[4px] font-medium text-slate-500">
-                          Quote Reference:
-                        </td>
-                        <td className="py-[4px] text-slate-900 text-right font-bold">
-                          {quoteNumber}
-                        </td>
-                      </tr>
-                    )}
-                    <tr>
-                      <td className="py-[4px] font-medium text-slate-500">
-                        Document Type:
-                      </td>
-                      <td className="py-[4px] text-slate-900 text-right font-medium">
-                        {displayDocumentType} (
-                        {data.wholeOrPart === "whole"
-                          ? "Whole document"
-                          : data.whichPart}
-                        )
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-[4px] font-medium text-slate-500">
-                        Volume:
-                      </td>
-                      <td className="py-[4px] text-slate-900 text-right font-semibold">
-                        {data.pageCount} pages
-                        {data.referencePageCount > 0
-                          ? ` (+ ${data.referencePageCount} reference pages)`
-                          : ""}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-[4px] font-medium text-slate-500">
-                        Services Requested:
-                      </td>
-                      <td className="py-[4px] text-slate-900 text-right font-medium">
-                        {data.services.join(", ")} ({data.deliverySpeed})
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-[4px] font-medium text-slate-500">
-                        Requested Return Date:
-                      </td>
-                      <td className="py-[4px] text-[#FF2216] text-right font-bold">
-                        {data.requestedReturnDate}
-                      </td>
-                    </tr>
-                    {quoteSummary && (
-                      <tr>
-                        <td className="py-[6px] font-semibold text-slate-700 border-t border-solid border-slate-200">
-                          Estimated Total (ZAR):
-                        </td>
-                        <td className="py-[6px] text-[#1B0ABD] text-right font-bold border-t border-solid border-slate-200">
-                          {formatZarFromCents(quoteSummary.totalFeeCents)}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+
+                {quoteNumber && (
+                  <Row>
+                    <Column className="py-[4px] w-[170px] align-top font-medium text-[14px] text-slate-500">
+                      Quote Reference:
+                    </Column>
+                    <Column className="py-[4px] align-top text-[14px] text-slate-900 text-right font-bold">
+                      {quoteNumber}
+                    </Column>
+                  </Row>
+                )}
+
+                <Row>
+                  <Column className="py-[4px] w-[170px] align-top font-medium text-[14px] text-slate-500">
+                    Document Type:
+                  </Column>
+                  <Column className="py-[4px] align-top text-[14px] text-slate-900 text-right font-medium">
+                    {displayDocumentType} (
+                    {data.wholeOrPart === "whole"
+                      ? "Whole document"
+                      : data.whichPart}
+                    )
+                  </Column>
+                </Row>
+
+                <Row>
+                  <Column className="py-[4px] w-[170px] align-top font-medium text-[14px] text-slate-500">
+                    Volume:
+                  </Column>
+                  <Column className="py-[4px] align-top text-[14px] text-slate-900 text-right font-semibold">
+                    {data.pageCount} pages
+                    {data.referencePageCount > 0
+                      ? ` (+ ${data.referencePageCount} reference pages)`
+                      : ""}
+                  </Column>
+                </Row>
+
+                <Row>
+                  <Column className="py-[4px] w-[170px] align-top font-medium text-[14px] text-slate-500">
+                    Services Requested:
+                  </Column>
+                  <Column className="py-[4px] align-top text-[14px] text-slate-900 text-right font-medium">
+                    {data.services.join(", ")} ({data.deliverySpeed})
+                  </Column>
+                </Row>
+
+                <Row>
+                  <Column className="py-[4px] w-[170px] align-top font-medium text-[14px] text-slate-500">
+                    Requested Return Date:
+                  </Column>
+                  <Column className="py-[4px] align-top text-[14px] text-[#FF2216] text-right font-bold">
+                    {data.requestedReturnDate}
+                  </Column>
+                </Row>
+
+                {quoteSummary && (
+                  <Row>
+                    <Column className="py-[6px] w-[170px] align-top text-[14px] font-semibold text-slate-700 border-t border-solid border-slate-200">
+                      Estimated Total (ZAR):
+                    </Column>
+                    <Column className="py-[6px] align-top text-[14px] text-[#1B0ABD] text-right font-bold border-t border-solid border-slate-200">
+                      {formatZarFromCents(quoteSummary.totalFeeCents)}
+                    </Column>
+                  </Row>
+                )}
 
                 {quoteUrl && (
-                  <div className="mt-[16px] text-center">
-                    <Link
+                  <Section className="mt-[16px] text-center">
+                    <Button
                       href={quoteUrl}
-                      className="bg-[#1B0ABD] text-white px-[20px] py-[10px] text-[14px] font-bold no-underline inline-block"
+                      className="bg-[#1B0ABD] text-white px-[20px] py-[10px] rounded text-[14px] font-bold no-underline inline-block"
                     >
-                      View Your Quote & Project Status
-                    </Link>
-                  </div>
+                      View Your Quote &amp; Project Status
+                    </Button>
+                  </Section>
                 )}
-              </div>
+              </Section>
             </Section>
 
             <Hr className="border-slate-200 my-[30px]" />

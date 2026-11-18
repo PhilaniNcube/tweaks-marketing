@@ -5,11 +5,14 @@ import {
   Body,
   Container,
   Section,
+  Row,
+  Column,
   Heading,
   Text,
   Hr,
   Tailwind,
   Preview,
+  Link,
 } from "@react-email/components";
 
 interface ReviewNotificationEmailProps {
@@ -62,34 +65,44 @@ export function ReviewNotificationEmail({
               <Heading className="text-[#1B0ABD] text-[18px] font-semibold mb-[12px] border-b border-solid border-slate-100 pb-[6px]">
                 Client Details
               </Heading>
-              <table className="w-full text-left text-[14px] text-slate-600 border-collapse">
-                <tbody>
-                  <tr>
-                    <td className="py-[6px] font-semibold w-[120px] text-slate-500">Name:</td>
-                    <td className="py-[6px] text-slate-900 font-medium">
-                      {authorName || "Anonymous"}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">Email:</td>
-                    <td className="py-[6px]">
-                      {authorEmail ? (
-                        <a href={`mailto:${authorEmail}`} className="text-[#1B0ABD] underline font-medium">
-                          {authorEmail}
-                        </a>
-                      ) : (
-                        <span className="text-slate-400 italic">Not provided</span>
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-[6px] font-semibold text-slate-500">University:</td>
-                    <td className="py-[6px] text-slate-900 font-medium">
-                      {university || <span className="text-slate-400 italic">Not provided</span>}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+
+              <Row>
+                <Column className="py-[6px] w-[120px] align-top text-[14px] font-semibold text-slate-500">
+                  Name:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900 font-medium">
+                  {authorName || "Anonymous"}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[120px] align-top text-[14px] font-semibold text-slate-500">
+                  Email:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px]">
+                  {authorEmail ? (
+                    <Link
+                      href={`mailto:${authorEmail}`}
+                      className="text-[#1B0ABD] underline font-medium"
+                    >
+                      {authorEmail}
+                    </Link>
+                  ) : (
+                    <span className="text-slate-400 italic">Not provided</span>
+                  )}
+                </Column>
+              </Row>
+
+              <Row>
+                <Column className="py-[6px] w-[120px] align-top text-[14px] font-semibold text-slate-500">
+                  University:
+                </Column>
+                <Column className="py-[6px] align-top text-[14px] text-slate-900 font-medium">
+                  {university || (
+                    <span className="text-slate-400 italic">Not provided</span>
+                  )}
+                </Column>
+              </Row>
             </Section>
 
             {/* Feedback Content */}
@@ -97,9 +110,11 @@ export function ReviewNotificationEmail({
               <Heading className="text-[#1B0ABD] text-[18px] font-semibold mb-[12px] border-b border-solid border-slate-100 pb-[6px]">
                 Feedback / Review
               </Heading>
-              <div className="bg-slate-50 border-l-4 border-solid border-[#1B0ABD] p-[16px] text-[14px] text-slate-800 rounded-r leading-relaxed whitespace-pre-wrap">
-                {feedback}
-              </div>
+              <Section className="bg-slate-50 border-l-4 border-solid border-[#1B0ABD] p-[16px] rounded-r">
+                <Text className="text-[14px] text-slate-800 leading-relaxed whitespace-pre-wrap m-0">
+                  {feedback}
+                </Text>
+              </Section>
             </Section>
 
             <Hr className="border-slate-200 my-[30px]" />

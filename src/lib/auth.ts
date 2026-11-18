@@ -3,7 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { count } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { getAppUrl, getTrustedOrigins } from "@/lib/app-url";
 
 const resolvedBaseUrl = process.env.BETTER_AUTH_URL || getAppUrl();
@@ -48,16 +48,40 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (newUser) => {
-          const [existing] = await db
+          const [existingAdmin] = await db
             .select({ total: count() })
-            .from(schema.user);
-          const totalUsers = existing?.total ?? 0;
+            .from(schema.user)
+            .where(eq(schema.user.role, "admin"));
+          const totalAdmins = existingAdmin?.total ?? 0;
 
-          // First user created in the database becomes the initial Admin
-          if (totalUsers === 0) {
+          const normalizedEmail = (newUser.email || "").trim().toLowerCase();
+          const [existingClient] = normalizedEmail
+            ? await db
+                .select()
+                .from(schema.clients)
+                .where(eq(schema.clients.email, normalizedEmail))
+                .limit(1)
+            : [];
+
+          if (
+            existingClient &&
+            (totalAdmins > 0 || (newUser as { role?: string }).role === "client")
+          ) {
             return {
               data: {
                 ...newUser,
+                email: normalizedEmail,
+                role: "client",
+              },
+            };
+          }
+
+          // First admin created in the database becomes the initial Admin
+          if (totalAdmins === 0) {
+            return {
+              data: {
+                ...newUser,
+                email: normalizedEmail,
                 role: "admin",
               },
             };
@@ -67,11 +91,16 @@ export const auth = betterAuth({
           if (process.env.ALLOW_CRM_SIGNUP !== "true") {
             throw new APIError("FORBIDDEN", {
               message:
-                "Public sign-up is disabled. Please ask an administrator to invite your account.",
+                "No quote request was found for this email address. Please use the email address from your quote request.",
             });
           }
 
-          return { data: newUser };
+          return {
+            data: {
+              ...newUser,
+              email: normalizedEmail,
+            },
+          };
         },
       },
     },

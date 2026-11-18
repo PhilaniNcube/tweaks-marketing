@@ -17,12 +17,28 @@ export async function getServerSession() {
 
 /**
  * Protects a Server Component or Server Action, redirecting unauthenticated
- * requests to /admin/login.
+ * requests to /admin/login and client accounts to /portal.
  */
 export async function requireCrmSession() {
   const session = await getServerSession();
   if (!session?.user) {
     redirect("/admin/login");
+  }
+  const role = (session.user as { role?: string }).role;
+  if (role === "client") {
+    redirect("/portal");
+  }
+  return session;
+}
+
+/**
+ * Protects a Client Portal Server Component or Server Action, redirecting
+ * unauthenticated requests to /portal/login.
+ */
+export async function requireClientPortalSession() {
+  const session = await getServerSession();
+  if (!session?.user) {
+    redirect("/portal/login");
   }
   return session;
 }
@@ -39,13 +55,16 @@ export async function requireAdminSession() {
 }
 
 /**
- * Checks whether any user exists in the database yet.
- * Used to allow first-time initial admin setup on /admin/login when the user table is empty,
- * while locking public sign-up once an admin account has been created.
+ * Checks whether any admin user exists in the database yet.
+ * Used to allow first-time initial admin setup on /admin/login when no admin exists,
+ * while locking public CRM sign-up once an admin account has been created.
  */
 export async function hasAnyAdminUser(): Promise<boolean> {
   try {
-    const [result] = await db.select({ value: count() }).from(userTable);
+    const [result] = await db
+      .select({ value: count() })
+      .from(userTable)
+      .where(eq(userTable.role, "admin"));
     return (result?.value ?? 0) > 0;
   } catch {
     return false;
@@ -53,11 +72,15 @@ export async function hasAnyAdminUser(): Promise<boolean> {
 }
 
 /**
- * Promotes the very first created user to role = "admin".
+ * Promotes the very first created admin user to role = "admin" if no other admin exists.
  */
 export async function ensureFirstUserIsAdmin(userId: string) {
-  const [result] = await db.select({ value: count() }).from(userTable);
-  if ((result?.value ?? 0) <= 1) {
+  const admins = await db
+    .select({ id: userTable.id })
+    .from(userTable)
+    .where(eq(userTable.role, "admin"))
+    .limit(2);
+  if (admins.length === 0) {
     await db
       .update(userTable)
       .set({ role: "admin" })
