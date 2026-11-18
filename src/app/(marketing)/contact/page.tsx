@@ -171,7 +171,6 @@ const SLUG_TO_SERVICE_NAME: Record<string, string> = {
   "reference-list-editing": "Reference list editing",
   formatting: "Formatting",
   "journal-article-proposal-editing": "Journal article and proposal editing",
-  "abstract-editing": "Abstract editing",
 };
 
 function firstString(

@@ -7,7 +7,6 @@ import {
   BookOpen,
   Menu,
   ChevronDown,
-  FileText,
   PenTool,
   Headphones,
   CheckSquare,
@@ -68,12 +67,6 @@ const services = [
     href: "/reference-list-editing",
     description: "Construct & fix bibliography entries",
     icon: List,
-  },
-  {
-    name: "Abstract Editing",
-    href: "/abstract-editing",
-    description: "Perfect summary for maximum impact",
-    icon: FileText,
   },
 ];
 

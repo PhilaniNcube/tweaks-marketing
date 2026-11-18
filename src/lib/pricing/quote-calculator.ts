@@ -181,7 +181,6 @@ export function calculateQuoteFromCatalog(
           return Math.max(0, refPages);
         case "flat_document":
         case "flat_article":
-        case "flat_abstract":
           return 1;
       }
     })();

@@ -47,7 +47,6 @@ const footerServices = [
   { name: "Reference Checking", href: "/reference-checking" },
   { name: "Document Formatting", href: "/formatting" },
   { name: "Reference List Editing", href: "/reference-list-editing" },
-  { name: "Abstract Editing", href: "/abstract-editing" },
 ];
 
 const companyLinks = [

@@ -240,7 +240,7 @@ const DEMO_PROJECTS: DemoProjectSeed[] = [
     pages: 124,
     refPages: 13,
     speed: "standard",
-    serviceSlugs: ["abstract-editing", "academic-editing"],
+    serviceSlugs: ["academic-editing"],
     stage: "work_ready",
     paymentOption: "full_payment",
     paidFraction: 1,

@@ -25,7 +25,6 @@ export const metadata: Metadata = {
     "proposal editing",
     "reference list editing",
     "formatting",
-    "abstract editing",
     "proofreading",
     "South Africa",
   ],

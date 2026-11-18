@@ -48,14 +48,6 @@ const products = [
     description:
       "Clean up and standardize your reference list entries to a chosen style guide.",
   },
-  {
-    name: "Abstract Editing",
-    price: "R1,000.00",
-    href: "/abstract-editing",
-    img: "https://conceptafrika.com/wp-content/uploads/2022/12/abstract-editing-300x300.jpg",
-    description:
-      "Refining abstract summaries to ensure impact and conciseness for readers.",
-  },
 ];
 
 export default function ServicesCatalog() {

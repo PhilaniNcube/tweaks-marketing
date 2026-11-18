@@ -6,7 +6,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const routes = [
     "",
-    "/abstract-editing",
     "/academic-editing",
     "/formatting",
     "/journal-article-proposal-editing",

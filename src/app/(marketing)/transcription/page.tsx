@@ -62,14 +62,6 @@ const relatedServices = [
     href: "/reference-list-editing",
     img: "https://conceptafrika.com/wp-content/uploads/2021/09/reference-list-editing-300x300.jpg",
   },
-  {
-    name: "Abstract Editing",
-    price: "R 1,000.00",
-    description:
-      "A standalone service to polish and structure your research article or thesis abstract.",
-    href: "/abstract-editing",
-    img: "https://conceptafrika.com/wp-content/uploads/2022/12/abstract-editing-300x300.jpg",
-  },
 ];
 
 import { sendGTMEvent } from '@next/third-parties/google';

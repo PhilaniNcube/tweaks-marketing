@@ -6,6 +6,7 @@ import {
   crmSettings,
   institutions,
 } from "./schema.ts";
+import { notInArray } from "drizzle-orm";
 import {
   DEFAULT_SERVICES,
   DEFAULT_RATE_CARD_RULES,
@@ -16,7 +17,7 @@ import {
 
 /**
  * Idempotently seeds the initial CRM reference tables:
- * - Services & Rate Card (6 live services with standard/express rates & turnarounds)
+ * - Services & Rate Card (5 live services with standard/express rates & turnarounds)
  * - Conditional Payment Plan Rules (< R3,000 = max 2 months; >= R3,000 = max 3 months)
  * - 34 South African Degree Designators
  * - South African Higher Education Institutions
@@ -47,6 +48,17 @@ export async function seedCrmDatabase() {
         },
       });
   }
+
+  // Retire services that are no longer offered on the website
+  await db
+    .update(services)
+    .set({ isActive: false })
+    .where(
+      notInArray(
+        services.slug,
+        DEFAULT_SERVICES.map((service) => service.slug)
+      )
+    );
 
   // 2. Seed Conditional Rate Card Rules (only if none exist yet)
   const existingRules = await db.select().from(rateCardRules).limit(1);

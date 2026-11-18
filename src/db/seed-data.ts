@@ -95,23 +95,6 @@ export const DEFAULT_SERVICES: NewService[] = [
     sortOrder: 5,
     isActive: true,
   },
-  {
-    slug: "abstract-editing",
-    name: "Abstract editing",
-    description:
-      "Focused refinement of your abstract for clarity, conciseness, word limit, and academic impact.",
-    pricingBasis: "flat_abstract",
-    standardRateCents: 100000, // R1,000.00 flat per abstract
-    expressSurchargeCents: 50000, // +R500.00 flat per abstract (total R1,500 express)
-    hasExpressOption: true,
-    standardTurnaroundMinDays: 3,
-    standardTurnaroundMaxDays: 5,
-    expressTurnaroundMinHours: 24,
-    expressTurnaroundMaxHours: 48,
-    includesReferencingReport: false,
-    sortOrder: 6,
-    isActive: true,
-  },
 ];
 
 /**

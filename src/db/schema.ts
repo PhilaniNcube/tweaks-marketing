@@ -60,7 +60,6 @@ export const pricingBasisValues = [
   "per_reference_page",
   "flat_document",
   "flat_article",
-  "flat_abstract",
 ] as const;
 export type PricingBasis = (typeof pricingBasisValues)[number];
 

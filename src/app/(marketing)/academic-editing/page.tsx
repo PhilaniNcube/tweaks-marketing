@@ -55,13 +55,6 @@ const relatedServices = [
     img: "https://conceptafrika.com/wp-content/uploads/2021/09/professional-academic-editing-services.jpg"
   },
   {
-    name: "Abstract Editing",
-    price: "R 1,000.00",
-    description: "A standalone service to polish and structure your research article or thesis abstract.",
-    href: "/abstract-editing",
-    img: "https://conceptafrika.com/wp-content/uploads/2021/09/academic-editing-services-selection.jpg"
-  },
-  {
     name: "Formatting",
     price: "R 1,500.00",
     description: "Format headings, margins, dynamic TOC, lists, and layout to fit your institutional guide.",

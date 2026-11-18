@@ -81,11 +81,9 @@ export function Step3ServicesSpeed({
                 ? "per page"
                 : svc.pricingBasis === "per_reference_page"
                   ? "per reference page"
-                  : svc.pricingBasis === "flat_document"
-                    ? "flat per document"
-                    : svc.pricingBasis === "flat_article"
-                      ? "flat per article/proposal"
-                      : "flat per abstract";
+                  : svc.pricingBasis === "flat_article"
+                    ? "flat per article/proposal"
+                    : "flat per document";
 
             return (
               <FieldLabel
