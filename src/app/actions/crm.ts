@@ -1711,7 +1711,7 @@ export async function createInternalProjectAction(input: {
   researchTitle: string;
   referralSource?: string;
   services: string[];
-  documentType: string;
+  documentType?: string;
   wholeOrPart: "whole" | "part";
   whichPart?: string;
   wordCount: number;

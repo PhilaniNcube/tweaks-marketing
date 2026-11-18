@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { areServicesInSingleGroup } from "@/lib/pricing/quote-calculator";
 
 const PERSONAL_EMAIL_DOMAINS = new Set([
   "gmail.com",
@@ -125,10 +126,7 @@ export const contactSchema = v.pipe(
     ),
 
     // --- Step 2: Document & Scope ---
-    documentType: v.pipe(
-      v.string("Please select your document type"),
-      v.minLength(1, "Please select your document type")
-    ),
+    documentType: v.optional(v.string()),
     documentTypeOther: v.optional(v.string()),
     wholeOrPart: v.picklist(
       ["whole", "part"],
@@ -171,7 +169,11 @@ export const contactSchema = v.pipe(
     // --- Step 3: Services & Delivery Speed ---
     services: v.pipe(
       v.array(v.string(), "Please select at least one editing service"),
-      v.minLength(1, "Please select at least one editing service")
+      v.minLength(1, "Please select at least one editing service"),
+      v.check(
+        (selected) => areServicesInSingleGroup(selected),
+        "Please select services from only one editing category"
+      )
     ),
     deliverySpeed: v.picklist(
       ["standard", "express"],
@@ -269,18 +271,7 @@ export const contactSchema = v.pipe(
     ),
     ["degreeLevelOther"]
   ),
-  // 3. Document Type Other
-  v.forward(
-    v.partialCheck(
-      [["documentType"], ["documentTypeOther"]],
-      (input) =>
-        input.documentType !== "Other" ||
-        Boolean(input.documentTypeOther && input.documentTypeOther.trim().length >= 2),
-      "Please specify your document type"
-    ),
-    ["documentTypeOther"]
-  ),
-  // 4. Whole or Part -> Which Part
+  // 3. Whole or Part -> Which Part
   v.forward(
     v.partialCheck(
       [["wholeOrPart"], ["whichPart"]],
@@ -406,11 +397,9 @@ export const CONTACT_FORM_STEPS = [
   },
   {
     id: 2,
-    title: "Document & Pages",
+    title: "Document Scope & Pages",
     subtitle: "Scope & page count",
     fields: [
-      "documentType",
-      "documentTypeOther",
       "wholeOrPart",
       "whichPart",
       "pageCount",

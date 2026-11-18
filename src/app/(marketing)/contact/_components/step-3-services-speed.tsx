@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useFormContext } from "react-hook-form";
-import { Clock, Zap } from "lucide-react";
+import { CheckCircle2, Clock, Zap } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -17,15 +17,28 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import {
+  SERVICE_GROUPS,
   formatZarFromCents,
+  getServiceSubLabel,
   type CalculatedQuoteResult,
 } from "@/lib/pricing/quote-calculator";
-import type { Service } from "@/db/schema";
+import type { Service, ServiceGroup } from "@/db/schema";
 import type { ContactFormValues } from "./types";
 
 interface Step3ServicesSpeedProps {
   catalog: Service[];
   liveQuote: CalculatedQuoteResult;
+}
+
+function getBasisLabel(svc: Service): string {
+  if (svc.pricingBasis === "per_page") return "per page";
+  if (svc.pricingBasis === "per_reference_page") return "per reference page";
+  if (svc.pricingBasis === "flat_article") {
+    return svc.serviceGroup === "proposal"
+      ? "flat per proposal"
+      : "flat per article";
+  }
+  return "flat per document";
 }
 
 export function Step3ServicesSpeed({
@@ -42,14 +55,65 @@ export function Step3ServicesSpeed({
   const watchedServices = watch("services") || [];
   const watchedDeliverySpeed = watch("deliverySpeed");
 
-  const handleServiceToggle = (serviceName: string, checked: boolean) => {
-    const current = watchedServices || [];
+  const groupedCatalog = SERVICE_GROUPS.map((group) => ({
+    ...group,
+    services: catalog.filter((svc) => svc.serviceGroup === group.key),
+  })).filter((group) => group.services.length > 0);
+
+  const derivedGroup: ServiceGroup | null =
+    catalog.find(
+      (svc) =>
+        watchedServices.includes(svc.name) || watchedServices.includes(svc.slug),
+    )?.serviceGroup ?? null;
+
+  const [selectedGroup, setSelectedGroup] = useState<ServiceGroup | null>(
+    derivedGroup,
+  );
+  const activeGroupKey = selectedGroup ?? derivedGroup;
+  const activeGroup =
+    groupedCatalog.find((group) => group.key === activeGroupKey) ?? null;
+
+  const handleGroupSelect = (groupKey: ServiceGroup) => {
+    setSelectedGroup(groupKey);
+    const group = groupedCatalog.find((g) => g.key === groupKey);
+    if (!group) return;
+
+    if (group.services.length === 1) {
+      setValue("services", [group.services[0].name], { shouldValidate: true });
+      return;
+    }
+
+    const keptInGroup = watchedServices.filter((item) =>
+      group.services.some((svc) => svc.name === item || svc.slug === item),
+    );
+    setValue("services", keptInGroup, {
+      shouldValidate: keptInGroup.length > 0,
+    });
+  };
+
+  const handleServiceToggle = (svc: Service, checked: boolean) => {
+    const groupServices = catalog.filter(
+      (item) => item.serviceGroup === svc.serviceGroup,
+    );
+    const currentInGroup = (watchedServices || []).filter((item) =>
+      groupServices.some((gs) => gs.name === item || gs.slug === item),
+    );
+
     if (checked) {
-      setValue("services", [...current, serviceName], { shouldValidate: true });
+      if (
+        !currentInGroup.includes(svc.name) &&
+        !currentInGroup.includes(svc.slug)
+      ) {
+        setValue("services", [...currentInGroup, svc.name], {
+          shouldValidate: true,
+        });
+      }
     } else {
       setValue(
         "services",
-        current.filter((item) => item !== serviceName),
+        currentInGroup.filter(
+          (item) => item !== svc.name && item !== svc.slug,
+        ),
         { shouldValidate: true },
       );
     }
@@ -62,77 +126,188 @@ export function Step3ServicesSpeed({
           Step 3: Select Services &amp; Turnaround Speed
         </h3>
         <p className="text-xs font-light text-muted-foreground">
-          All six live services from our rate card. Tick all that apply.
+          Choose one editing category below, then select the services you need
+          within it.
         </p>
       </div>
 
       <FieldSet data-invalid={!!errors.services}>
         <FieldLegend variant="label">
-          Which services do you require?{" "}
+          Which editing service category do you require?{" "}
           <span className="text-destructive">*</span>
         </FieldLegend>
-        <div className="grid grid-cols-1 gap-3">
-          {catalog.map((svc) => {
-            const isChecked =
-              watchedServices.includes(svc.name) ||
-              watchedServices.includes(svc.slug);
-            const basisLabel =
-              svc.pricingBasis === "per_page"
-                ? "per page"
-                : svc.pricingBasis === "per_reference_page"
-                  ? "per reference page"
-                  : svc.pricingBasis === "flat_article"
-                    ? "flat per article/proposal"
-                    : "flat per document";
+
+        <RadioGroup
+          value={activeGroupKey ?? ""}
+          onValueChange={(value) => handleGroupSelect(value as ServiceGroup)}
+          aria-invalid={!!errors.services}
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+        >
+          {groupedCatalog.map((group) => {
+            const isSelected = activeGroupKey === group.key;
+            const singleSvc =
+              group.services.length === 1 ? group.services[0] : null;
 
             return (
               <FieldLabel
-                key={svc.id}
-                htmlFor={`service-${svc.id}`}
+                key={group.key}
+                htmlFor={`service-group-${group.key}`}
                 className={`w-full cursor-pointer border transition-colors ${
-                  isChecked
+                  isSelected
                     ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
                     : "border-border hover:border-muted-foreground/40"
                 }`}
               >
                 <Field orientation="horizontal" className="items-start">
-                  <Checkbox
-                    id={`service-${svc.id}`}
-                    checked={isChecked}
-                    onCheckedChange={(checked) =>
-                      handleServiceToggle(svc.name, checked === true)
-                    }
+                  <RadioGroupItem
+                    id={`service-group-${group.key}`}
+                    value={group.key}
                     className="mt-0.5"
                   />
                   <FieldContent>
-                    <FieldTitle>{svc.name}</FieldTitle>
-                    {svc.description && (
-                      <FieldDescription>{svc.description}</FieldDescription>
+                    <FieldTitle>{group.title}</FieldTitle>
+                    <FieldDescription>{group.subtitle}</FieldDescription>
+                    {singleSvc ? (
+                      <FieldDescription className="text-[11px] font-semibold text-tweaks-blue">
+                        All in One Service —{" "}
+                        {formatZarFromCents(singleSvc.standardRateCents)}{" "}
+                        {getBasisLabel(singleSvc)}
+                      </FieldDescription>
+                    ) : (
+                      <FieldDescription className="text-[11px]">
+                        Includes {group.services.length} selectable sub-services
+                      </FieldDescription>
                     )}
-                    <FieldDescription className="text-[11px]">
-                      Standard: {svc.standardTurnaroundMinDays}–
-                      {svc.standardTurnaroundMaxDays} days | Express:{" "}
-                      {svc.expressTurnaroundMinHours ===
-                      svc.expressTurnaroundMaxHours
-                        ? `${svc.expressTurnaroundMinHours} hours`
-                        : `${svc.expressTurnaroundMinHours}–${svc.expressTurnaroundMaxHours} hours`}{" "}
-                      (+{formatZarFromCents(svc.expressSurchargeCents, false)}{" "}
-                      {basisLabel})
-                    </FieldDescription>
                   </FieldContent>
-                  <div className="shrink-0 text-right">
-                    <span className="text-sm font-extrabold text-tweaks-blue">
-                      {formatZarFromCents(svc.standardRateCents)}
-                    </span>
-                    <span className="block text-[11px] text-muted-foreground">
-                      {basisLabel}
-                    </span>
-                  </div>
                 </Field>
               </FieldLabel>
             );
           })}
-        </div>
+        </RadioGroup>
+
+        {activeGroup && (
+          <div className="mt-4 border border-border bg-muted/15 p-4 space-y-3">
+            <div className="border-b border-border/70 pb-2">
+              <h4 className="text-sm font-extrabold text-foreground">
+                {activeGroup.title}
+                {activeGroup.services.length > 1
+                  ? " — Select Sub-Services"
+                  : " — Included Service"}
+              </h4>
+              <p className="text-xs font-light text-muted-foreground">
+                {activeGroup.services.length > 1
+                  ? "Tick one or more sub-services for this category."
+                  : activeGroup.subtitle}
+              </p>
+            </div>
+
+            {activeGroup.services.length === 1 ? (
+              (() => {
+                const svc = activeGroup.services[0];
+                const basisLabel = getBasisLabel(svc);
+                return (
+                  <div className="border border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20 p-3.5 flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 className="h-4 w-4 text-tweaks-blue shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-foreground">
+                          {getServiceSubLabel(svc)}
+                        </p>
+                        {svc.description && (
+                          <p className="text-xs text-muted-foreground">
+                            {svc.description}
+                          </p>
+                        )}
+                        <p className="text-[11px] text-muted-foreground">
+                          Standard: {svc.standardTurnaroundMinDays}–
+                          {svc.standardTurnaroundMaxDays} days | Express:{" "}
+                          {svc.expressTurnaroundMinHours ===
+                          svc.expressTurnaroundMaxHours
+                            ? `${svc.expressTurnaroundMinHours} hours`
+                            : `${svc.expressTurnaroundMinHours}–${svc.expressTurnaroundMaxHours} hours`}{" "}
+                          (+
+                          {formatZarFromCents(svc.expressSurchargeCents, false)}{" "}
+                          {basisLabel})
+                        </p>
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <span className="text-sm font-extrabold text-tweaks-blue">
+                        {formatZarFromCents(svc.standardRateCents)}
+                      </span>
+                      <span className="block text-[11px] text-muted-foreground">
+                        {basisLabel}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="grid grid-cols-1 gap-2.5">
+                {activeGroup.services.map((svc) => {
+                  const isChecked =
+                    watchedServices.includes(svc.name) ||
+                    watchedServices.includes(svc.slug);
+                  const basisLabel = getBasisLabel(svc);
+
+                  return (
+                    <FieldLabel
+                      key={svc.id}
+                      htmlFor={`service-${svc.id}`}
+                      className={`w-full cursor-pointer border bg-background transition-colors ${
+                        isChecked
+                          ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                          : "border-border hover:border-muted-foreground/40"
+                      }`}
+                    >
+                      <Field orientation="horizontal" className="items-start">
+                        <Checkbox
+                          id={`service-${svc.id}`}
+                          checked={isChecked}
+                          onCheckedChange={(checked) =>
+                            handleServiceToggle(svc, checked === true)
+                          }
+                          className="mt-0.5"
+                        />
+                        <FieldContent>
+                          <FieldTitle>{getServiceSubLabel(svc)}</FieldTitle>
+                          {svc.description && (
+                            <FieldDescription>
+                              {svc.description}
+                            </FieldDescription>
+                          )}
+                          <FieldDescription className="text-[11px]">
+                            Standard: {svc.standardTurnaroundMinDays}–
+                            {svc.standardTurnaroundMaxDays} days | Express:{" "}
+                            {svc.expressTurnaroundMinHours ===
+                            svc.expressTurnaroundMaxHours
+                              ? `${svc.expressTurnaroundMinHours} hours`
+                              : `${svc.expressTurnaroundMinHours}–${svc.expressTurnaroundMaxHours} hours`}{" "}
+                            (+
+                            {formatZarFromCents(
+                              svc.expressSurchargeCents,
+                              false,
+                            )}{" "}
+                            {basisLabel})
+                          </FieldDescription>
+                        </FieldContent>
+                        <div className="shrink-0 text-right">
+                          <span className="text-sm font-extrabold text-tweaks-blue">
+                            {formatZarFromCents(svc.standardRateCents)}
+                          </span>
+                          <span className="block text-[11px] text-muted-foreground">
+                            {basisLabel}
+                          </span>
+                        </div>
+                      </Field>
+                    </FieldLabel>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         <FieldError errors={[errors.services]} />
       </FieldSet>
 

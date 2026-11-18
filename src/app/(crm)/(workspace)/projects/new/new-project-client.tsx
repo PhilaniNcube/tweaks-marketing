@@ -10,11 +10,17 @@ import {
   Loader2,
   UserCheck,
 } from "lucide-react";
-import { calculateQuoteFromCatalog } from "@/lib/pricing/quote-calculator";
+import {
+  SERVICE_GROUPS,
+  calculateQuoteFromCatalog,
+  deriveDocumentTypeFromServices,
+  getServiceSubLabel,
+} from "@/lib/pricing/quote-calculator";
 import { formatZarFromCents, STAGE_LABELS } from "@/components/crm/crm-helpers";
 import { createInternalProjectAction } from "@/app/actions/crm";
 import type {
   Service,
+  ServiceGroup,
   RateCardRule,
   Institution,
   DegreeLevel,
@@ -60,9 +66,6 @@ export function NewProjectClient({
   );
   const [degreeProgramme, setDegreeProgramme] = useState("");
   const [researchTitle, setResearchTitle] = useState("");
-  const [documentType, setDocumentType] = useState(
-    "Master’s dissertation / treatise"
-  );
   const [wholeOrPart, setWholeOrPart] = useState<"whole" | "part">("whole");
   const [whichPart, setWhichPart] = useState("");
   const [wordCount, setWordCount] = useState<number>(15000);
@@ -71,9 +74,9 @@ export function NewProjectClient({
   );
   const [referencePageCount, setReferencePageCount] = useState<number>(8);
   const [referencingStyle, setReferencingStyle] = useState("APA 7th edition");
-  const [selectedServices, setSelectedServices] = useState<string[]>([
-    "Academic editing",
-  ]);
+  const [selectedServices, setSelectedServices] = useState<string[]>(() =>
+    services[0]?.name ? [services[0].name] : ["Thesis Editing: Academic Editing"]
+  );
   const [deliverySpeed, setDeliverySpeed] = useState<"standard" | "express">(
     "standard"
   );
@@ -102,14 +105,35 @@ export function NewProjectClient({
   const calculatedPages = Math.max(1, Math.ceil((wordCount || 300) / 300));
   const effectivePageCount = pageCountOverride ?? calculatedPages;
 
-  const toggleService = (serviceName: string) => {
-    setSelectedServices((prev) =>
-      prev.includes(serviceName)
-        ? prev.length > 1
-          ? prev.filter((s) => s !== serviceName)
-          : prev
-        : [...prev, serviceName]
+  const activeGroupKey: ServiceGroup =
+    services.find((svc) => selectedServices.includes(svc.name))?.serviceGroup ??
+    services[0]?.serviceGroup ??
+    "thesis";
+
+  const selectServiceGroup = (groupKey: ServiceGroup) => {
+    if (groupKey === activeGroupKey) return;
+    const groupServices = services.filter(
+      (svc) => svc.serviceGroup === groupKey
     );
+    if (groupServices.length > 0) {
+      setSelectedServices([groupServices[0].name]);
+    }
+  };
+
+  const toggleService = (service: Service) => {
+    setSelectedServices((prev) => {
+      const currentGroup = services.find((svc) =>
+        prev.includes(svc.name)
+      )?.serviceGroup;
+      if (currentGroup && currentGroup !== service.serviceGroup) {
+        return [service.name];
+      }
+      return prev.includes(service.name)
+        ? prev.length > 1
+          ? prev.filter((s) => s !== service.name)
+          : prev
+        : [...prev, service.name];
+    });
   };
 
   const liveQuote = useMemo(() => {
@@ -151,6 +175,11 @@ export function NewProjectClient({
       return;
     }
 
+    const derivedDocumentType = deriveDocumentTypeFromServices(
+      selectedServices,
+      services
+    );
+
     startTransition(async () => {
       const res = await createInternalProjectAction({
         firstName,
@@ -163,7 +192,7 @@ export function NewProjectClient({
         degreeProgramme,
         researchTitle,
         services: selectedServices,
-        documentType,
+        documentType: derivedDocumentType,
         wholeOrPart,
         whichPart,
         wordCount,
@@ -335,44 +364,18 @@ export function NewProjectClient({
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                  Degree Programme / Field *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Educational Psychology"
-                  value={degreeProgramme}
-                  onChange={(e) => setDegreeProgramme(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                  Document Type *
-                </label>
-                <select
-                  value={documentType}
-                  onChange={(e) => setDocumentType(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950"
-                >
-                  <option value="Master’s dissertation / treatise">
-                    Master’s dissertation / treatise
-                  </option>
-                  <option value="Doctoral thesis (PhD / DPhil / DEd)">
-                    Doctoral thesis (PhD / DPhil / DEd)
-                  </option>
-                  <option value="Honours / Postgraduate Diploma research report">
-                    Honours / PGDip research report
-                  </option>
-                  <option value="Research proposal">Research proposal</option>
-                  <option value="Journal manuscript / article">
-                    Journal manuscript / article
-                  </option>
-                </select>
-              </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                Degree Programme / Field *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Educational Psychology"
+                value={degreeProgramme}
+                onChange={(e) => setDegreeProgramme(e.target.value)}
+                className="w-full px-3 py-2 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950"
+              />
             </div>
 
             <div>
@@ -445,40 +448,100 @@ export function NewProjectClient({
               </div>
             </div>
 
-            <div className="space-y-2 pt-2">
+            <div className="space-y-4 pt-2">
               <label className="block text-[11px] font-bold uppercase text-slate-500">
-                Select Services *
+                Select Service Category &amp; Services *
               </label>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {services.map((svc) => {
-                  const checked = selectedServices.includes(svc.name);
+                {SERVICE_GROUPS.map((group) => {
+                  const groupServices = services.filter(
+                    (svc) => svc.serviceGroup === group.key
+                  );
+                  if (groupServices.length === 0) return null;
+                  const isActiveGroup = activeGroupKey === group.key;
+
                   return (
                     <button
-                      key={svc.id}
+                      key={group.key}
                       type="button"
-                      onClick={() => toggleService(svc.name)}
+                      onClick={() => selectServiceGroup(group.key)}
                       className={`p-3 text-left border text-xs flex items-start justify-between cursor-pointer transition-colors ${
-                        checked
+                        isActiveGroup
                           ? "border-tweaks-blue bg-tweaks-blue/5"
-                          : "border-slate-200 dark:border-zinc-800"
+                          : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
                       }`}
                     >
                       <div>
-                        <p className="font-bold text-slate-900 dark:text-white">
-                          {svc.name}
+                        <p className="font-extrabold text-slate-900 dark:text-white">
+                          {group.title}
                         </p>
-                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                          Std: {formatZarFromCents(svc.standardRateCents)} | Exp: +
-                          {formatZarFromCents(svc.expressSurchargeCents)}
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {group.subtitle}
                         </p>
                       </div>
-                      {checked && (
+                      {isActiveGroup && (
                         <CheckCircle2 className="h-4 w-4 text-tweaks-blue shrink-0" />
                       )}
                     </button>
                   );
                 })}
               </div>
+
+              {(() => {
+                const activeGroup = SERVICE_GROUPS.find(
+                  (g) => g.key === activeGroupKey
+                );
+                const groupServices = services.filter(
+                  (svc) => svc.serviceGroup === activeGroupKey
+                );
+                if (!activeGroup || groupServices.length === 0) return null;
+
+                return (
+                  <div className="border border-slate-200 dark:border-zinc-800 p-3.5 space-y-2.5 bg-slate-50/50 dark:bg-zinc-950/30">
+                    <div>
+                      <p className="text-xs font-extrabold text-slate-900 dark:text-white">
+                        {activeGroup.title}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {groupServices.length > 1
+                          ? "Select one or more sub-services within this category."
+                          : activeGroup.subtitle}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {groupServices.map((svc) => {
+                        const checked = selectedServices.includes(svc.name);
+                        return (
+                          <button
+                            key={svc.id}
+                            type="button"
+                            onClick={() => toggleService(svc)}
+                            className={`p-3 text-left border text-xs flex items-start justify-between cursor-pointer transition-colors bg-white dark:bg-zinc-900 ${
+                              checked
+                                ? "border-tweaks-blue bg-tweaks-blue/5"
+                                : "border-slate-200 dark:border-zinc-800"
+                            }`}
+                          >
+                            <div>
+                              <p className="font-bold text-slate-900 dark:text-white">
+                                {getServiceSubLabel(svc)}
+                              </p>
+                              <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                Std: {formatZarFromCents(svc.standardRateCents)} | Exp: +
+                                {formatZarFromCents(svc.expressSurchargeCents)}
+                              </p>
+                            </div>
+                            {checked && (
+                              <CheckCircle2 className="h-4 w-4 text-tweaks-blue shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">

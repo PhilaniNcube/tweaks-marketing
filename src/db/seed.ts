@@ -6,7 +6,7 @@ import {
   crmSettings,
   institutions,
 } from "./schema.ts";
-import { notInArray } from "drizzle-orm";
+import { eq, notInArray } from "drizzle-orm";
 import {
   DEFAULT_SERVICES,
   DEFAULT_RATE_CARD_RULES,
@@ -15,37 +15,84 @@ import {
   DEFAULT_INSTITUTIONS,
 } from "./seed-data.ts";
 
+const LEGACY_SOURCE_SLUG_BY_NEW_SLUG: Record<string, string> = {
+  "thesis-academic-editing": "academic-editing",
+  "thesis-reference-checking": "reference-checking",
+  "thesis-reference-list-editing": "reference-list-editing",
+  "thesis-formatting": "formatting",
+  "dissertation-academic-editing": "academic-editing",
+  "dissertation-reference-checking": "reference-checking",
+  "dissertation-reference-list-editing": "reference-list-editing",
+  "dissertation-formatting": "formatting",
+  "journal-article-editing": "journal-article-proposal-editing",
+  "proposal-editing": "journal-article-proposal-editing",
+};
+
 /**
  * Idempotently seeds the initial CRM reference tables:
- * - Services & Rate Card (5 live services with standard/express rates & turnarounds)
+ * - Services & Rate Card (10 grouped live services with standard/express rates & turnarounds)
  * - Conditional Payment Plan Rules (< R3,000 = max 2 months; >= R3,000 = max 3 months)
  * - 34 South African Degree Designators
  * - South African Higher Education Institutions
  * - Editable CRM Policy Settings & Constants
  */
 export async function seedCrmDatabase() {
-  // 1. Seed Services
+  // 1. Seed Services (preserving any existing admin-edited rates/turnarounds/QB IDs)
+  const existingServices = await db.select().from(services);
+  const existingBySlug = new Map(
+    existingServices.map((row) => [row.slug, row])
+  );
+
   for (const service of DEFAULT_SERVICES) {
+    const existing = existingBySlug.get(service.slug);
+    const structuralFields = {
+      name: service.name,
+      description: service.description,
+      serviceGroup: service.serviceGroup,
+      pricingBasis: service.pricingBasis,
+      includesReferencingReport: service.includesReferencingReport,
+      sortOrder: service.sortOrder,
+    };
+
+    if (existing) {
+      await db
+        .update(services)
+        .set(structuralFields)
+        .where(eq(services.slug, service.slug));
+      continue;
+    }
+
+    const legacySlug = LEGACY_SOURCE_SLUG_BY_NEW_SLUG[service.slug];
+    const legacyRow = legacySlug ? existingBySlug.get(legacySlug) : undefined;
+
     await db
       .insert(services)
-      .values(service)
+      .values({
+        ...service,
+        standardRateCents:
+          legacyRow?.standardRateCents ?? service.standardRateCents,
+        expressSurchargeCents:
+          legacyRow?.expressSurchargeCents ?? service.expressSurchargeCents,
+        hasExpressOption:
+          legacyRow?.hasExpressOption ?? service.hasExpressOption,
+        standardTurnaroundMinDays:
+          legacyRow?.standardTurnaroundMinDays ??
+          service.standardTurnaroundMinDays,
+        standardTurnaroundMaxDays:
+          legacyRow?.standardTurnaroundMaxDays ??
+          service.standardTurnaroundMaxDays,
+        expressTurnaroundMinHours:
+          legacyRow?.expressTurnaroundMinHours ??
+          service.expressTurnaroundMinHours,
+        expressTurnaroundMaxHours:
+          legacyRow?.expressTurnaroundMaxHours ??
+          service.expressTurnaroundMaxHours,
+        quickbooksItemId:
+          legacyRow?.quickbooksItemId ?? service.quickbooksItemId,
+      })
       .onConflictDoUpdate({
         target: services.slug,
-        set: {
-          name: service.name,
-          description: service.description,
-          pricingBasis: service.pricingBasis,
-          standardRateCents: service.standardRateCents,
-          expressSurchargeCents: service.expressSurchargeCents,
-          hasExpressOption: service.hasExpressOption,
-          standardTurnaroundMinDays: service.standardTurnaroundMinDays,
-          standardTurnaroundMaxDays: service.standardTurnaroundMaxDays,
-          expressTurnaroundMinHours: service.expressTurnaroundMinHours,
-          expressTurnaroundMaxHours: service.expressTurnaroundMaxHours,
-          includesReferencingReport: service.includesReferencingReport,
-          sortOrder: service.sortOrder,
-          isActive: service.isActive,
-        },
+        set: structuralFields,
       });
   }
 

@@ -37,6 +37,7 @@ function getFallbackLookups(): ContactLookupsData {
       slug: s.slug,
       name: s.name,
       description: s.description ?? null,
+      serviceGroup: s.serviceGroup ?? "thesis",
       pricingBasis: s.pricingBasis,
       standardRateCents: s.standardRateCents,
       expressSurchargeCents: s.expressSurchargeCents ?? 0,
@@ -166,11 +167,23 @@ async function getContactLookups(): Promise<ContactLookupsData> {
 }
 
 const SLUG_TO_SERVICE_NAME: Record<string, string> = {
-  "academic-editing": "Academic editing",
-  "reference-checking": "Reference checking",
-  "reference-list-editing": "Reference list editing",
-  formatting: "Formatting",
-  "journal-article-proposal-editing": "Journal article and proposal editing",
+  // Legacy slugs from existing marketing pages & links
+  "academic-editing": "Thesis Editing: Academic Editing",
+  "reference-checking": "Thesis Editing: Reference Checking",
+  "reference-list-editing": "Thesis Editing: Reference List Editing",
+  formatting: "Thesis Editing: Formatting",
+  "journal-article-proposal-editing": "Journal Article Editing: All in One Service",
+  // Grouped service slugs
+  "thesis-academic-editing": "Thesis Editing: Academic Editing",
+  "thesis-reference-checking": "Thesis Editing: Reference Checking",
+  "thesis-reference-list-editing": "Thesis Editing: Reference List Editing",
+  "thesis-formatting": "Thesis Editing: Formatting",
+  "dissertation-academic-editing": "Dissertation Editing: Academic Editing",
+  "dissertation-reference-checking": "Dissertation Editing: Reference Checking",
+  "dissertation-reference-list-editing": "Dissertation Editing: Reference List Editing",
+  "dissertation-formatting": "Dissertation Editing: Formatting",
+  "journal-article-editing": "Journal Article Editing: All in One Service",
+  "proposal-editing": "Proposal Editing: All in One Service",
 };
 
 function firstString(

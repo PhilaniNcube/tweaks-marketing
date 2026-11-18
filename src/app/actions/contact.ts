@@ -143,9 +143,10 @@ export async function submitContactForm(
     const appUrl = getAppUrl();
     const quoteUrl = `${appUrl}/quote/${crmResult.quoteToken}`;
     const fullName = `${parsedData.firstName} ${parsedData.surname}`.trim();
-    // The return date is derived server-side, so use the recorded value.
+    // The return date and document type are derived server-side, so use the recorded values.
     const emailData = {
       ...parsedData,
+      documentType: crmResult.documentType,
       requestedReturnDate: crmResult.requestedReturnDate,
     };
 

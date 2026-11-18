@@ -38,6 +38,11 @@ import {
   type UserItem,
   type PendingInviteItem,
 } from "@/app/actions/admin-users";
+import {
+  SERVICE_GROUPS,
+  getServiceSubLabel,
+} from "@/lib/pricing/quote-calculator";
+import { DEFAULT_SERVICES } from "@/db/seed-data";
 import type {
   Service,
   RateCardRule,
@@ -46,6 +51,8 @@ import type {
   DegreeLevel,
 } from "@/db/schema";
 import { toast } from "sonner";
+
+const CURRENT_SERVICE_SLUGS = new Set(DEFAULT_SERVICES.map((s) => s.slug));
 
 interface SettingsClientProps {
   services: Service[];
@@ -394,14 +401,14 @@ export function SettingsClient({
         </p>
       </div>
 
-      {/* SECTION 1: 6 LIVE SERVICES RATE CARD */}
+      {/* SECTION 1: GROUPED SERVICES RATE CARD */}
       <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-6 space-y-4">
         <div>
           <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
             1. Service Catalog &amp; Rate Card
           </h2>
           <p className="text-xs text-slate-500">
-            Update standard rates, express surcharges, turnaround windows, and QuickBooks Item IDs.
+            Update standard rates, express surcharges, turnaround windows, and QuickBooks Item IDs per category.
           </p>
         </div>
 
@@ -420,162 +427,191 @@ export function SettingsClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
-              {services.map((svc) => {
-                const draft = svcDrafts[svc.id] || {
-                  standardRateRands: svc.standardRateCents / 100,
-                  expressSurchargeRands: svc.expressSurchargeCents / 100,
-                  minDays: svc.standardTurnaroundMinDays,
-                  maxDays: svc.standardTurnaroundMaxDays,
-                  qbItemId: svc.quickbooksItemId || "",
-                  isActive: svc.isActive,
-                };
+              {SERVICE_GROUPS.map((group) => {
+                const groupServices = services.filter(
+                  (svc) =>
+                    svc.serviceGroup === group.key &&
+                    (svc.isActive || CURRENT_SERVICE_SLUGS.has(svc.slug))
+                );
+                if (groupServices.length === 0) return null;
 
                 return (
-                  <tr
-                    key={svc.id}
-                    className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors"
-                  >
-                    <td className="py-3 px-3 font-bold text-slate-900 dark:text-white">
-                      {svc.name}
-                      <p className="text-[10px] text-slate-400 font-normal">
-                        slug: {svc.slug}
-                      </p>
-                    </td>
-
-                    <td className="py-3 px-3">
-                      <span className="px-2 py-0.5 text-[10px] font-mono bg-slate-100 dark:bg-zinc-800 uppercase font-bold">
-                        {svc.pricingBasis}
-                      </span>
-                    </td>
-
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-1">
-                        <span className="text-slate-400">R</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={draft.standardRateRands}
-                          onChange={(e) =>
-                            setSvcDrafts((prev) => ({
-                              ...prev,
-                              [svc.id]: {
-                                ...draft,
-                                standardRateRands: parseFloat(e.target.value) || 0,
-                              },
-                            }))
-                          }
-                          className="w-20 px-2 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-right"
-                        />
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-3">
-                      {svc.hasExpressOption ? (
-                        <div className="flex items-center gap-1">
-                          <span className="text-slate-400">R</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={draft.expressSurchargeRands}
-                            onChange={(e) =>
-                              setSvcDrafts((prev) => ({
-                                ...prev,
-                                [svc.id]: {
-                                  ...draft,
-                                  expressSurchargeRands:
-                                    parseFloat(e.target.value) || 0,
-                                },
-                              }))
-                            }
-                            className="w-20 px-2 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-right"
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 italic">N/A</span>
-                      )}
-                    </td>
-
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="number"
-                          value={draft.minDays}
-                          onChange={(e) =>
-                            setSvcDrafts((prev) => ({
-                              ...prev,
-                              [svc.id]: {
-                                ...draft,
-                                minDays: parseInt(e.target.value) || 0,
-                              },
-                            }))
-                          }
-                          className="w-12 px-1 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-center"
-                        />
-                        <span className="text-slate-400">-</span>
-                        <input
-                          type="number"
-                          value={draft.maxDays}
-                          onChange={(e) =>
-                            setSvcDrafts((prev) => ({
-                              ...prev,
-                              [svc.id]: {
-                                ...draft,
-                                maxDays: parseInt(e.target.value) || 0,
-                              },
-                            }))
-                          }
-                          className="w-12 px-1 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-center"
-                        />
-                        <span className="text-[10px] text-slate-400">days</span>
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-3">
-                      <input
-                        type="text"
-                        value={draft.qbItemId}
-                        placeholder="e.g. 12"
-                        onChange={(e) =>
-                          setSvcDrafts((prev) => ({
-                            ...prev,
-                            [svc.id]: {
-                              ...draft,
-                              qbItemId: e.target.value,
-                            },
-                          }))
-                        }
-                        className="w-20 px-2 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono"
-                      />
-                    </td>
-
-                    <td className="py-3 px-3">
-                      <input
-                        type="checkbox"
-                        checked={draft.isActive}
-                        onChange={(e) =>
-                          setSvcDrafts((prev) => ({
-                            ...prev,
-                            [svc.id]: {
-                              ...draft,
-                              isActive: e.target.checked,
-                            },
-                          }))
-                        }
-                        className="h-4 w-4 text-tweaks-blue rounded border-slate-300"
-                      />
-                    </td>
-
-                    <td className="py-3 px-3 text-right">
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => handleSaveService(svc.id)}
-                        className="px-3 py-1.5 bg-tweaks-blue hover:bg-tweaks-red text-white text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                  <React.Fragment key={group.key}>
+                    <tr className="bg-slate-50 dark:bg-zinc-950/70">
+                      <td
+                        colSpan={8}
+                        className="py-2 px-3 text-[11px] font-black uppercase tracking-wider text-tweaks-blue"
                       >
-                        <Save className="h-3 w-3" /> Save
-                      </button>
-                    </td>
-                  </tr>
+                        {group.title}
+                        <span className="ml-2 font-normal normal-case tracking-normal text-slate-500">
+                          — {group.subtitle}
+                        </span>
+                      </td>
+                    </tr>
+                    {groupServices.map((svc) => {
+                      const draft = svcDrafts[svc.id] || {
+                        standardRateRands: svc.standardRateCents / 100,
+                        expressSurchargeRands: svc.expressSurchargeCents / 100,
+                        minDays: svc.standardTurnaroundMinDays,
+                        maxDays: svc.standardTurnaroundMaxDays,
+                        qbItemId: svc.quickbooksItemId || "",
+                        isActive: svc.isActive,
+                      };
+
+                      return (
+                        <tr
+                          key={svc.id}
+                          className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors"
+                        >
+                          <td className="py-3 px-3 font-bold text-slate-900 dark:text-white">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span>{getServiceSubLabel(svc)}</span>
+                              <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-tweaks-blue/10 text-tweaks-blue">
+                                {group.documentTypeLabel}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-normal mt-0.5">
+                              slug: {svc.slug}
+                            </p>
+                          </td>
+
+                          <td className="py-3 px-3">
+                            <span className="px-2 py-0.5 text-[10px] font-mono bg-slate-100 dark:bg-zinc-800 uppercase font-bold">
+                              {svc.pricingBasis}
+                            </span>
+                          </td>
+
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-1">
+                              <span className="text-slate-400">R</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={draft.standardRateRands}
+                                onChange={(e) =>
+                                  setSvcDrafts((prev) => ({
+                                    ...prev,
+                                    [svc.id]: {
+                                      ...draft,
+                                      standardRateRands: parseFloat(e.target.value) || 0,
+                                    },
+                                  }))
+                                }
+                                className="w-20 px-2 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-right"
+                              />
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-3">
+                            {svc.hasExpressOption ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-slate-400">R</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={draft.expressSurchargeRands}
+                                  onChange={(e) =>
+                                    setSvcDrafts((prev) => ({
+                                      ...prev,
+                                      [svc.id]: {
+                                        ...draft,
+                                        expressSurchargeRands:
+                                          parseFloat(e.target.value) || 0,
+                                      },
+                                    }))
+                                  }
+                                  className="w-20 px-2 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-right"
+                                />
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic">N/A</span>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                value={draft.minDays}
+                                onChange={(e) =>
+                                  setSvcDrafts((prev) => ({
+                                    ...prev,
+                                    [svc.id]: {
+                                      ...draft,
+                                      minDays: parseInt(e.target.value) || 0,
+                                    },
+                                  }))
+                                }
+                                className="w-12 px-1 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-center"
+                              />
+                              <span className="text-slate-400">-</span>
+                              <input
+                                type="number"
+                                value={draft.maxDays}
+                                onChange={(e) =>
+                                  setSvcDrafts((prev) => ({
+                                    ...prev,
+                                    [svc.id]: {
+                                      ...draft,
+                                      maxDays: parseInt(e.target.value) || 0,
+                                    },
+                                  }))
+                                }
+                                className="w-12 px-1 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-center"
+                              />
+                              <span className="text-[10px] text-slate-400">days</span>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-3">
+                            <input
+                              type="text"
+                              value={draft.qbItemId}
+                              placeholder="e.g. 12"
+                              onChange={(e) =>
+                                setSvcDrafts((prev) => ({
+                                  ...prev,
+                                  [svc.id]: {
+                                    ...draft,
+                                    qbItemId: e.target.value,
+                                  },
+                                }))
+                              }
+                              className="w-20 px-2 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono"
+                            />
+                          </td>
+
+                          <td className="py-3 px-3">
+                            <input
+                              type="checkbox"
+                              checked={draft.isActive}
+                              onChange={(e) =>
+                                setSvcDrafts((prev) => ({
+                                  ...prev,
+                                  [svc.id]: {
+                                    ...draft,
+                                    isActive: e.target.checked,
+                                  },
+                                }))
+                              }
+                              className="h-4 w-4 text-tweaks-blue rounded border-slate-300"
+                            />
+                          </td>
+
+                          <td className="py-3 px-3 text-right">
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() => handleSaveService(svc.id)}
+                              className="px-3 py-1.5 bg-tweaks-blue hover:bg-tweaks-red text-white text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Save className="h-3 w-3" /> Save
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
                 );
               })}
             </tbody>

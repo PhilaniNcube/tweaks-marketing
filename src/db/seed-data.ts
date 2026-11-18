@@ -10,11 +10,13 @@ import type {
  * Default Service Catalog & Rate Card (Website as Source of Truth)
  */
 export const DEFAULT_SERVICES: NewService[] = [
+  // 1. Thesis Editing
   {
-    slug: "academic-editing",
-    name: "Academic editing",
+    slug: "thesis-academic-editing",
+    name: "Thesis Editing: Academic Editing",
     description:
-      "Comprehensive language, grammar, clarity, and academic tone editing for theses and dissertations.",
+      "Comprehensive language, grammar, clarity, and academic tone editing for theses.",
+    serviceGroup: "thesis",
     pricingBasis: "per_page",
     standardRateCents: 4500, // R45.00 per page
     expressSurchargeCents: 1500, // +R15.00 per page
@@ -28,10 +30,11 @@ export const DEFAULT_SERVICES: NewService[] = [
     isActive: true,
   },
   {
-    slug: "reference-checking",
-    name: "Reference checking",
+    slug: "thesis-reference-checking",
+    name: "Thesis Editing: Reference Checking",
     description:
       "Cross-checking in-text citations against your reference list for accuracy and consistency.",
+    serviceGroup: "thesis",
     pricingBasis: "per_page",
     standardRateCents: 750, // R7.50 per page
     expressSurchargeCents: 300, // +R3.00 per page
@@ -45,10 +48,11 @@ export const DEFAULT_SERVICES: NewService[] = [
     isActive: true,
   },
   {
-    slug: "reference-list-editing",
-    name: "Reference list editing",
+    slug: "thesis-reference-list-editing",
+    name: "Thesis Editing: Reference List Editing",
     description:
       "Detailed formatting and verification of every entry in your bibliography or reference list.",
+    serviceGroup: "thesis",
     pricingBasis: "per_reference_page",
     standardRateCents: 5000, // R50.00 per reference page
     expressSurchargeCents: 2500, // +R25.00 per reference page
@@ -62,10 +66,11 @@ export const DEFAULT_SERVICES: NewService[] = [
     isActive: true,
   },
   {
-    slug: "formatting",
-    name: "Formatting",
+    slug: "thesis-formatting",
+    name: "Thesis Editing: Formatting",
     description:
       "Document layout, headings, automated table of contents, list of figures/tables, and university style compliance.",
+    serviceGroup: "thesis",
     pricingBasis: "flat_document",
     standardRateCents: 150000, // R1,500.00 flat per document
     expressSurchargeCents: 80000, // +R800.00 flat per document
@@ -78,21 +83,118 @@ export const DEFAULT_SERVICES: NewService[] = [
     sortOrder: 4,
     isActive: true,
   },
+
+  // 2. Dissertation Editing
   {
-    slug: "journal-article-proposal-editing",
-    name: "Journal article and proposal editing",
+    slug: "dissertation-academic-editing",
+    name: "Dissertation Editing: Academic Editing",
     description:
-      "Specialist academic editing for manuscripts, journal submissions, and postgraduate research proposals.",
+      "Comprehensive language, grammar, clarity, and academic tone editing for dissertations.",
+    serviceGroup: "dissertation",
+    pricingBasis: "per_page",
+    standardRateCents: 4500, // R45.00 per page
+    expressSurchargeCents: 1500, // +R15.00 per page
+    hasExpressOption: true,
+    standardTurnaroundMinDays: 3,
+    standardTurnaroundMaxDays: 5,
+    expressTurnaroundMinHours: 24,
+    expressTurnaroundMaxHours: 48,
+    includesReferencingReport: false,
+    sortOrder: 5,
+    isActive: true,
+  },
+  {
+    slug: "dissertation-reference-checking",
+    name: "Dissertation Editing: Reference Checking",
+    description:
+      "Cross-checking in-text citations against your reference list for accuracy and consistency.",
+    serviceGroup: "dissertation",
+    pricingBasis: "per_page",
+    standardRateCents: 750, // R7.50 per page
+    expressSurchargeCents: 300, // +R3.00 per page
+    hasExpressOption: true,
+    standardTurnaroundMinDays: 3,
+    standardTurnaroundMaxDays: 5,
+    expressTurnaroundMinHours: 24,
+    expressTurnaroundMaxHours: 48,
+    includesReferencingReport: true,
+    sortOrder: 6,
+    isActive: true,
+  },
+  {
+    slug: "dissertation-reference-list-editing",
+    name: "Dissertation Editing: Reference List Editing",
+    description:
+      "Detailed formatting and verification of every entry in your bibliography or reference list.",
+    serviceGroup: "dissertation",
+    pricingBasis: "per_reference_page",
+    standardRateCents: 5000, // R50.00 per reference page
+    expressSurchargeCents: 2500, // +R25.00 per reference page
+    hasExpressOption: true,
+    standardTurnaroundMinDays: 2,
+    standardTurnaroundMaxDays: 4,
+    expressTurnaroundMinHours: 24,
+    expressTurnaroundMaxHours: 24,
+    includesReferencingReport: true,
+    sortOrder: 7,
+    isActive: true,
+  },
+  {
+    slug: "dissertation-formatting",
+    name: "Dissertation Editing: Formatting",
+    description:
+      "Document layout, headings, automated table of contents, list of figures/tables, and university style compliance.",
+    serviceGroup: "dissertation",
+    pricingBasis: "flat_document",
+    standardRateCents: 150000, // R1,500.00 flat per document
+    expressSurchargeCents: 80000, // +R800.00 flat per document
+    hasExpressOption: true,
+    standardTurnaroundMinDays: 5,
+    standardTurnaroundMaxDays: 7,
+    expressTurnaroundMinHours: 48,
+    expressTurnaroundMaxHours: 72,
+    includesReferencingReport: false,
+    sortOrder: 8,
+    isActive: true,
+  },
+
+  // 3. Journal Article Editing
+  {
+    slug: "journal-article-editing",
+    name: "Journal Article Editing: All in One Service",
+    description:
+      "Complete editing package when submitting a journal article to a publication (e.g. scientific journal).",
+    serviceGroup: "journal_article",
     pricingBasis: "flat_article",
-    standardRateCents: 220000, // R2,200.00 flat per article/proposal
-    expressSurchargeCents: 150000, // +R1,500.00 flat per article/proposal
+    standardRateCents: 220000, // R2,200.00 flat per article
+    expressSurchargeCents: 150000, // +R1,500.00 flat per article
     hasExpressOption: true,
     standardTurnaroundMinDays: 7,
     standardTurnaroundMaxDays: 10,
     expressTurnaroundMinHours: 48,
     expressTurnaroundMaxHours: 72,
     includesReferencingReport: false,
-    sortOrder: 5,
+    sortOrder: 9,
+    isActive: true,
+  },
+
+  // 4. Proposal Editing
+  {
+    slug: "proposal-editing",
+    name: "Proposal Editing: All in One Service",
+    description:
+      "Complete editing package when submitting a research proposal for a dissertation or thesis.",
+    serviceGroup: "proposal",
+    pricingBasis: "flat_article",
+    standardRateCents: 220000, // R2,200.00 flat per proposal
+    expressSurchargeCents: 150000, // +R1,500.00 flat per proposal
+    hasExpressOption: true,
+    standardTurnaroundMinDays: 7,
+    standardTurnaroundMaxDays: 10,
+    expressTurnaroundMinHours: 48,
+    expressTurnaroundMaxHours: 72,
+    includesReferencingReport: false,
+    sortOrder: 10,
     isActive: true,
   },
 ];

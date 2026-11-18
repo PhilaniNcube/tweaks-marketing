@@ -125,7 +125,7 @@ export function ContactQuoteForm({
       degreeProgramme: "",
       researchTitle: "",
       referralSource: "",
-      documentType: "Thesis/Dissertation",
+      documentType: "",
       documentTypeOther: "",
       wholeOrPart: "whole",
       whichPart: "",

@@ -11,7 +11,11 @@ import {
   ExternalLink,
   Loader2,
 } from "lucide-react";
-import { calculateQuoteFromCatalog } from "@/lib/pricing/quote-calculator";
+import {
+  SERVICE_GROUPS,
+  calculateQuoteFromCatalog,
+  getServiceSubLabel,
+} from "@/lib/pricing/quote-calculator";
 import { formatZarFromCents } from "@/components/crm/crm-helpers";
 import { updateQuoteScopeAction } from "@/app/actions/crm";
 import type {
@@ -19,6 +23,7 @@ import type {
   PaymentOption,
   RateCardRule,
   Service,
+  ServiceGroup,
 } from "@/db/schema";
 import type { getAdminCrmDashboardData } from "@/app/actions/crm";
 import { toast } from "sonner";
@@ -55,7 +60,17 @@ export function EditQuoteClient({
       )
       .filter((name): name is string => Boolean(name));
 
-    if (names.length > 0) return Array.from(new Set(names));
+    if (names.length > 0) {
+      const unique = Array.from(new Set(names));
+      const firstGroup = services.find((svc) => svc.name === unique[0])?.serviceGroup;
+      return firstGroup
+        ? unique.filter(
+            (name) =>
+              services.find((svc) => svc.name === name)?.serviceGroup ===
+              firstGroup
+          )
+        : unique;
+    }
     return services[0] ? [services[0].name] : [];
   })();
 
@@ -116,14 +131,35 @@ export function EditQuoteClient({
     return options;
   }, [degreeLevels, degreeLevel]);
 
-  const toggleService = (serviceName: string) => {
-    setSelectedServices((prev) =>
-      prev.includes(serviceName)
-        ? prev.length > 1
-          ? prev.filter((service) => service !== serviceName)
-          : prev
-        : [...prev, serviceName]
+  const activeGroupKey: ServiceGroup =
+    services.find((svc) => selectedServices.includes(svc.name))?.serviceGroup ??
+    services[0]?.serviceGroup ??
+    "thesis";
+
+  const selectServiceGroup = (groupKey: ServiceGroup) => {
+    if (groupKey === activeGroupKey) return;
+    const groupServices = services.filter(
+      (svc) => svc.serviceGroup === groupKey
     );
+    if (groupServices.length > 0) {
+      setSelectedServices([groupServices[0].name]);
+    }
+  };
+
+  const toggleService = (service: Service) => {
+    setSelectedServices((prev) => {
+      const currentGroup = services.find((svc) =>
+        prev.includes(svc.name)
+      )?.serviceGroup;
+      if (currentGroup && currentGroup !== service.serviceGroup) {
+        return [service.name];
+      }
+      return prev.includes(service.name)
+        ? prev.length > 1
+          ? prev.filter((name) => name !== service.name)
+          : prev
+        : [...prev, service.name];
+    });
   };
 
   const liveQuote = useMemo(() => {
@@ -333,40 +369,100 @@ export function EditQuoteClient({
               </div>
             </div>
 
-            <div className="space-y-2 pt-2">
+            <div className="space-y-4 pt-2">
               <label className="block text-[11px] font-bold uppercase text-slate-500">
-                Services *
+                Service Category &amp; Services *
               </label>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {services.map((service) => {
-                  const checked = selectedServices.includes(service.name);
+                {SERVICE_GROUPS.map((group) => {
+                  const groupServices = services.filter(
+                    (svc) => svc.serviceGroup === group.key
+                  );
+                  if (groupServices.length === 0) return null;
+                  const isActiveGroup = activeGroupKey === group.key;
+
                   return (
                     <button
-                      key={service.id}
+                      key={group.key}
                       type="button"
-                      onClick={() => toggleService(service.name)}
+                      onClick={() => selectServiceGroup(group.key)}
                       className={`p-3 text-left border text-xs flex items-start justify-between cursor-pointer transition-colors ${
-                        checked
+                        isActiveGroup
                           ? "border-tweaks-blue bg-tweaks-blue/5"
-                          : "border-slate-200 dark:border-zinc-800"
+                          : "border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
                       }`}
                     >
                       <div>
-                        <p className="font-bold text-slate-900 dark:text-white">
-                          {service.name}
+                        <p className="font-extrabold text-slate-900 dark:text-white">
+                          {group.title}
                         </p>
-                        <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                          Std: {formatZarFromCents(service.standardRateCents)} |
-                          Exp: +{formatZarFromCents(service.expressSurchargeCents)}
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {group.subtitle}
                         </p>
                       </div>
-                      {checked && (
+                      {isActiveGroup && (
                         <CheckCircle2 className="h-4 w-4 text-tweaks-blue shrink-0" />
                       )}
                     </button>
                   );
                 })}
               </div>
+
+              {(() => {
+                const activeGroup = SERVICE_GROUPS.find(
+                  (g) => g.key === activeGroupKey
+                );
+                const groupServices = services.filter(
+                  (svc) => svc.serviceGroup === activeGroupKey
+                );
+                if (!activeGroup || groupServices.length === 0) return null;
+
+                return (
+                  <div className="border border-slate-200 dark:border-zinc-800 p-3.5 space-y-2.5 bg-slate-50/50 dark:bg-zinc-950/30">
+                    <div>
+                      <p className="text-xs font-extrabold text-slate-900 dark:text-white">
+                        {activeGroup.title}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {groupServices.length > 1
+                          ? "Select one or more sub-services within this category."
+                          : activeGroup.subtitle}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {groupServices.map((service) => {
+                        const checked = selectedServices.includes(service.name);
+                        return (
+                          <button
+                            key={service.id}
+                            type="button"
+                            onClick={() => toggleService(service)}
+                            className={`p-3 text-left border text-xs flex items-start justify-between cursor-pointer transition-colors bg-white dark:bg-zinc-900 ${
+                              checked
+                                ? "border-tweaks-blue bg-tweaks-blue/5"
+                                : "border-slate-200 dark:border-zinc-800"
+                            }`}
+                          >
+                            <div>
+                              <p className="font-bold text-slate-900 dark:text-white">
+                                {getServiceSubLabel(service)}
+                              </p>
+                              <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                Std: {formatZarFromCents(service.standardRateCents)} |
+                                Exp: +{formatZarFromCents(service.expressSurchargeCents)}
+                              </p>
+                            </div>
+                            {checked && (
+                              <CheckCircle2 className="h-4 w-4 text-tweaks-blue shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">

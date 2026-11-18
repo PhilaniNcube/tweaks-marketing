@@ -1,6 +1,10 @@
 import * as React from "react";
 import { ContactFormData } from "@/lib/validations/contact";
-import { CalculatedQuoteResult, formatZarFromCents } from "@/lib/pricing/quote-calculator";
+import {
+  CalculatedQuoteResult,
+  deriveDocumentTypeFromServices,
+  formatZarFromCents,
+} from "@/lib/pricing/quote-calculator";
 import {
   Html,
   Head,
@@ -29,6 +33,8 @@ export function ContactConfirmationEmail({
   quoteUrl,
 }: Readonly<ContactConfirmationEmailProps>) {
   const fullName = `${data.firstName} ${data.surname}`.trim();
+  const displayDocumentType =
+    data.documentType || deriveDocumentTypeFromServices(data.services);
   const previewText = `We have received your editing brief, ${data.firstName}!`;
 
   return (
@@ -86,7 +92,7 @@ export function ContactConfirmationEmail({
                         Document Type:
                       </td>
                       <td className="py-[4px] text-slate-900 text-right font-medium">
-                        {data.documentType} (
+                        {displayDocumentType} (
                         {data.wholeOrPart === "whole"
                           ? "Whole document"
                           : data.whichPart}

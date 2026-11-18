@@ -36,6 +36,7 @@ export async function getActiveCatalogAndRules(): Promise<{
       slug: s.slug,
       name: s.name,
       description: s.description ?? null,
+      serviceGroup: s.serviceGroup ?? "thesis",
       pricingBasis: s.pricingBasis,
       standardRateCents: s.standardRateCents,
       expressSurchargeCents: s.expressSurchargeCents ?? 0,

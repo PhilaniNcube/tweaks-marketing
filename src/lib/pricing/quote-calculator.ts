@@ -1,9 +1,64 @@
 import type {
   Service,
+  ServiceGroup,
   RateCardRule,
   PaymentOption,
   PricingBasis,
 } from "@/db/schema";
+
+export const SERVICE_GROUPS: Array<{
+  key: ServiceGroup;
+  title: string;
+  subtitle: string;
+  documentTypeLabel: string;
+}> = [
+  {
+    key: "thesis",
+    title: "Thesis Editing",
+    subtitle: "Select the services you need for your doctoral thesis.",
+    documentTypeLabel: "Thesis",
+  },
+  {
+    key: "dissertation",
+    title: "Dissertation Editing",
+    subtitle: "Select the services you need for your dissertation.",
+    documentTypeLabel: "Dissertation",
+  },
+  {
+    key: "journal_article",
+    title: "Journal Article Editing",
+    subtitle:
+      "When submitting a journal article to a publication (e.g. scientific journal).",
+    documentTypeLabel: "Journal Article",
+  },
+  {
+    key: "proposal",
+    title: "Proposal Editing",
+    subtitle:
+      "When submitting a proposal (e.g. for a dissertation or thesis).",
+    documentTypeLabel: "Proposal",
+  },
+];
+
+const LEGACY_SERVICE_SLUG_MAP: Record<string, string> = {
+  "academic-editing": "thesis-academic-editing",
+  "reference-checking": "thesis-reference-checking",
+  "reference-list-editing": "thesis-reference-list-editing",
+  formatting: "thesis-formatting",
+  "journal-article-proposal-editing": "journal-article-editing",
+  "journal-article-and-proposal-editing": "journal-article-editing",
+};
+
+/**
+ * Extracts the sub-service label (e.g. "Academic Editing" from "Thesis Editing: Academic Editing").
+ */
+export function getServiceSubLabel(service: Pick<Service, "name">): string {
+  const colonIdx = service.name.indexOf(":");
+  if (colonIdx !== -1) {
+    return service.name.slice(colonIdx + 1).trim();
+  }
+  return service.name;
+}
 
 export interface QuoteCalculationInput {
   /** Selected service names or slugs */
@@ -70,6 +125,82 @@ export interface CalculatedQuoteResult {
  */
 function normalizeServiceKey(val: string): string {
   return val.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+function findServiceInCatalog(
+  sel: string,
+  catalog: Service[]
+): Service | undefined {
+  const norm = normalizeServiceKey(sel);
+  const direct = catalog.find(
+    (svc) =>
+      normalizeServiceKey(svc.slug) === norm ||
+      normalizeServiceKey(svc.name) === norm
+  );
+  if (direct) return direct;
+
+  const mappedSlug = LEGACY_SERVICE_SLUG_MAP[norm];
+  if (mappedSlug) {
+    return catalog.find((svc) => normalizeServiceKey(svc.slug) === mappedSlug);
+  }
+  return undefined;
+}
+
+function resolveServiceGroup(
+  sel: string,
+  catalog?: Service[]
+): ServiceGroup | undefined {
+  const matched = catalog ? findServiceInCatalog(sel, catalog) : undefined;
+  if (matched) return matched.serviceGroup;
+
+  const norm = normalizeServiceKey(sel);
+  const resolved = LEGACY_SERVICE_SLUG_MAP[norm] || norm;
+  if (resolved.includes("dissertation")) return "dissertation";
+  if (resolved.includes("journal")) return "journal_article";
+  if (resolved.includes("proposal")) return "proposal";
+  if (resolved.includes("thesis")) return "thesis";
+  return undefined;
+}
+
+/**
+ * Checks whether all selected services belong to a single top-level service group.
+ */
+export function areServicesInSingleGroup(
+  selectedServices: string[],
+  catalog?: Service[]
+): boolean {
+  const groups = new Set<ServiceGroup>();
+  for (const sel of selectedServices) {
+    const group = resolveServiceGroup(sel, catalog);
+    if (group) {
+      groups.add(group);
+      if (groups.size > 1) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Derives a human-readable document type label from selected services.
+ */
+export function deriveDocumentTypeFromServices(
+  selectedServices: string[],
+  catalog?: Service[]
+): string {
+  const groupKeys = new Set<ServiceGroup>();
+
+  for (const sel of selectedServices) {
+    const group = resolveServiceGroup(sel, catalog);
+    if (group) {
+      groupKeys.add(group);
+    }
+  }
+
+  const labels = SERVICE_GROUPS.filter((g) => groupKeys.has(g.key)).map(
+    (g) => g.documentTypeLabel
+  );
+
+  return labels.length > 0 ? labels.join(", ") : "Thesis";
 }
 
 /**
@@ -158,16 +289,19 @@ export function calculateQuoteFromCatalog(
   const words = input.wordCount ?? pages * 300;
   const isExpress = input.deliverySpeed === "express";
 
-  const matchedServices = input.selectedServices
-    .map((sel) => {
-      const norm = normalizeServiceKey(sel);
-      return catalog.find(
-        (svc) =>
-          normalizeServiceKey(svc.slug) === norm ||
-          normalizeServiceKey(svc.name) === norm
-      );
-    })
-    .filter((s): s is Service => Boolean(s));
+  const rawMatchedServices = Array.from(
+    new Map(
+      input.selectedServices
+        .map((sel) => findServiceInCatalog(sel, catalog))
+        .filter((s): s is Service => Boolean(s))
+        .map((s) => [s.id, s])
+    ).values()
+  );
+
+  const primaryGroup = rawMatchedServices[0]?.serviceGroup;
+  const matchedServices = primaryGroup
+    ? rawMatchedServices.filter((svc) => svc.serviceGroup === primaryGroup)
+    : rawMatchedServices;
 
   let subtotalCents = 0;
   let expressSurchargeCents = 0;

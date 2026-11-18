@@ -1,6 +1,10 @@
 import * as React from "react";
 import { ContactFormData } from "@/lib/validations/contact";
-import { CalculatedQuoteResult, formatZarFromCents } from "@/lib/pricing/quote-calculator";
+import {
+  CalculatedQuoteResult,
+  deriveDocumentTypeFromServices,
+  formatZarFromCents,
+} from "@/lib/pricing/quote-calculator";
 import {
   Html,
   Head,
@@ -33,7 +37,9 @@ export function ContactNotificationEmail({
   quoteUrl,
 }: Readonly<ContactNotificationEmailProps>) {
   const fullName = `${data.firstName} ${data.surname}`.trim();
-  const previewText = `${isDuplicateFlag ? "[POTENTIAL DUPLICATE] " : ""}New Brief: ${fullName} - ${data.documentType}`;
+  const displayDocumentType =
+    data.documentType || deriveDocumentTypeFromServices(data.services);
+  const previewText = `${isDuplicateFlag ? "[POTENTIAL DUPLICATE] " : ""}New Brief: ${fullName} - ${displayDocumentType}`;
 
   return (
     <Html>
@@ -59,7 +65,7 @@ export function ContactNotificationEmail({
                 <div className="bg-amber-50 border border-solid border-amber-300 p-[12px] text-[13px] text-amber-900 rounded">
                   <strong>Duplicate Submission Flagged:</strong> Another brief
                   with the same email ({data.email}) and document type (
-                  {data.documentType}) was submitted within the last 24 hours.
+                  {displayDocumentType}) was submitted within the last 24 hours.
                 </div>
               </Section>
             )}
@@ -157,7 +163,7 @@ export function ContactNotificationEmail({
                       Document Type:
                     </td>
                     <td className="py-[6px] text-slate-900">
-                      {data.documentType}
+                      {displayDocumentType}
                       {data.documentTypeOther && (
                         <span className="text-slate-500 italic">
                           {" "}

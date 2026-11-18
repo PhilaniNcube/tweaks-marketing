@@ -11,8 +11,12 @@ import {
 } from "@/db/schema";
 import { eq, and, gte, desc } from "drizzle-orm";
 import { ContactFormData } from "@/lib/validations/contact";
-import { calculateQuote } from "@/lib/pricing/quote-calculator.server";
-import type { CalculatedQuoteResult } from "@/lib/pricing/quote-calculator";
+import { getActiveCatalogAndRules } from "@/lib/pricing/quote-calculator.server";
+import {
+  calculateQuoteFromCatalog,
+  deriveDocumentTypeFromServices,
+  type CalculatedQuoteResult,
+} from "@/lib/pricing/quote-calculator";
 import { addDaysToIsoDate } from "@/lib/date-utils";
 
 export interface BriefSubmissionDatabaseResult {
@@ -23,6 +27,7 @@ export interface BriefSubmissionDatabaseResult {
   quoteNumber: string;
   quoteToken: string;
   quoteSummary: CalculatedQuoteResult;
+  documentType: string;
   institutionName: string;
   isDuplicateFlag: boolean;
   duplicateOfProjectId: string | null;
@@ -194,7 +199,14 @@ export async function recordBriefAndGenerateQuote(
     clientId = insertedClient.id;
   }
 
-  // 5. Check for Duplicate Submissions within the last 24 hours (Same Client + Document Type)
+  // 5. Load Rate Card Catalog & Derive Effective Document Type from Selected Services
+  const { catalog, rules } = await getActiveCatalogAndRules();
+  const effectiveDocumentType =
+    data.documentType && data.documentType.trim().length > 0
+      ? data.documentType.trim()
+      : deriveDocumentTypeFromServices(data.services, catalog);
+
+  // Check for Duplicate Submissions within the last 24 hours (Same Client + Document Type)
   const twentyFourHoursAgo = new Date(
     Date.now() - 24 * 60 * 60 * 1000
   ).toISOString();
@@ -205,7 +217,7 @@ export async function recordBriefAndGenerateQuote(
     .where(
       and(
         eq(projects.clientId, clientId),
-        eq(projects.documentType, data.documentType),
+        eq(projects.documentType, effectiveDocumentType),
         gte(projects.createdAt, twentyFourHoursAgo)
       )
     )
@@ -218,16 +230,20 @@ export async function recordBriefAndGenerateQuote(
     : null;
 
   // 6. Calculate Quote from Rate Card & Conditional Payment Plan Rules
-  const quoteSummary = await calculateQuote({
-    selectedServices: data.services,
-    pageCount: data.pageCount,
-    referencePageCount: data.referencePageCount,
-    wordCount: data.wordCount,
-    deliverySpeed: data.deliverySpeed,
-    paymentOption: data.paymentOption,
-    requestedInstalmentMonths: data.selectedInstalmentMonths,
-    degreeLevel: effectiveDegreeLevel,
-  });
+  const quoteSummary = calculateQuoteFromCatalog(
+    {
+      selectedServices: data.services,
+      pageCount: data.pageCount,
+      referencePageCount: data.referencePageCount,
+      wordCount: data.wordCount,
+      deliverySpeed: data.deliverySpeed,
+      paymentOption: data.paymentOption,
+      requestedInstalmentMonths: data.selectedInstalmentMonths,
+      degreeLevel: effectiveDegreeLevel,
+    },
+    catalog,
+    rules
+  );
 
   // 7. Create Project (Brief / Tracker Row)
   const shouldRequestSupervisor =
@@ -257,7 +273,7 @@ export async function recordBriefAndGenerateQuote(
       degreeProgramme: cleanProgramme,
       researchTitle: data.researchTitle.trim(),
       referralSource: data.referralSource,
-      documentType: data.documentType,
+      documentType: effectiveDocumentType,
       documentTypeOther: data.documentTypeOther?.trim() || null,
       wholeOrPart: data.wholeOrPart,
       whichPart: data.wholeOrPart === "part" ? data.whichPart?.trim() : null,
@@ -371,6 +387,7 @@ export async function recordBriefAndGenerateQuote(
     quoteNumber,
     quoteToken: createdQuote.token,
     quoteSummary,
+    documentType: effectiveDocumentType,
     institutionName: resolvedInstitutionName,
     isDuplicateFlag,
     duplicateOfProjectId,

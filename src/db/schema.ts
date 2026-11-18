@@ -55,6 +55,14 @@ export type NewCertificate = typeof certificates.$inferInsert;
 // 2. SERVICE CATALOG & CONDITIONAL RATE CARD
 // ============================================================================
 
+export const serviceGroupValues = [
+  "thesis",
+  "dissertation",
+  "journal_article",
+  "proposal",
+] as const;
+export type ServiceGroup = (typeof serviceGroupValues)[number];
+
 export const pricingBasisValues = [
   "per_page",
   "per_reference_page",
@@ -70,6 +78,9 @@ export const services = sqliteTable("services", {
   slug: text("slug").notNull().unique(),
   name: text("name").notNull().unique(),
   description: text("description"),
+  serviceGroup: text("service_group", { enum: serviceGroupValues })
+    .default("thesis")
+    .notNull(),
   pricingBasis: text("pricing_basis", { enum: pricingBasisValues }).notNull(),
   /** Standard rate in ZAR cents (e.g. R45.00 = 4500, R7.50 = 750, R1,500 = 150000) */
   standardRateCents: integer("standard_rate_cents").notNull(),

@@ -17,7 +17,7 @@ export default async function NewProjectPage() {
 
   return (
     <NewProjectClient
-      services={data.services}
+      services={data.services.filter((service) => service.isActive)}
       rules={data.rateCardRules}
       institutions={data.institutions.filter((i) => i.status === "approved")}
       degreeLevels={data.degreeLevels.filter((d) => d.status === "approved")}

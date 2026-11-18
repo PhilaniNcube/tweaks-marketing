@@ -15,7 +15,6 @@ import {
   FieldSet,
   FieldTitle,
 } from "@/components/ui/field";
-import { DOCUMENT_TYPES } from "@/lib/validations/contact";
 import type { ContactFormValues } from "./types";
 
 export function Step2DocumentVolume() {
@@ -26,7 +25,6 @@ export function Step2DocumentVolume() {
     formState: { errors },
   } = useFormContext<ContactFormValues>();
 
-  const watchedDocumentType = watch("documentType");
   const watchedWholeOrPart = watch("wholeOrPart");
 
   return (
@@ -40,55 +38,6 @@ export function Step2DocumentVolume() {
           calculate your quote based on our per-page rate card.
         </p>
       </div>
-
-      <FieldSet data-invalid={!!errors.documentType}>
-        <FieldLegend variant="label">
-          Document Type <span className="text-destructive">*</span>
-        </FieldLegend>
-        <RadioGroup
-          value={watchedDocumentType}
-          onValueChange={(value) =>
-            setValue("documentType", value, { shouldValidate: true })
-          }
-          aria-invalid={!!errors.documentType}
-          className="grid grid-cols-1 gap-3 sm:grid-cols-3"
-        >
-          {DOCUMENT_TYPES.map((docType, index) => (
-            <FieldLabel
-              key={docType}
-              htmlFor={`documentType-${index}`}
-              className={`w-full cursor-pointer border transition-colors ${
-                watchedDocumentType === docType
-                  ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
-                  : "border-border hover:border-muted-foreground/40"
-              }`}
-            >
-              <Field orientation="horizontal">
-                <RadioGroupItem id={`documentType-${index}`} value={docType} />
-                <FieldContent>
-                  <FieldTitle>{docType}</FieldTitle>
-                </FieldContent>
-              </Field>
-            </FieldLabel>
-          ))}
-        </RadioGroup>
-        {watchedDocumentType === "Other" && (
-          <Field data-invalid={!!errors.documentTypeOther}>
-            <FieldLabel htmlFor="documentTypeOther">
-              Specify Document Type <span className="text-destructive">*</span>
-            </FieldLabel>
-            <Input
-              id="documentTypeOther"
-              type="text"
-              placeholder="Specify document type..."
-              aria-invalid={!!errors.documentTypeOther}
-              {...register("documentTypeOther")}
-            />
-            <FieldError errors={[errors.documentTypeOther]} />
-          </Field>
-        )}
-        <FieldError errors={[errors.documentType]} />
-      </FieldSet>
 
       <FieldGroup className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <FieldSet data-invalid={!!errors.wholeOrPart}>
