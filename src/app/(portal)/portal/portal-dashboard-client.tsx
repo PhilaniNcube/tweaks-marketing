@@ -21,7 +21,6 @@ import {
   CreditCard,
   ShieldCheck,
   PlusCircle,
-  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/auth-client";
@@ -34,6 +33,7 @@ import {
 import { formatDegreeSummary } from "@/lib/utils";
 import { recordClientOpenedPackage } from "@/app/actions/crm";
 import type { ClientPortalDashboardData } from "@/app/actions/portal";
+import { parseClientSourceDocuments } from "@/lib/crm/client-documents";
 import { toast } from "sonner";
 
 interface PortalDashboardClientProps {
@@ -91,9 +91,6 @@ export function PortalDashboardClient({ data }: PortalDashboardClientProps) {
     data.projects[0] ||
     null;
 
-  const isStaffUser =
-    data.sessionUser.role === "admin" || data.sessionUser.role === "editor";
-
   const handleSignOut = async () => {
     await signOut();
     toast.success("Signed out of Client Portal");
@@ -101,52 +98,76 @@ export function PortalDashboardClient({ data }: PortalDashboardClientProps) {
     router.refresh();
   };
 
-  const handleUploadFile = async (file: File | undefined | null) => {
-    if (!file || !activeItem) return;
+  const handleUploadFiles = async (
+    filesInput: FileList | File[] | undefined | null
+  ) => {
+    const files = filesInput ? Array.from(filesInput) : [];
+    if (files.length === 0 || !activeItem) return;
     setUploadError(null);
 
-    if (file.size === 0) {
-      setUploadError("The selected file is empty.");
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setUploadError("File exceeds the 50MB maximum upload limit.");
-      toast.error("File is too large (max 50MB).");
-      return;
+    for (const file of files) {
+      if (file.size === 0) {
+        setUploadError(`"${file.name}" is empty.`);
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        setUploadError(
+          `"${file.name}" exceeds the 50MB maximum upload limit.`
+        );
+        toast.error("File is too large (max 50MB).");
+        return;
+      }
     }
 
     setIsUploading(true);
+    let uploadedCount = 0;
+
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("projectId", activeItem.project.id);
-      formData.append("slot", "clientBrief");
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("projectId", activeItem.project.id);
+        formData.append("slot", "clientBrief");
 
-      const res = await fetch("/api/r2/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const json = await res.json();
+        const res = await fetch("/api/r2/upload", {
+          method: "POST",
+          body: formData,
+        });
+        const json = await res.json();
 
-      if (!res.ok || !json.success) {
-        const message = json.error || "Failed to upload manuscript.";
-        setUploadError(message);
-        toast.error("Upload failed", { description: message });
-        return;
+        if (!res.ok || !json.success) {
+          const message = json.error || `Failed to upload ${file.name}.`;
+          setUploadError(message);
+          toast.error("Upload failed", { description: message });
+          break;
+        }
+        uploadedCount += 1;
       }
 
-      toast.success("Manuscript uploaded!", {
-        description: `${file.name} has been attached to your project.`,
-      });
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      if (uploadedCount > 0) {
+        toast.success(
+          uploadedCount === 1
+            ? "Document uploaded!"
+            : `${uploadedCount} documents uploaded!`,
+          {
+            description:
+              uploadedCount === 1
+                ? `${files[0].name} has been added to your project.`
+                : "All selected documents have been added to your project.",
+          }
+        );
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        router.refresh();
       }
-      router.refresh();
     } catch {
       const message = "Network error while uploading your document.";
       setUploadError(message);
       toast.error(message);
+      if (uploadedCount > 0) {
+        router.refresh();
+      }
     } finally {
       setIsUploading(false);
     }
@@ -156,9 +177,8 @@ export function PortalDashboardClient({ data }: PortalDashboardClientProps) {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile) {
-      void handleUploadFile(droppedFile);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      void handleUploadFiles(e.dataTransfer.files);
     }
   };
 
@@ -205,16 +225,6 @@ export function PortalDashboardClient({ data }: PortalDashboardClientProps) {
                 {data.sessionUser.email}
               </span>
             </div>
-
-            {isStaffUser && (
-              <Link
-                href="/dashboard"
-                className="px-3 py-1.5 text-xs font-bold border border-slate-300 dark:border-zinc-700 hover:border-tweaks-blue hover:text-tweaks-blue inline-flex items-center gap-1.5 transition-colors"
-              >
-                <LayoutDashboard className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">CRM Dashboard</span>
-              </Link>
-            )}
 
             <Link
               href="/contact"
@@ -264,14 +274,6 @@ export function PortalDashboardClient({ data }: PortalDashboardClientProps) {
               >
                 Request a Quote
               </Link>
-              {isStaffUser && (
-                <Link
-                  href="/dashboard"
-                  className="px-5 py-2.5 border border-slate-300 dark:border-zinc-700 text-xs font-bold hover:border-tweaks-blue transition-colors"
-                >
-                  Go to CRM Dashboard
-                </Link>
-              )}
               <button
                 type="button"
                 onClick={handleSignOut}
@@ -300,14 +302,13 @@ export function PortalDashboardClient({ data }: PortalDashboardClientProps) {
               project.stage !== "lost";
 
             const accessToken = quote?.token || project.accessToken;
-            const sourceDownloadUrl = project.uploadedFileUrl
-              ? appendTokenIfNeeded(project.uploadedFileUrl, accessToken)
-              : null;
+            const sourceDocuments = parseClientSourceDocuments(
+              project.uploadedFileName,
+              project.uploadedFileUrl
+            );
 
             const currentStageIdx = STAGE_ORDER.indexOf(project.stage);
-            const hasUploadedFile = Boolean(
-              project.uploadedFileName || project.uploadedFileUrl
-            );
+            const hasUploadedFile = sourceDocuments.length > 0;
 
             return (
               <>
@@ -362,7 +363,7 @@ export function PortalDashboardClient({ data }: PortalDashboardClientProps) {
                     <div className="space-y-1">
                       <span className="text-xs font-bold uppercase tracking-widest text-tweaks-blue flex items-center gap-1.5">
                         <FileUp className="h-3.5 w-3.5" />
-                        Your Document for Editing
+                        Your Documents for Editing
                       </span>
                       <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
                         {project.researchTitle}
@@ -372,7 +373,9 @@ export function PortalDashboardClient({ data }: PortalDashboardClientProps) {
                     {hasUploadedFile ? (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs font-bold self-start sm:self-center">
                         <CheckCircle2 className="h-4 w-4" />
-                        Manuscript Received
+                        {sourceDocuments.length === 1
+                          ? "Manuscript Received"
+                          : `${sourceDocuments.length} Documents Received`}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-xs font-bold self-start sm:self-center">
@@ -400,39 +403,60 @@ export function PortalDashboardClient({ data }: PortalDashboardClientProps) {
                   )}
 
                   {hasUploadedFile && (
-                    <div className="p-4 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="h-10 w-10 bg-tweaks-blue/10 text-tweaks-blue flex items-center justify-center shrink-0">
-                          <FileText className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                            Current Manuscript on File
-                          </p>
-                          <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                            {project.uploadedFileName || "Uploaded Manuscript"}
-                          </p>
-                          {!sourceDownloadUrl && (
-                            <p className="text-[11px] text-slate-500 mt-0.5">
-                              Submitted with your initial brief (email
-                              attachment). You can upload a file below to store
-                              it directly in your portal.
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                    <div className="p-4 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 space-y-3">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        Client Source Documents ({sourceDocuments.length})
+                      </p>
+                      <div className="divide-y divide-slate-200 dark:divide-zinc-800">
+                        {sourceDocuments.map((doc, idx) => {
+                          const docDownloadUrl = doc.url
+                            ? appendTokenIfNeeded(doc.url, accessToken)
+                            : null;
+                          return (
+                            <div
+                              key={`${doc.name}-${doc.url || idx}`}
+                              className="py-3 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                            >
+                              <div className="flex items-start gap-3 min-w-0">
+                                <div className="h-9 w-9 bg-tweaks-blue/10 text-tweaks-blue flex items-center justify-center shrink-0">
+                                  <FileText className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                    {doc.name}
+                                  </p>
+                                  {doc.uploadedAt && (
+                                    <p className="text-[11px] text-slate-500 mt-0.5">
+                                      Uploaded{" "}
+                                      {new Date(
+                                        doc.uploadedAt
+                                      ).toLocaleDateString("en-ZA")}
+                                    </p>
+                                  )}
+                                  {!docDownloadUrl && (
+                                    <p className="text-[11px] text-slate-500 mt-0.5">
+                                      Submitted with your initial brief (email
+                                      attachment).
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
 
-                      {sourceDownloadUrl && (
-                        <a
-                          href={sourceDownloadUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 bg-tweaks-blue hover:bg-tweaks-red text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 shrink-0 transition-colors"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                          Download / Verify Uploaded File
-                        </a>
-                      )}
+                              {docDownloadUrl && (
+                                <a
+                                  href={docDownloadUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3.5 py-2 bg-tweaks-blue hover:bg-tweaks-red text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 shrink-0 transition-colors"
+                                >
+                                  <Download className="h-3.5 w-3.5" />
+                                  Download
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
@@ -468,11 +492,12 @@ export function PortalDashboardClient({ data }: PortalDashboardClientProps) {
                       <input
                         ref={fileInputRef}
                         type="file"
+                        multiple
                         accept={ACCEPTED_EXTENSIONS}
                         disabled={isUploading}
                         className="hidden"
                         onChange={(e) =>
-                          void handleUploadFile(e.target.files?.[0])
+                          void handleUploadFiles(e.target.files)
                         }
                       />
 
@@ -487,14 +512,14 @@ export function PortalDashboardClient({ data }: PortalDashboardClientProps) {
                         <div className="space-y-1">
                           <p className="text-sm font-bold text-slate-900 dark:text-white">
                             {isUploading
-                              ? "Uploading your document..."
+                              ? "Uploading your document(s)..."
                               : hasUploadedFile
-                                ? "Replace or Upload an Updated Manuscript"
+                                ? "Upload Additional Document(s)"
                                 : "Drag and drop your manuscript here, or click to browse"}
                           </p>
                           <p className="text-xs text-slate-500 dark:text-zinc-400">
                             Accepted formats: DOCX, DOC, PDF, TXT, RTF, ODT
-                            (Maximum 50MB)
+                            (Maximum 50MB per file)
                           </p>
                         </div>
                         <Button
@@ -516,7 +541,7 @@ export function PortalDashboardClient({ data }: PortalDashboardClientProps) {
                             <>
                               <Upload className="h-3.5 w-3.5 mr-1.5" />
                               {hasUploadedFile
-                                ? "Select Replacement File"
+                                ? "Add Another Document"
                                 : "Select Manuscript File"}
                             </>
                           )}

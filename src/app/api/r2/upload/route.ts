@@ -8,6 +8,10 @@ import {
 import { db } from "@/db";
 import { clients, projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import {
+  parseClientSourceDocuments,
+  serializeClientSourceDocuments,
+} from "@/lib/crm/client-documents";
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
@@ -126,8 +130,30 @@ export async function POST(request: NextRequest) {
     };
 
     if (slot === "clientBrief") {
-      updatePayload.uploadedFileName = file.name;
-      updatePayload.uploadedFileUrl = downloadPath;
+      const [latestProject] = await db
+        .select({
+          uploadedFileName: projects.uploadedFileName,
+          uploadedFileUrl: projects.uploadedFileUrl,
+        })
+        .from(projects)
+        .where(eq(projects.id, projectId))
+        .limit(1);
+
+      const existingDocs = parseClientSourceDocuments(
+        latestProject?.uploadedFileName ?? project.uploadedFileName,
+        latestProject?.uploadedFileUrl ?? project.uploadedFileUrl
+      );
+      const nextDocs = [
+        ...existingDocs,
+        {
+          name: file.name,
+          url: downloadPath,
+          uploadedAt: nowIso,
+        },
+      ];
+      const serialized = serializeClientSourceDocuments(nextDocs);
+      updatePayload.uploadedFileName = serialized.uploadedFileName;
+      updatePayload.uploadedFileUrl = serialized.uploadedFileUrl;
     } else if (slot === "editedDoc") {
       updatePayload.editedDocUrl = downloadPath;
     } else if (slot === "editingReport") {

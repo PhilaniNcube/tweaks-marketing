@@ -47,6 +47,7 @@ import type {
 } from "@/db/schema";
 import type { getAdminCrmDashboardData } from "@/app/actions/crm";
 import { ProjectAdminActions } from "@/components/crm/project-admin-actions";
+import { parseClientSourceDocuments } from "@/lib/crm/client-documents";
 import { toast } from "sonner";
 
 type DashboardData = Awaited<ReturnType<typeof getAdminCrmDashboardData>>;
@@ -119,29 +120,42 @@ export function ProjectDetailClient({
       | "editingReport"
       | "referencingReport"
       | "walkthroughVideo",
-    file: File | undefined
+    fileInput: File | FileList | undefined | null
   ) => {
-    if (!file) return;
-    setUploadingSlot(slot);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("projectId", project.id);
-      fd.append("slot", slot);
+    const files =
+      fileInput instanceof FileList
+        ? Array.from(fileInput)
+        : fileInput
+          ? [fileInput]
+          : [];
+    if (files.length === 0) return;
 
-      const res = await fetch("/api/r2/upload", {
-        method: "POST",
-        body: fd,
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        toast.error(json.error || "File upload failed");
-      } else {
+    setUploadingSlot(slot);
+    let anyUploaded = false;
+    try {
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("projectId", project.id);
+        fd.append("slot", slot);
+
+        const res = await fetch("/api/r2/upload", {
+          method: "POST",
+          body: fd,
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          toast.error(json.error || `Failed to upload ${file.name}`);
+          break;
+        }
         if (slot === "editedDoc") setEditedDocUrl(json.url);
         if (slot === "editingReport") setEditingReportUrl(json.url);
         if (slot === "referencingReport") setReferencingReportUrl(json.url);
         if (slot === "walkthroughVideo") setWalkthroughVideoUrl(json.url);
         toast.success(`Uploaded ${file.name}`);
+        anyUploaded = true;
+      }
+      if (anyUploaded) {
         router.refresh();
       }
     } catch {
@@ -150,6 +164,11 @@ export function ProjectDetailClient({
       setUploadingSlot(null);
     }
   };
+
+  const sourceDocuments = parseClientSourceDocuments(
+    project.uploadedFileName,
+    project.uploadedFileUrl
+  );
 
   const schedule = getReturnScheduleStatus(
     project.requestedReturnDate,
@@ -455,40 +474,70 @@ export function ProjectDetailClient({
                 </dd>
               </div>
               <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 space-y-2">
-                <dt className="text-slate-500">Client Source Document</dt>
-                <dd className="flex flex-wrap items-center justify-between gap-2">
-                  {project.uploadedFileUrl ? (
-                    <a
-                      href={project.uploadedFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-2.5 py-1.5 bg-tweaks-blue text-white text-[11px] font-bold inline-flex items-center gap-1.5 hover:bg-tweaks-red"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      {project.uploadedFileName || "Download Client Document"}
-                    </a>
-                  ) : (
-                    <span className="text-[11px] text-slate-400">
-                      {project.uploadedFileName
-                        ? `${project.uploadedFileName} (Email attachment)`
-                        : "No file uploaded yet"}
-                    </span>
-                  )}
-
-                  <label className="px-2.5 py-1.5 border border-slate-300 dark:border-zinc-700 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800">
+                <div className="flex items-center justify-between gap-2">
+                  <dt className="text-slate-500">
+                    Client Source Documents
+                    {sourceDocuments.length > 0
+                      ? ` (${sourceDocuments.length})`
+                      : ""}
+                  </dt>
+                  <label className="px-2.5 py-1 border border-slate-300 dark:border-zinc-700 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800">
                     <Upload className="h-3 w-3" />
                     {uploadingSlot === "clientBrief"
                       ? "Uploading..."
                       : "Upload File"}
                     <input
                       type="file"
+                      multiple
                       className="hidden"
                       disabled={uploadingSlot !== null}
-                      onChange={(e) =>
-                        handleR2Upload("clientBrief", e.target.files?.[0])
-                      }
+                      onChange={(e) => {
+                        const files = e.target.files;
+                        if (files && files.length > 0) {
+                          void handleR2Upload("clientBrief", files);
+                        }
+                        e.target.value = "";
+                      }}
                     />
                   </label>
+                </div>
+                <dd className="space-y-1.5">
+                  {sourceDocuments.length > 0 ? (
+                    sourceDocuments.map((doc, idx) =>
+                      doc.url ? (
+                        <a
+                          key={`${doc.name}-${doc.url}-${idx}`}
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full px-2.5 py-1.5 bg-tweaks-blue text-white text-[11px] font-bold flex items-center justify-between gap-2 hover:bg-tweaks-red"
+                        >
+                          <span className="inline-flex items-center gap-1.5 truncate">
+                            <Download className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{doc.name}</span>
+                          </span>
+                          {doc.uploadedAt && (
+                            <span className="text-[10px] opacity-80 shrink-0">
+                              {new Date(doc.uploadedAt).toLocaleDateString(
+                                "en-ZA"
+                              )}
+                            </span>
+                          )}
+                        </a>
+                      ) : (
+                        <div
+                          key={`${doc.name}-email-${idx}`}
+                          className="text-[11px] text-slate-500 dark:text-zinc-400"
+                        >
+                          {doc.name} (Email attachment)
+                        </div>
+                      )
+                    )
+                  ) : (
+                    <span className="text-[11px] text-slate-400">
+                      No file uploaded yet
+                    </span>
+                  )}
                 </dd>
               </div>
             </dl>
