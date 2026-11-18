@@ -90,9 +90,9 @@ export function NewProjectClient({
   const [department, setDepartment] = useState("");
   const [billingContactName, setBillingContactName] = useState("");
   const [billingContactEmail, setBillingContactEmail] = useState("");
-  const [supervisorSignOff, setSupervisorSignOff] = useState<"yes" | "no">(
-    "yes"
-  );
+  const [supervisorSignOff, setSupervisorSignOff] = useState<
+    "yes" | "no" | "not_applicable"
+  >("yes");
   const [supervisorName, setSupervisorName] = useState("");
   const [supervisorEmail, setSupervisorEmail] = useState("");
   const [assignedEditorId, setAssignedEditorId] = useState<string>("");
@@ -164,14 +164,20 @@ export function NewProjectClient({
     rules,
   ]);
 
+  const isNonDegree = degreeLevel === "N/A" || institutionId === "None";
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName.trim() || !surname.trim() || !email.trim()) {
       toast.error("Please fill in client name and email.");
       return;
     }
-    if (!researchTitle.trim() || !degreeProgramme.trim()) {
-      toast.error("Please enter the degree programme and research title.");
+    if (!researchTitle.trim() || (!isNonDegree && !degreeProgramme.trim())) {
+      toast.error(
+        isNonDegree
+          ? "Please enter the research / manuscript title."
+          : "Please enter the degree programme and research title."
+      );
       return;
     }
 
@@ -186,10 +192,11 @@ export function NewProjectClient({
         surname,
         email,
         whatsapp: whatsapp || "+27",
+        isUniversityEnrolled: !isNonDegree,
         institutionId,
         institutionOther,
         degreeLevel,
-        degreeProgramme,
+        degreeProgramme: degreeProgramme.trim() || "N/A",
         researchTitle,
         services: selectedServices,
         documentType: derivedDocumentType,
@@ -210,7 +217,7 @@ export function NewProjectClient({
         department,
         billingContactName,
         billingContactEmail,
-        supervisorSignOff,
+        supervisorSignOff: isNonDegree ? "not_applicable" : supervisorSignOff,
         supervisorName,
         supervisorEmail,
         assignedEditorId: assignedEditorId || undefined,
@@ -327,6 +334,7 @@ export function NewProjectClient({
                       {inst.name}
                     </option>
                   ))}
+                  <option value="None">None / Independent Researcher</option>
                   <option value="Other">Other Institution</option>
                 </select>
               </div>
@@ -366,11 +374,11 @@ export function NewProjectClient({
 
             <div>
               <label className="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                Degree Programme / Field *
+                Degree Programme / Field {isNonDegree ? "(Optional)" : "*"}
               </label>
               <input
                 type="text"
-                required
+                required={!isNonDegree}
                 placeholder="e.g. Educational Psychology"
                 value={degreeProgramme}
                 onChange={(e) => setDegreeProgramme(e.target.value)}

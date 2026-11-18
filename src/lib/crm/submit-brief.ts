@@ -61,12 +61,18 @@ export async function recordBriefAndGenerateQuote(
 ): Promise<BriefSubmissionDatabaseResult> {
   const nowIso = new Date().toISOString();
   const normalizedEmail = data.email.trim().toLowerCase();
+  const isUniversityEnrolled = data.isUniversityEnrolled !== false;
 
   // 1. Resolve Institution & Queue "Other" if needed
   let resolvedInstitutionId: string | null = null;
   let resolvedInstitutionName = data.institutionOther?.trim() || "Other";
 
-  if (data.institutionId && data.institutionId !== "Other") {
+  if (!data.institutionId || data.institutionId === "None") {
+    resolvedInstitutionId = null;
+    resolvedInstitutionName = isUniversityEnrolled
+      ? "Unspecified"
+      : "Independent Researcher";
+  } else if (data.institutionId !== "Other") {
     const [instRow] = await db
       .select()
       .from(institutions)
@@ -109,6 +115,7 @@ export async function recordBriefAndGenerateQuote(
 
   // 2. Queue "Other" Degree Level if needed
   if (
+    isUniversityEnrolled &&
     data.degreeLevel === "Other" &&
     data.degreeLevelOther &&
     data.degreeLevelOther.trim().length > 1
@@ -124,31 +131,40 @@ export async function recordBriefAndGenerateQuote(
   }
 
   // 3. Upsert / Increment Degree Programme for Autocomplete
-  const cleanProgramme = data.degreeProgramme.trim();
-  const effectiveDegreeLevel =
-    data.degreeLevel === "Other"
+  const effectiveDegreeLevel = !isUniversityEnrolled
+    ? "N/A"
+    : data.degreeLevel === "Other"
       ? data.degreeLevelOther?.trim() || "Other"
-      : data.degreeLevel;
+      : data.degreeLevel || "N/A";
+  const cleanProgramme = !isUniversityEnrolled
+    ? "N/A"
+    : data.degreeProgramme?.trim() || "N/A";
 
-  const existingProgs = await db
-    .select()
-    .from(degreeProgrammes)
-    .where(eq(degreeProgrammes.name, cleanProgramme))
-    .limit(1);
+  if (
+    isUniversityEnrolled &&
+    cleanProgramme.length >= 2 &&
+    cleanProgramme.toUpperCase() !== "N/A"
+  ) {
+    const existingProgs = await db
+      .select()
+      .from(degreeProgrammes)
+      .where(eq(degreeProgrammes.name, cleanProgramme))
+      .limit(1);
 
-  if (existingProgs.length > 0) {
-    await db
-      .update(degreeProgrammes)
-      .set({ usageCount: existingProgs[0].usageCount + 1 })
-      .where(eq(degreeProgrammes.id, existingProgs[0].id));
-  } else {
-    await db.insert(degreeProgrammes).values({
-      institutionId: resolvedInstitutionId,
-      degreeLevel: effectiveDegreeLevel,
-      name: cleanProgramme,
-      usageCount: 1,
-      status: "approved",
-    });
+    if (existingProgs.length > 0) {
+      await db
+        .update(degreeProgrammes)
+        .set({ usageCount: existingProgs[0].usageCount + 1 })
+        .where(eq(degreeProgrammes.id, existingProgs[0].id));
+    } else {
+      await db.insert(degreeProgrammes).values({
+        institutionId: resolvedInstitutionId,
+        degreeLevel: effectiveDegreeLevel,
+        name: cleanProgramme,
+        usageCount: 1,
+        status: "approved",
+      });
+    }
   }
 
   // 4. Upsert Client by Email
@@ -246,8 +262,13 @@ export async function recordBriefAndGenerateQuote(
   );
 
   // 7. Create Project (Brief / Tracker Row)
+  const effectiveSupervisorSignOff = isUniversityEnrolled
+    ? data.supervisorSignOff
+    : "not_applicable";
   const shouldRequestSupervisor =
-    data.supervisorSignOff === "no" && Boolean(data.requestSupervisorSignOff);
+    isUniversityEnrolled &&
+    effectiveSupervisorSignOff === "no" &&
+    Boolean(data.requestSupervisorSignOff);
   const supervisorSignOffToken = shouldRequestSupervisor
     ? crypto.randomUUID()
     : null;
@@ -266,10 +287,16 @@ export async function recordBriefAndGenerateQuote(
       clientId,
       isDuplicateFlag,
       duplicateOfProjectId,
+      isUniversityEnrolled,
       institutionId: resolvedInstitutionId,
-      institutionOther: data.institutionOther?.trim() || null,
+      institutionOther:
+        data.institutionId === "Other"
+          ? data.institutionOther?.trim() || null
+          : null,
       degreeLevel: effectiveDegreeLevel,
-      degreeLevelOther: data.degreeLevelOther?.trim() || null,
+      degreeLevelOther: isUniversityEnrolled
+        ? data.degreeLevelOther?.trim() || null
+        : null,
       degreeProgramme: cleanProgramme,
       researchTitle: data.researchTitle.trim(),
       referralSource: data.referralSource,
@@ -298,13 +325,17 @@ export async function recordBriefAndGenerateQuote(
       billingContactEmail: data.billingContactEmail?.trim() || null,
       scopeDeclarationAccepted: true,
       scopeDeclaredAt: nowIso,
-      supervisorSignOff: data.supervisorSignOff,
+      supervisorSignOff: effectiveSupervisorSignOff,
       supervisorDisclaimerAck:
-        data.supervisorSignOff === "no"
+        effectiveSupervisorSignOff === "no"
           ? Boolean(data.supervisorDisclaimerAck)
           : false,
-      supervisorName: data.supervisorName?.trim() || null,
-      supervisorEmail: data.supervisorEmail?.trim().toLowerCase() || null,
+      supervisorName: isUniversityEnrolled
+        ? data.supervisorName?.trim() || null
+        : null,
+      supervisorEmail: isUniversityEnrolled
+        ? data.supervisorEmail?.trim().toLowerCase() || null
+        : null,
       supervisorSignOffToken,
       supervisorSignOffRequestedAt: shouldRequestSupervisor ? nowIso : null,
       stage: "enquiry",

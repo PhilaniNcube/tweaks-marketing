@@ -81,7 +81,11 @@ export async function getQuotePageDataByToken(token: string) {
     if (!client) return null;
 
     let institutionName =
-      project.institutionOther || client.institutionOther || "University";
+      project.institutionOther ||
+      client.institutionOther ||
+      (project.isUniversityEnrolled === false
+        ? "Independent Researcher"
+        : "University");
     if (project.institutionId) {
       const [inst] = await db
         .select()
@@ -423,7 +427,11 @@ export async function getAdminCrmDashboardData() {
         payments: projPayments,
         institution,
         institutionName:
-          institution?.name || proj.institutionOther || "Unspecified",
+          institution?.name ||
+          proj.institutionOther ||
+          (proj.isUniversityEnrolled === false
+            ? "Independent Researcher"
+            : "Unspecified"),
         assignedEditor,
         certificate,
       };
@@ -1704,6 +1712,7 @@ export async function createInternalProjectAction(input: {
   surname: string;
   email: string;
   whatsapp: string;
+  isUniversityEnrolled?: boolean;
   institutionId: string;
   institutionOther?: string;
   degreeLevel: string;
@@ -1730,7 +1739,7 @@ export async function createInternalProjectAction(input: {
   department?: string;
   billingContactName?: string;
   billingContactEmail?: string;
-  supervisorSignOff: "yes" | "no";
+  supervisorSignOff: "yes" | "no" | "not_applicable";
   supervisorName?: string;
   supervisorEmail?: string;
   assignedEditorId?: string;
@@ -1744,6 +1753,7 @@ export async function createInternalProjectAction(input: {
       surname: input.surname,
       email: input.email,
       whatsapp: input.whatsapp,
+      isUniversityEnrolled: input.isUniversityEnrolled ?? true,
       institutionId: input.institutionId,
       institutionOther: input.institutionOther,
       degreeLevel: input.degreeLevel,

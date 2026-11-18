@@ -31,6 +31,7 @@ import {
   QUOTE_OUTCOME_LABELS,
   getReturnScheduleStatus,
 } from "@/components/crm/crm-helpers";
+import { formatDegreeSummary } from "@/lib/utils";
 import {
   updateAdminProjectWorkflow,
   recordManualPayment,
@@ -420,7 +421,10 @@ export function ProjectDetailClient({
               <div className="flex justify-between gap-2">
                 <dt className="text-slate-500">Degree &amp; Programme</dt>
                 <dd className="font-semibold text-right">
-                  {project.degreeLevel} — {project.degreeProgramme}
+                  {formatDegreeSummary(
+                    project.degreeLevel,
+                    project.degreeProgramme
+                  )}
                 </dd>
               </div>
               {project.department && (
@@ -585,7 +589,11 @@ export function ProjectDetailClient({
 
               <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between">
                 <span className="text-slate-500">Supervisor Sign-Off</span>
-                {project.supervisorSignOffReceivedAt ? (
+                {project.supervisorSignOff === "not_applicable" ? (
+                  <span className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300">
+                    Not Applicable
+                  </span>
+                ) : project.supervisorSignOffReceivedAt ? (
                   <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800">
                     Token Confirmed
                   </span>

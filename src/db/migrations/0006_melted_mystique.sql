@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `is_university_enrolled` integer DEFAULT true NOT NULL;

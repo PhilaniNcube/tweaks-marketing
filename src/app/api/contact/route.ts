@@ -41,11 +41,17 @@ export function parseBriefFormData(formData: FormData) {
     return formData.getAll(key).map((val) => String(val));
   };
 
+  const rawEnrolled = formData.get("isUniversityEnrolled");
+  const isUniversityEnrolled =
+    rawEnrolled === "false" || rawEnrolled === "0" ? false : true;
+  const rawSupervisorSignOff = getString("supervisorSignOff");
+
   return {
     firstName: getString("firstName"),
     surname: getString("surname"),
     email: getString("email"),
     whatsapp: getString("whatsapp"),
+    isUniversityEnrolled,
     institutionId: getString("institutionId"),
     institutionOther: getOptionalString("institutionOther"),
     degreeLevel: getString("degreeLevel"),
@@ -67,7 +73,10 @@ export function parseBriefFormData(formData: FormData) {
     referencingStyle: getString("referencingStyle"),
     referencingStyleOther: getOptionalString("referencingStyleOther"),
     expectedSendDate: getString("expectedSendDate"),
-    supervisorSignOff: getString("supervisorSignOff"),
+    supervisorSignOff:
+      !isUniversityEnrolled && !rawSupervisorSignOff
+        ? "not_applicable"
+        : rawSupervisorSignOff,
     supervisorDisclaimerAck: getBoolean("supervisorDisclaimerAck"),
     requestSupervisorSignOff: getBoolean("requestSupervisorSignOff"),
     supervisorName: getOptionalString("supervisorName"),
@@ -263,6 +272,15 @@ export async function POST(request: NextRequest) {
           parsedData.supervisorName
         ) {
           const supervisorUrl = `${appUrl}/supervisor/sign-off/${crmResult.supervisorSignOffToken}`;
+          const degreeSummary = [
+            parsedData.degreeLevel,
+            parsedData.degreeProgramme,
+          ]
+            .filter((val) => val && val !== "N/A")
+            .join(" — ");
+          const academicContext = [crmResult.institutionName, degreeSummary]
+            .filter(Boolean)
+            .join(", ");
           await resend.emails.send({
             from: "Tweaks Academic Editing <hello@tweaks.co.za>",
             to: [parsedData.supervisorEmail],
@@ -272,7 +290,7 @@ export async function POST(request: NextRequest) {
               <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0;">
                 <h2 style="color: #1B0ABD; margin-top: 0;">Supervisor Confirmation Request</h2>
                 <p>Dear ${parsedData.supervisorName},</p>
-                <p><strong>${fullName}</strong> (${crmResult.institutionName}, ${parsedData.degreeLevel} — ${parsedData.degreeProgramme}) has submitted their manuscript titled:</p>
+                <p><strong>${fullName}</strong>${academicContext ? ` (${academicContext})` : ""} has submitted their manuscript titled:</p>
                 <blockquote style="border-left: 3px solid #1B0ABD; padding-left: 12px; color: #334155; font-style: italic;">
                   ${parsedData.researchTitle}
                 </blockquote>

@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatZarFromCents } from "@/lib/pricing/quote-calculator";
+import { formatDegreeSummary } from "@/lib/utils";
 import {
   acceptQuoteAndSelectOption,
   recordClientOpenedPackage,
@@ -353,11 +354,13 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
               <div>
                 Supervisor Sign-Off:{" "}
                 <strong className="text-slate-900 dark:text-white">
-                  {project.supervisorSignOff === "yes"
-                    ? project.supervisorSignOffReceivedAt
-                      ? "Confirmed by Supervisor"
-                      : "Confirmed by Student"
-                    : "Pending / Disclaimer Acknowledged"}
+                  {project.supervisorSignOff === "not_applicable"
+                    ? "Not Applicable"
+                    : project.supervisorSignOff === "yes"
+                      ? project.supervisorSignOffReceivedAt
+                        ? "Confirmed by Supervisor"
+                        : "Confirmed by Student"
+                      : "Pending / Disclaimer Acknowledged"}
                 </strong>
               </div>
             </div>
@@ -654,10 +657,16 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
                 {project.researchTitle}
               </p>
               <p className="text-xs text-slate-600 dark:text-zinc-400">
-                {[project.degreeLevel, project.degreeProgramme]
+                {[
+                  formatDegreeSummary(
+                    project.degreeLevel,
+                    project.degreeProgramme,
+                    ""
+                  ),
+                  `(${project.documentType})`,
+                ]
                   .filter(Boolean)
-                  .join(" — ")}{" "}
-                ({project.documentType})
+                  .join(" ")}
               </p>
               <p className="text-xs text-slate-500">
                 Volume: {project.pageCount} pages

@@ -118,6 +118,7 @@ export function ContactQuoteForm({
       surname: "",
       email: "",
       whatsapp: "+27 ",
+      isUniversityEnrolled: true,
       institutionId: "",
       institutionOther: "",
       degreeLevel: "",
@@ -495,18 +496,19 @@ export function ContactQuoteForm({
           )}
 
           {currentStep === 1 && (
-            <Step1ClientDetails
-              institutions={lookups.institutions}
-              degreeLevels={lookups.degreeLevels}
+            <Step3ServicesSpeed
+              catalog={lookups.services}
+              liveQuote={liveQuote}
             />
           )}
 
           {currentStep === 2 && <Step2DocumentVolume />}
 
           {currentStep === 3 && (
-            <Step3ServicesSpeed
+            <Step1ClientDetails
+              institutions={lookups.institutions}
+              degreeLevels={lookups.degreeLevels}
               catalog={lookups.services}
-              liveQuote={liveQuote}
             />
           )}
 
@@ -522,6 +524,7 @@ export function ContactQuoteForm({
               todayIso={initialDefaults.todayIso}
               liveQuote={liveQuote}
               settings={lookups.settings}
+              catalog={lookups.services}
             />
           )}
 

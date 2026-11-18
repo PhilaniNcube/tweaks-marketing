@@ -214,12 +214,11 @@ export default function ClaimCertificatePage({
             <div className="space-y-1">
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <Building2 className="w-4 h-4 text-purple-600" />
-                University / Institution
+                University / Institution (Optional for independent researchers)
               </label>
               <input
                 type="text"
-                required
-                placeholder="e.g. Nelson Mandela University"
+                placeholder="e.g. Nelson Mandela University (or leave blank if independent)"
                 value={university}
                 onChange={(e) => setUniversity(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-purple-600 focus:border-transparent text-sm"

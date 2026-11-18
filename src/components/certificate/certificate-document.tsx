@@ -166,15 +166,20 @@ export function CertificateDocument({
             </p>
           </div>
 
-          {/* University */}
-          <div className="space-y-1">
-            <h3 className="text-sm md:text-base font-bold text-slate-900">
-              University:
-            </h3>
-            <p className="text-base md:text-lg font-medium text-slate-800">
-              {data.university}
-            </p>
-          </div>
+          {/* University (omitted for independent researchers) */}
+          {data.university &&
+            data.university !== "N/A" &&
+            data.university !== "Independent Researcher" &&
+            data.university !== "Unspecified" && (
+              <div className="space-y-1">
+                <h3 className="text-sm md:text-base font-bold text-slate-900">
+                  University:
+                </h3>
+                <p className="text-base md:text-lg font-medium text-slate-800">
+                  {data.university}
+                </p>
+              </div>
+            )}
 
           {/* Degree & Programme (omitted when blank or N/A for journal articles) */}
           {((data.degreeLevel && data.degreeLevel !== "N/A") ||

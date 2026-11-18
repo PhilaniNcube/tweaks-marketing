@@ -34,6 +34,7 @@ import {
   getReturnScheduleStatus,
   type ReturnScheduleStatus,
 } from "@/components/crm/crm-helpers";
+import { formatDegreeSummary } from "@/lib/utils";
 import {
   updateProjectStageQuickAction,
   assignProjectEditorAction,
@@ -700,7 +701,10 @@ export function ProjectsViewClient({
                         {row.institutionName}
                       </div>
                       <div className="text-[11px] text-slate-500">
-                        {row.project.degreeLevel} — {row.project.degreeProgramme}
+                        {formatDegreeSummary(
+                          row.project.degreeLevel,
+                          row.project.degreeProgramme
+                        )}
                       </div>
                     </td>
 

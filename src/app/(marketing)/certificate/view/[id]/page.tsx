@@ -17,7 +17,7 @@ export async function generateMetadata({
   }
   return {
     title: `Academic Editing Certificate - ${cert.researcherName} | Tweaks`,
-    description: `Official Academic Editing Certificate issued for ${cert.researcherName} (${cert.university}).`,
+    description: `Official Academic Editing Certificate issued for ${cert.researcherName}${cert.university ? ` (${cert.university})` : ""}.`,
   };
 }
 
@@ -55,7 +55,7 @@ export default async function CertificateViewPage({
             id: cert.id,
             researchTitle: cert.researchTitle,
             researcherName: cert.researcherName || "Researcher",
-            university: cert.university || "University",
+            university: cert.university || "",
             degreeLevel: cert.degreeLevel,
             degreeProgramme: cert.degreeProgramme,
             completionDate: cert.completionDate || "July 2026",

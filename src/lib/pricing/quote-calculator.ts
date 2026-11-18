@@ -146,7 +146,7 @@ function findServiceInCatalog(
   return undefined;
 }
 
-function resolveServiceGroup(
+export function resolveServiceGroup(
   sel: string,
   catalog?: Service[]
 ): ServiceGroup | undefined {

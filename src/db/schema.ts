@@ -374,6 +374,9 @@ export const projects = sqliteTable(
       .notNull(),
 
     // --- Academic Context ---
+    isUniversityEnrolled: integer("is_university_enrolled", { mode: "boolean" })
+      .default(true)
+      .notNull(),
     institutionId: text("institution_id").references(() => institutions.id, {
       onDelete: "set null",
     }),
@@ -430,7 +433,7 @@ export const projects = sqliteTable(
     }).notNull(),
     scopeDeclaredAt: text("scope_declared_at").notNull(),
     supervisorSignOff: text("supervisor_sign_off", {
-      enum: ["yes", "no"],
+      enum: ["yes", "no", "not_applicable"],
     }).notNull(),
     supervisorDisclaimerAck: integer("supervisor_disclaimer_ack", {
       mode: "boolean",

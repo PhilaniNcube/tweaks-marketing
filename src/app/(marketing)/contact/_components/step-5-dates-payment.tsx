@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import { Calculator, ShieldAlert, FileCheck2, Building2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -22,18 +22,22 @@ import {
   formatZarFromCents,
   type CalculatedQuoteResult,
 } from "@/lib/pricing/quote-calculator";
+import { isNonDegreeEligibleServiceSelection } from "@/lib/validations/contact";
+import type { Service } from "@/db/schema";
 import type { ContactFormValues } from "./types";
 
 interface Step5DatesPaymentProps {
   todayIso: string;
   liveQuote: CalculatedQuoteResult;
   settings: Record<string, string>;
+  catalog: Service[];
 }
 
 export function Step5DatesPayment({
   todayIso,
   liveQuote,
   settings,
+  catalog,
 }: Step5DatesPaymentProps) {
   const {
     register,
@@ -42,11 +46,42 @@ export function Step5DatesPayment({
     formState: { errors },
   } = useFormContext<ContactFormValues>();
 
+  const watchedServices = watch("services") || [];
+  const watchedIsUniversityEnrolled = watch("isUniversityEnrolled");
+  const watchedInstitutionId = watch("institutionId");
   const watchedSupervisorSignOff = watch("supervisorSignOff");
   const watchedRequestSupervisor = watch("requestSupervisorSignOff");
   const watchedPaymentOption = watch("paymentOption");
   const watchedSelectedMonths = watch("selectedInstalmentMonths");
   const watchedScopeDeclaration = watch("scopeDeclarationAccepted");
+
+  const isEnrolled =
+    !isNonDegreeEligibleServiceSelection(watchedServices, catalog) ||
+    watchedIsUniversityEnrolled !== false;
+  const hasAffiliation = Boolean(
+    watchedInstitutionId && watchedInstitutionId !== "None"
+  );
+  const showInstitutionalFunding = isEnrolled || hasAffiliation;
+
+  useEffect(() => {
+    if (!isEnrolled && watchedSupervisorSignOff !== "not_applicable") {
+      setValue("supervisorSignOff", "not_applicable");
+      setValue("supervisorDisclaimerAck", false);
+      setValue("requestSupervisorSignOff", false);
+    }
+    if (
+      !showInstitutionalFunding &&
+      watchedPaymentOption === "institutional_funding"
+    ) {
+      setValue("paymentOption", "full_payment");
+    }
+  }, [
+    isEnrolled,
+    showInstitutionalFunding,
+    watchedSupervisorSignOff,
+    watchedPaymentOption,
+    setValue,
+  ]);
 
   const effectiveSelectedMonths = Math.min(
     liveQuote.maxInstalmentMonths,
@@ -57,7 +92,7 @@ export function Step5DatesPayment({
     <div className="animate-in fade-in space-y-6 duration-200">
       <div className="border-b border-border pb-2">
         <h3 className="text-lg font-bold text-foreground">
-          Step 5: Dates, Supervisor Sign-Off &amp; Payment Option
+          Step 5: Dates{isEnrolled ? ", Supervisor Sign-Off" : ""} &amp; Payment Option
         </h3>
         <p className="text-xs font-light text-muted-foreground">
           Turnaround time starts from the date we receive your document.
@@ -85,139 +120,143 @@ export function Step5DatesPayment({
         </Field>
       </FieldGroup>
 
-      <FieldSet data-invalid={!!errors.supervisorSignOff}>
-        <FieldLegend variant="label">
-          Has your supervisor signed off on this document going for editing?{" "}
-          <span className="text-destructive">*</span>
-        </FieldLegend>
-        <RadioGroup
-          value={watchedSupervisorSignOff}
-          onValueChange={(value) =>
-            setValue("supervisorSignOff", value as "yes" | "no", {
-              shouldValidate: true,
-            })
-          }
-          aria-invalid={!!errors.supervisorSignOff}
-          className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-        >
-          {[
-            { value: "yes", label: "Yes, supervisor sign-off obtained" },
-            { value: "no", label: "No, not yet" },
-          ].map((option) => (
-            <FieldLabel
-              key={option.value}
-              htmlFor={`supervisorSignOff-${option.value}`}
-              className={`w-full cursor-pointer border transition-colors ${
-                watchedSupervisorSignOff === option.value
-                  ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
-                  : "border-border hover:border-muted-foreground/40"
-              }`}
+      {isEnrolled && (
+        <>
+          <FieldSet data-invalid={!!errors.supervisorSignOff}>
+            <FieldLegend variant="label">
+              Has your supervisor signed off on this document going for editing?{" "}
+              <span className="text-destructive">*</span>
+            </FieldLegend>
+            <RadioGroup
+              value={watchedSupervisorSignOff}
+              onValueChange={(value) =>
+                setValue("supervisorSignOff", value as "yes" | "no", {
+                  shouldValidate: true,
+                })
+              }
+              aria-invalid={!!errors.supervisorSignOff}
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2"
             >
-              <Field orientation="horizontal">
-                <RadioGroupItem
-                  id={`supervisorSignOff-${option.value}`}
-                  value={option.value}
-                />
-                <FieldContent>
-                  <FieldTitle>{option.label}</FieldTitle>
-                </FieldContent>
-              </Field>
-            </FieldLabel>
-          ))}
-        </RadioGroup>
-        <FieldError errors={[errors.supervisorSignOff]} />
-      </FieldSet>
+              {[
+                { value: "yes", label: "Yes, supervisor sign-off obtained" },
+                { value: "no", label: "No, not yet" },
+              ].map((option) => (
+                <FieldLabel
+                  key={option.value}
+                  htmlFor={`supervisorSignOff-${option.value}`}
+                  className={`w-full cursor-pointer border transition-colors ${
+                    watchedSupervisorSignOff === option.value
+                      ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                      : "border-border hover:border-muted-foreground/40"
+                  }`}
+                >
+                  <Field orientation="horizontal">
+                    <RadioGroupItem
+                      id={`supervisorSignOff-${option.value}`}
+                      value={option.value}
+                    />
+                    <FieldContent>
+                      <FieldTitle>{option.label}</FieldTitle>
+                    </FieldContent>
+                  </Field>
+                </FieldLabel>
+              ))}
+            </RadioGroup>
+            <FieldError errors={[errors.supervisorSignOff]} />
+          </FieldSet>
 
-      {watchedSupervisorSignOff === "no" && (
-        <div className="space-y-4 border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900 dark:bg-amber-950/30">
-          <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-            <p className="text-xs leading-relaxed text-amber-900 italic dark:text-amber-200">
-              &ldquo;{settings.supervisor_disclaimer_text}&rdquo;
-            </p>
-          </div>
+          {watchedSupervisorSignOff === "no" && (
+            <div className="space-y-4 border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+              <div className="flex items-start gap-3">
+                <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                <p className="text-xs leading-relaxed text-amber-900 italic dark:text-amber-200">
+                  &ldquo;{settings.supervisor_disclaimer_text}&rdquo;
+                </p>
+              </div>
 
-          <Field data-invalid={!!errors.supervisorDisclaimerAck}>
-            <FieldLabel
-              htmlFor="supervisorDisclaimerAck"
-              className="items-start font-normal"
-            >
-              <Checkbox
-                id="supervisorDisclaimerAck"
-                checked={!!watch("supervisorDisclaimerAck")}
-                onCheckedChange={(checked) =>
-                  setValue("supervisorDisclaimerAck", checked === true, {
-                    shouldValidate: true,
-                  })
-                }
-                className="mt-0.5"
-              />
-              <span className="text-xs font-semibold text-foreground">
-                I have read and acknowledge this disclaimer{" "}
-                <span className="text-destructive">*</span>
-              </span>
-            </FieldLabel>
-            <FieldError errors={[errors.supervisorDisclaimerAck]} />
-          </Field>
-
-          <div className="space-y-3 border-t border-amber-200/70 pt-2 dark:border-amber-900/60">
-            <Field>
-              <FieldLabel
-                htmlFor="requestSupervisorSignOff"
-                className="items-start font-normal"
-              >
-                <Checkbox
-                  id="requestSupervisorSignOff"
-                  checked={!!watchedRequestSupervisor}
-                  onCheckedChange={(checked) =>
-                    setValue("requestSupervisorSignOff", checked === true, {
-                      shouldValidate: true,
-                    })
-                  }
-                  className="mt-0.5"
-                />
-                <span className="text-xs font-medium text-muted-foreground">
-                  Optional: Email my supervisor a 1-click sign-off confirmation
-                  link now (no fees or payment details are shown to your
-                  supervisor)
-                </span>
-              </FieldLabel>
-            </Field>
-
-            {watchedRequestSupervisor && (
-              <FieldGroup className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field data-invalid={!!errors.supervisorName}>
-                  <FieldLabel htmlFor="supervisorName">
-                    Supervisor Name <span className="text-destructive">*</span>
-                  </FieldLabel>
-                  <Input
-                    id="supervisorName"
-                    type="text"
-                    placeholder="Prof. N. Dlamini"
-                    aria-invalid={!!errors.supervisorName}
-                    {...register("supervisorName")}
+              <Field data-invalid={!!errors.supervisorDisclaimerAck}>
+                <FieldLabel
+                  htmlFor="supervisorDisclaimerAck"
+                  className="items-start font-normal"
+                >
+                  <Checkbox
+                    id="supervisorDisclaimerAck"
+                    checked={!!watch("supervisorDisclaimerAck")}
+                    onCheckedChange={(checked) =>
+                      setValue("supervisorDisclaimerAck", checked === true, {
+                        shouldValidate: true,
+                      })
+                    }
+                    className="mt-0.5"
                   />
-                  <FieldError errors={[errors.supervisorName]} />
-                </Field>
-
-                <Field data-invalid={!!errors.supervisorEmail}>
-                  <FieldLabel htmlFor="supervisorEmail">
-                    Supervisor Institutional Email{" "}
+                  <span className="text-xs font-semibold text-foreground">
+                    I have read and acknowledge this disclaimer{" "}
                     <span className="text-destructive">*</span>
+                  </span>
+                </FieldLabel>
+                <FieldError errors={[errors.supervisorDisclaimerAck]} />
+              </Field>
+
+              <div className="space-y-3 border-t border-amber-200/70 pt-2 dark:border-amber-900/60">
+                <Field>
+                  <FieldLabel
+                    htmlFor="requestSupervisorSignOff"
+                    className="items-start font-normal"
+                  >
+                    <Checkbox
+                      id="requestSupervisorSignOff"
+                      checked={!!watchedRequestSupervisor}
+                      onCheckedChange={(checked) =>
+                        setValue("requestSupervisorSignOff", checked === true, {
+                          shouldValidate: true,
+                        })
+                      }
+                      className="mt-0.5"
+                    />
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Optional: Email my supervisor a 1-click sign-off confirmation
+                      link now (no fees or payment details are shown to your
+                      supervisor)
+                    </span>
                   </FieldLabel>
-                  <Input
-                    id="supervisorEmail"
-                    type="email"
-                    placeholder="n.dlamini@uct.ac.za"
-                    aria-invalid={!!errors.supervisorEmail}
-                    {...register("supervisorEmail")}
-                  />
-                  <FieldError errors={[errors.supervisorEmail]} />
                 </Field>
-              </FieldGroup>
-            )}
-          </div>
-        </div>
+
+                {watchedRequestSupervisor && (
+                  <FieldGroup className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <Field data-invalid={!!errors.supervisorName}>
+                      <FieldLabel htmlFor="supervisorName">
+                        Supervisor Name <span className="text-destructive">*</span>
+                      </FieldLabel>
+                      <Input
+                        id="supervisorName"
+                        type="text"
+                        placeholder="Prof. N. Dlamini"
+                        aria-invalid={!!errors.supervisorName}
+                        {...register("supervisorName")}
+                      />
+                      <FieldError errors={[errors.supervisorName]} />
+                    </Field>
+
+                    <Field data-invalid={!!errors.supervisorEmail}>
+                      <FieldLabel htmlFor="supervisorEmail">
+                        Supervisor Institutional Email{" "}
+                        <span className="text-destructive">*</span>
+                      </FieldLabel>
+                      <Input
+                        id="supervisorEmail"
+                        type="email"
+                        placeholder="n.dlamini@uct.ac.za"
+                        aria-invalid={!!errors.supervisorEmail}
+                        {...register("supervisorEmail")}
+                      />
+                      <FieldError errors={[errors.supervisorEmail]} />
+                    </Field>
+                  </FieldGroup>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <FieldSet data-invalid={!!errors.paymentOption}>
@@ -236,7 +275,9 @@ export function Step5DatesPayment({
             )
           }
           aria-invalid={!!errors.paymentOption}
-          className="grid grid-cols-1 gap-4 md:grid-cols-3"
+          className={`grid grid-cols-1 gap-4 ${
+            showInstitutionalFunding ? "md:grid-cols-3" : "md:grid-cols-2"
+          }`}
         >
           <FieldLabel
             htmlFor="paymentOption-full"
@@ -290,29 +331,31 @@ export function Step5DatesPayment({
             </Field>
           </FieldLabel>
 
-          <FieldLabel
-            htmlFor="paymentOption-institutional"
-            className={`w-full cursor-pointer border transition-colors ${
-              watchedPaymentOption === "institutional_funding"
-                ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
-                : "border-border hover:border-muted-foreground/40"
-            }`}
-          >
-            <Field orientation="horizontal" className="items-start">
-              <RadioGroupItem
-                id="paymentOption-institutional"
-                value="institutional_funding"
-                className="mt-0.5"
-              />
-              <FieldContent>
-                <FieldTitle>3. Institutional Funding</FieldTitle>
-                <FieldDescription>
-                  Paid by your university/institution against an official
-                  Purchase Order (no deposit).
-                </FieldDescription>
-              </FieldContent>
-            </Field>
-          </FieldLabel>
+          {showInstitutionalFunding && (
+            <FieldLabel
+              htmlFor="paymentOption-institutional"
+              className={`w-full cursor-pointer border transition-colors ${
+                watchedPaymentOption === "institutional_funding"
+                  ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                  : "border-border hover:border-muted-foreground/40"
+              }`}
+            >
+              <Field orientation="horizontal" className="items-start">
+                <RadioGroupItem
+                  id="paymentOption-institutional"
+                  value="institutional_funding"
+                  className="mt-0.5"
+                />
+                <FieldContent>
+                  <FieldTitle>3. Institutional Funding</FieldTitle>
+                  <FieldDescription>
+                    Paid by your university/institution against an official
+                    Purchase Order (no deposit).
+                  </FieldDescription>
+                </FieldContent>
+              </Field>
+            </FieldLabel>
+          )}
         </RadioGroup>
         <FieldError errors={[errors.paymentOption]} />
       </FieldSet>
@@ -364,7 +407,7 @@ export function Step5DatesPayment({
         </div>
       )}
 
-      {watchedPaymentOption === "institutional_funding" && (
+      {showInstitutionalFunding && watchedPaymentOption === "institutional_funding" && (
         <div className="space-y-4 border border-blue-200 bg-blue-50/50 p-5 dark:border-blue-900 dark:bg-blue-950/20">
           <div className="flex items-start gap-3">
             <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-tweaks-blue" />
@@ -376,7 +419,8 @@ export function Step5DatesPayment({
           <FieldGroup className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Field data-invalid={!!errors.department}>
               <FieldLabel htmlFor="department">
-                Department / Faculty <span className="text-destructive">*</span>
+                {isEnrolled ? "Department / Faculty" : "Department / Division / Faculty"}{" "}
+                <span className="text-destructive">*</span>
               </FieldLabel>
               <Input
                 id="department"

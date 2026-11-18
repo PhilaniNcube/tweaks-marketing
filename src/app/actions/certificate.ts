@@ -92,7 +92,7 @@ export async function claimCertificate(input: ClaimCertificateInput) {
         status: "completed",
         researchTitle,
         researcherName,
-        university,
+        university: university?.trim() || null,
         degreeLevel: degreeLevel?.trim() || existing.degreeLevel || null,
         degreeProgramme:
           degreeProgramme?.trim() || existing.degreeProgramme || null,

@@ -1,5 +1,9 @@
 import * as v from "valibot";
-import { areServicesInSingleGroup } from "@/lib/pricing/quote-calculator";
+import {
+  areServicesInSingleGroup,
+  resolveServiceGroup,
+} from "@/lib/pricing/quote-calculator";
+import type { Service } from "@/db/schema";
 
 const PERSONAL_EMAIL_DOMAINS = new Set([
   "gmail.com",
@@ -67,9 +71,30 @@ export const DOCUMENT_TYPES = [
   "Other",
 ] as const;
 
+export function isNonDegreeEligibleServiceSelection(
+  selectedServices: string[],
+  catalog?: Service[]
+): boolean {
+  if (!selectedServices || selectedServices.length === 0) return false;
+  return selectedServices.every((sel) => {
+    const group = resolveServiceGroup(sel, catalog);
+    return group === "journal_article" || group === "proposal";
+  });
+}
+
+function requiresUniversityContext(input: {
+  services?: string[];
+  isUniversityEnrolled?: boolean;
+}): boolean {
+  return (
+    !isNonDegreeEligibleServiceSelection(input.services ?? []) ||
+    input.isUniversityEnrolled !== false
+  );
+}
+
 export const contactSchema = v.pipe(
   v.object({
-    // --- Step 1: Client & Academic Context ---
+    // --- Client & Academic Context ---
     firstName: v.pipe(
       v.string("First name is required"),
       v.trim(),
@@ -94,30 +119,18 @@ export const contactSchema = v.pipe(
         "WhatsApp number must include country code in international format (e.g. +27 82 123 4567)"
       )
     ),
-    institutionId: v.pipe(
-      v.string("Please select your institution"),
-      v.minLength(1, "Please select your institution")
-    ),
+    isUniversityEnrolled: v.optional(v.boolean(), true),
+    institutionId: v.optional(v.string(), ""),
     institutionOther: v.optional(v.string()),
-    degreeLevel: v.pipe(
-      v.string("Please select your degree level"),
-      v.minLength(1, "Please select your degree level")
-    ),
+    degreeLevel: v.optional(v.string(), ""),
     degreeLevelOther: v.optional(v.string()),
-    degreeProgramme: v.pipe(
-      v.string("Degree programme is required"),
-      v.trim(),
-      v.minLength(
-        2,
-        "Degree programme is required (e.g. Chemistry, Sociology)"
-      )
-    ),
+    degreeProgramme: v.optional(v.pipe(v.string(), v.trim()), ""),
     researchTitle: v.pipe(
-      v.string("Research title is required"),
+      v.string("Title is required"),
       v.trim(),
       v.minLength(
         3,
-        "Research title is required as it should appear on your completion certificate"
+        "Title is required (at least 3 characters)"
       )
     ),
     referralSource: v.pipe(
@@ -214,7 +227,7 @@ export const contactSchema = v.pipe(
     // client never has to choose it.
     requestedReturnDate: v.optional(v.string()),
     supervisorSignOff: v.picklist(
-      ["yes", "no"],
+      ["yes", "no", "not_applicable"],
       "Please indicate whether supervisor sign-off has been obtained"
     ),
     supervisorDisclaimerAck: v.optional(v.boolean()),
@@ -249,27 +262,77 @@ export const contactSchema = v.pipe(
     hp_website: v.optional(v.string()),
     _formTime: v.optional(v.string()),
   }),
-  // 1. Institution Other
+  // 1a. Institution required when university-enrolled
+  v.forward(
+    v.partialCheck(
+      [["services"], ["isUniversityEnrolled"], ["institutionId"]],
+      (input) =>
+        !requiresUniversityContext(input) ||
+        Boolean(input.institutionId && input.institutionId !== "None"),
+      "Please select your institution"
+    ),
+    ["institutionId"]
+  ),
+  // 1b. Institution Other
   v.forward(
     v.partialCheck(
       [["institutionId"], ["institutionOther"]],
       (input) =>
         input.institutionId !== "Other" ||
         Boolean(input.institutionOther && input.institutionOther.trim().length >= 2),
-      "Please enter the name of your institution"
+      "Please enter the name of your institution or organisation"
     ),
     ["institutionOther"]
   ),
-  // 2. Degree Level Other
+  // 2a. Degree Level required when university-enrolled
   v.forward(
     v.partialCheck(
-      [["degreeLevel"], ["degreeLevelOther"]],
+      [["services"], ["isUniversityEnrolled"], ["degreeLevel"]],
       (input) =>
+        !requiresUniversityContext(input) ||
+        Boolean(input.degreeLevel && input.degreeLevel !== "N/A"),
+      "Please select your degree level"
+    ),
+    ["degreeLevel"]
+  ),
+  // 2b. Degree Level Other
+  v.forward(
+    v.partialCheck(
+      [["services"], ["isUniversityEnrolled"], ["degreeLevel"], ["degreeLevelOther"]],
+      (input) =>
+        !requiresUniversityContext(input) ||
         input.degreeLevel !== "Other" ||
         Boolean(input.degreeLevelOther && input.degreeLevelOther.trim().length >= 2),
       "Please specify your degree designator"
     ),
     ["degreeLevelOther"]
+  ),
+  // 2c. Degree Programme required when university-enrolled
+  v.forward(
+    v.partialCheck(
+      [["services"], ["isUniversityEnrolled"], ["degreeProgramme"]],
+      (input) =>
+        !requiresUniversityContext(input) ||
+        Boolean(
+          input.degreeProgramme &&
+            input.degreeProgramme.trim().length >= 2 &&
+            input.degreeProgramme.trim().toUpperCase() !== "N/A"
+        ),
+      "Degree programme is required (e.g. Chemistry, Sociology)"
+    ),
+    ["degreeProgramme"]
+  ),
+  // 2d. Supervisor Sign-Off required (yes/no) when university-enrolled
+  v.forward(
+    v.partialCheck(
+      [["services"], ["isUniversityEnrolled"], ["supervisorSignOff"]],
+      (input) =>
+        !requiresUniversityContext(input) ||
+        input.supervisorSignOff === "yes" ||
+        input.supervisorSignOff === "no",
+      "Please indicate whether supervisor sign-off has been obtained"
+    ),
+    ["supervisorSignOff"]
   ),
   // 3. Whole or Part -> Which Part
   v.forward(
@@ -379,25 +442,18 @@ export type ContactFormData = v.InferOutput<typeof contactSchema>;
 export const CONTACT_FORM_STEPS = [
   {
     id: 1,
-    title: "Your Details",
-    subtitle: "Client & academic context",
+    title: "Services & Speed",
+    subtitle: "Category & turnaround",
     fields: [
-      "firstName",
-      "surname",
-      "email",
-      "whatsapp",
-      "institutionId",
-      "institutionOther",
-      "degreeLevel",
-      "degreeLevelOther",
-      "degreeProgramme",
-      "researchTitle",
-      "referralSource",
+      "services",
+      "deliverySpeed",
+      "mainGoal",
+      "concerns",
     ] as (keyof ContactFormData)[],
   },
   {
     id: 2,
-    title: "Document Scope & Pages",
+    title: "Document Scope",
     subtitle: "Scope & page count",
     fields: [
       "wholeOrPart",
@@ -408,13 +464,21 @@ export const CONTACT_FORM_STEPS = [
   },
   {
     id: 3,
-    title: "Services & Speed",
-    subtitle: "Rate card & turnaround",
+    title: "Your Details",
+    subtitle: "Client & context",
     fields: [
-      "services",
-      "deliverySpeed",
-      "mainGoal",
-      "concerns",
+      "firstName",
+      "surname",
+      "email",
+      "whatsapp",
+      "isUniversityEnrolled",
+      "institutionId",
+      "institutionOther",
+      "degreeLevel",
+      "degreeLevelOther",
+      "degreeProgramme",
+      "researchTitle",
+      "referralSource",
     ] as (keyof ContactFormData)[],
   },
   {

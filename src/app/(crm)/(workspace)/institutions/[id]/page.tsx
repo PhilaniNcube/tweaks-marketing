@@ -14,6 +14,7 @@ import {
   formatZarFromCents,
   STAGE_LABELS,
 } from "@/components/crm/crm-helpers";
+import { formatDegreeSummary } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default async function InstitutionDetailPage({
   }
   for (const r of instProjects) {
     const pName = r.project.degreeProgramme;
-    if (pName && !projectProgrammesMap.has(pName)) {
+    if (pName && pName.toUpperCase() !== "N/A" && !projectProgrammesMap.has(pName)) {
       projectProgrammesMap.set(pName, 1);
     }
   }
@@ -234,7 +235,10 @@ export default async function InstitutionDetailPage({
                     </div>
                   </td>
                   <td className="py-3 px-3">
-                    {r.project.degreeLevel} — {r.project.degreeProgramme}
+                    {formatDegreeSummary(
+                      r.project.degreeLevel,
+                      r.project.degreeProgramme
+                    )}
                   </td>
                   <td className="py-3 px-3">
                     <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-tweaks-blue/10 text-tweaks-blue">

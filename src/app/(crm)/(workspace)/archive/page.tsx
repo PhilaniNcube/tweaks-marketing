@@ -8,6 +8,7 @@ import {
   formatZarFromCents,
   STAGE_LABELS,
 } from "@/components/crm/crm-helpers";
+import { formatDegreeSummary } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -91,7 +92,10 @@ export default async function ArchivePage() {
                 <td className="py-3.5 px-3">
                   <div className="font-semibold">{r.institutionName}</div>
                   <div className="text-[11px] text-slate-500">
-                    {r.project.degreeLevel} — {r.project.degreeProgramme}
+                    {formatDegreeSummary(
+                      r.project.degreeLevel,
+                      r.project.degreeProgramme
+                    )}
                   </div>
                 </td>
 

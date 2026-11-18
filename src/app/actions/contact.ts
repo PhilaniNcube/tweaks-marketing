@@ -193,6 +193,15 @@ export async function submitContactForm(
           parsedData.supervisorName
         ) {
           const supervisorUrl = `${appUrl}/supervisor/sign-off/${crmResult.supervisorSignOffToken}`;
+          const degreeSummary = [
+            parsedData.degreeLevel,
+            parsedData.degreeProgramme,
+          ]
+            .filter((val) => val && val !== "N/A")
+            .join(" — ");
+          const academicContext = [crmResult.institutionName, degreeSummary]
+            .filter(Boolean)
+            .join(", ");
           await resend.emails.send({
             from: "Tweaks Academic Editing <hello@tweaks.co.za>",
             to: [parsedData.supervisorEmail],
@@ -202,7 +211,7 @@ export async function submitContactForm(
               <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0;">
                 <h2 style="color: #1B0ABD; margin-top: 0;">Supervisor Confirmation Request</h2>
                 <p>Dear ${parsedData.supervisorName},</p>
-                <p><strong>${fullName}</strong> (${crmResult.institutionName}, ${parsedData.degreeLevel} — ${parsedData.degreeProgramme}) has submitted their manuscript titled:</p>
+                <p><strong>${fullName}</strong>${academicContext ? ` (${academicContext})` : ""} has submitted their manuscript titled:</p>
                 <blockquote style="border-left: 3px solid #1B0ABD; padding-left: 12px; color: #334155; font-style: italic;">
                   ${parsedData.researchTitle}
                 </blockquote>

@@ -5,6 +5,7 @@ import {
   deriveDocumentTypeFromServices,
   formatZarFromCents,
 } from "@/lib/pricing/quote-calculator";
+import { formatDegreeSummary } from "@/lib/utils";
 import {
   Html,
   Head,
@@ -111,8 +112,11 @@ export function ContactNotificationEmail({
                       Institution:
                     </td>
                     <td className="py-[6px] text-slate-900">
-                      {institutionName || data.institutionId}
-                      {data.institutionOther && (
+                      {institutionName ||
+                        (data.institutionId && data.institutionId !== "None"
+                          ? data.institutionId
+                          : "Independent Researcher")}
+                      {data.institutionId === "Other" && data.institutionOther && (
                         <span className="text-slate-500 italic">
                           {" "}
                           ({data.institutionOther})
@@ -125,10 +129,12 @@ export function ContactNotificationEmail({
                       Degree & Programme:
                     </td>
                     <td className="py-[6px] text-slate-900">
-                      {data.degreeLevel === "Other"
-                        ? data.degreeLevelOther
-                        : data.degreeLevel}{" "}
-                      — {data.degreeProgramme}
+                      {formatDegreeSummary(
+                        data.degreeLevel === "Other"
+                          ? data.degreeLevelOther
+                          : data.degreeLevel,
+                        data.degreeProgramme
+                      )}
                     </td>
                   </tr>
                   <tr>
@@ -273,11 +279,13 @@ export function ContactNotificationEmail({
                       Supervisor Sign-Off:
                     </td>
                     <td className="py-[6px] text-slate-900">
-                      {data.supervisorSignOff === "yes"
-                        ? "Yes (Declared by student)"
-                        : data.requestSupervisorSignOff
-                          ? `No (Request emailed to ${data.supervisorName} <${data.supervisorEmail}>)`
-                          : "No (Disclaimer acknowledged)"}
+                      {data.supervisorSignOff === "not_applicable"
+                        ? "Not applicable (non-degree / independent)"
+                        : data.supervisorSignOff === "yes"
+                          ? "Yes (Declared by student)"
+                          : data.requestSupervisorSignOff
+                            ? `No (Request emailed to ${data.supervisorName} <${data.supervisorEmail}>)`
+                            : "No (Disclaimer acknowledged)"}
                     </td>
                   </tr>
                   <tr>

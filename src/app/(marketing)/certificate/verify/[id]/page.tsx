@@ -110,10 +110,11 @@ export default async function CertificateVerifyPage({
 
                   <div className="space-y-1">
                     <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-purple-600" /> Institution
+                      <Building2 className="w-3.5 h-3.5 text-purple-600" />{" "}
+                      Institution / Affiliation
                     </span>
                     <p className="text-sm font-medium text-slate-800">
-                      {cert.university}
+                      {cert.university || "Independent Researcher"}
                     </p>
                   </div>
                 </div>

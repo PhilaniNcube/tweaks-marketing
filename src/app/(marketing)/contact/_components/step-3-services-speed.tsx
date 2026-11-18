@@ -78,6 +78,22 @@ export function Step3ServicesSpeed({
     const group = groupedCatalog.find((g) => g.key === groupKey);
     if (!group) return;
 
+    if (groupKey === "thesis" || groupKey === "dissertation") {
+      setValue("isUniversityEnrolled", true);
+      if (watch("supervisorSignOff") === "not_applicable") {
+        setValue("supervisorSignOff", "yes");
+      }
+      if (watch("institutionId") === "None") {
+        setValue("institutionId", "");
+      }
+      if (watch("degreeLevel") === "N/A") {
+        setValue("degreeLevel", "");
+      }
+      if (watch("degreeProgramme") === "N/A") {
+        setValue("degreeProgramme", "");
+      }
+    }
+
     if (group.services.length === 1) {
       setValue("services", [group.services[0].name], { shouldValidate: true });
       return;
@@ -123,7 +139,7 @@ export function Step3ServicesSpeed({
     <div className="animate-in fade-in space-y-6 duration-200">
       <div className="border-b border-border pb-2">
         <h3 className="text-lg font-bold text-foreground">
-          Step 3: Select Services &amp; Turnaround Speed
+          Step 1: Select Services &amp; Turnaround Speed
         </h3>
         <p className="text-xs font-light text-muted-foreground">
           Choose one editing category below, then select the services you need
