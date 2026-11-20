@@ -236,7 +236,7 @@ export function Step3ServicesSpeed({
                         )}
                         <p className="text-[11px] text-muted-foreground">
                           Standard: {svc.standardTurnaroundMinDays}–
-                          {svc.standardTurnaroundMaxDays} days | Express:{" "}
+                          {svc.standardTurnaroundMaxDays} working days | Express:{" "}
                           {svc.expressTurnaroundMinHours ===
                           svc.expressTurnaroundMaxHours
                             ? `${svc.expressTurnaroundMinHours} hours`
@@ -294,7 +294,7 @@ export function Step3ServicesSpeed({
                           )}
                           <FieldDescription className="text-[11px]">
                             Standard: {svc.standardTurnaroundMinDays}–
-                            {svc.standardTurnaroundMaxDays} days | Express:{" "}
+                            {svc.standardTurnaroundMaxDays} working days | Express:{" "}
                             {svc.expressTurnaroundMinHours ===
                             svc.expressTurnaroundMaxHours
                               ? `${svc.expressTurnaroundMinHours} hours`
@@ -361,10 +361,22 @@ export function Step3ServicesSpeed({
                   <span>Standard Delivery</span>
                 </FieldTitle>
                 <FieldDescription>
-                  {liveQuote.turnaround.minDays} to{" "}
-                  {liveQuote.turnaround.maxDays} days in total for the services
-                  selected — we work through them one after another. Standard
-                  rate card applies.
+                  {liveQuote.items.length > 0 ? (
+                    <>
+                      {liveQuote.turnaround.minDays ===
+                      liveQuote.turnaround.maxDays
+                        ? `${liveQuote.turnaround.minDays} working days`
+                        : `${liveQuote.turnaround.minDays} to ${liveQuote.turnaround.maxDays} working days`}{" "}
+                      in total for the services selected — we work through them
+                      one after another. Standard rate card applies.
+                    </>
+                  ) : (
+                    <>
+                      Turnaround in working days is determined by the services
+                      you select above — we work through them one after another.
+                      Standard rate card applies.
+                    </>
+                  )}
                 </FieldDescription>
               </FieldContent>
             </Field>
@@ -390,10 +402,22 @@ export function Step3ServicesSpeed({
                   <span>Express Priority</span>
                 </FieldTitle>
                 <FieldDescription>
-                  {liveQuote.turnaround.expressMinHours} to{" "}
-                  {liveQuote.turnaround.expressMaxHours} hours in total, working
-                  through each selected service in priority sequence. Express
-                  surcharge applies.
+                  {liveQuote.items.length > 0 ? (
+                    <>
+                      {liveQuote.turnaround.expressMinHours ===
+                      liveQuote.turnaround.expressMaxHours
+                        ? `${liveQuote.turnaround.expressMinHours} hours`
+                        : `${liveQuote.turnaround.expressMinHours} to ${liveQuote.turnaround.expressMaxHours} hours`}{" "}
+                      in total, working through each selected service in
+                      priority sequence. Express surcharge applies.
+                    </>
+                  ) : (
+                    <>
+                      Priority turnaround is determined by the services you
+                      select above, working through each selected service in
+                      priority sequence. Express surcharge applies.
+                    </>
+                  )}
                 </FieldDescription>
               </FieldContent>
             </Field>

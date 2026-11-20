@@ -17,7 +17,7 @@ import {
   deriveDocumentTypeFromServices,
   type CalculatedQuoteResult,
 } from "@/lib/pricing/quote-calculator";
-import { addDaysToIsoDate } from "@/lib/date-utils";
+import { addWorkingDaysToIsoDate } from "@/lib/date-utils";
 
 export interface BriefSubmissionDatabaseResult {
   clientId: string;
@@ -275,8 +275,8 @@ export async function recordBriefAndGenerateQuote(
 
   // The client never picks a return date: it follows from the date they send
   // the document plus the total turnaround of every selected service (they are
-  // worked through one after another, so their days add up).
-  const requestedReturnDate = addDaysToIsoDate(
+  // worked through one after another, so their working days add up).
+  const requestedReturnDate = addWorkingDaysToIsoDate(
     data.expectedSendDate,
     quoteSummary.turnaround.minimumReturnOffsetDays
   );

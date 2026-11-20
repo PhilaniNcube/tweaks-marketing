@@ -280,7 +280,7 @@ export default function ReferenceListEditing() {
                         Standard Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        2 - 4 Days Included
+                        2 - 4 Working Days Included
                       </span>
                     </button>
                     <button

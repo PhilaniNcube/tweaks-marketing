@@ -21,6 +21,8 @@ interface ServiceDef {
   numberMax: number;
   basePrice: number;
   expressAddon: number;
+  standardTurnaround: string;
+  expressTurnaround: string;
   flat?: boolean;
   wordsPerPage?: number;
 }
@@ -36,6 +38,8 @@ const services: ServiceDef[] = [
     numberMax: 1000,
     basePrice: 45.0,
     expressAddon: 15.0,
+    standardTurnaround: "3 - 5 Working Days",
+    expressTurnaround: "24 - 48 Hours",
     wordsPerPage: 300,
   },
   {
@@ -48,6 +52,8 @@ const services: ServiceDef[] = [
     numberMax: 1000,
     basePrice: 7.5,
     expressAddon: 3.0,
+    standardTurnaround: "3 - 5 Working Days",
+    expressTurnaround: "24 - 48 Hours",
     wordsPerPage: 300,
   },
   {
@@ -60,6 +66,8 @@ const services: ServiceDef[] = [
     numberMax: 500,
     basePrice: 50.0,
     expressAddon: 25.0,
+    standardTurnaround: "2 - 4 Working Days",
+    expressTurnaround: "24 Hours",
     wordsPerPage: 300,
   },
   {
@@ -72,6 +80,8 @@ const services: ServiceDef[] = [
     numberMax: 1,
     basePrice: 1500.0,
     expressAddon: 800.0,
+    standardTurnaround: "5 - 7 Working Days",
+    expressTurnaround: "48 - 72 Hours",
     flat: true,
   },
 ];
@@ -112,7 +122,7 @@ export default function StepGuide() {
     const speed = speeds[svc.id] ?? "standard";
     const rate =
       speed === "express" ? svc.basePrice + svc.expressAddon : svc.basePrice;
-    const subtotal = svc.flat ? svc.basePrice : qty * rate;
+    const subtotal = (svc.flat ? 1 : qty) * rate;
     return { qty, speed, subtotal };
   };
 
@@ -312,66 +322,66 @@ export default function StepGuide() {
                     </div>
                   )}
 
-                  {activeService.flat ? (
+                  {activeService.flat && (
                     <div className="text-xs text-slate-500 dark:text-zinc-400 font-light">
-                      This is a flat-fee service &mdash; no quantity or
-                      delivery-speed adjustment required.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="text-xs font-semibold">
-                        Delivery Speed Option:
-                      </div>
-                      <div className="grid md:grid-cols-2 gap-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            setSpeeds((sp) => ({
-                              ...sp,
-                              [activeService.id]: "standard",
-                            }))
-                          }
-                          className={`h-auto flex-col items-start p-3 border text-left rounded-none transition-all cursor-pointer ${
-                            activeCost.speed === "standard"
-                              ? "border-tweaks-blue bg-indigo-50/10 text-tweaks-blue font-semibold"
-                              : ""
-                          }`}
-                        >
-                          <span className="text-xs uppercase tracking-wider font-bold">
-                            Standard Delivery
-                          </span>
-                          <span className="text-xs font-light mt-1">
-                            3 - 5 Days Included
-                          </span>
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            setSpeeds((sp) => ({
-                              ...sp,
-                              [activeService.id]: "express",
-                            }))
-                          }
-                          className={`h-auto flex-col items-start p-3 border text-left rounded-none transition-all cursor-pointer ${
-                            activeCost.speed === "express"
-                              ? "border-tweaks-blue bg-indigo-50/10 text-tweaks-blue font-semibold"
-                              : ""
-                          }`}
-                        >
-                          <span className="text-xs uppercase tracking-wider font-bold">
-                            Express Delivery
-                          </span>
-                          <span className="text-xs font-light mt-1">
-                            24 - 48 Hours (+R{" "}
-                            {formatZAR(activeService.expressAddon)} /{" "}
-                            {activeService.unit})
-                          </span>
-                        </Button>
-                      </div>
+                      This is a flat-fee service per document &mdash; no page
+                      quantity adjustment required.
                     </div>
                   )}
+
+                  <div className="space-y-3">
+                    <div className="text-xs font-semibold">
+                      Delivery Speed Option:
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          setSpeeds((sp) => ({
+                            ...sp,
+                            [activeService.id]: "standard",
+                          }))
+                        }
+                        className={`h-auto flex-col items-start p-3 border text-left rounded-none transition-all cursor-pointer ${
+                          activeCost.speed === "standard"
+                            ? "border-tweaks-blue bg-indigo-50/10 text-tweaks-blue font-semibold"
+                            : ""
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wider font-bold">
+                          Standard Delivery
+                        </span>
+                        <span className="text-xs font-light mt-1">
+                          {activeService.standardTurnaround} Included
+                        </span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          setSpeeds((sp) => ({
+                            ...sp,
+                            [activeService.id]: "express",
+                          }))
+                        }
+                        className={`h-auto flex-col items-start p-3 border text-left rounded-none transition-all cursor-pointer ${
+                          activeCost.speed === "express"
+                            ? "border-tweaks-blue bg-indigo-50/10 text-tweaks-blue font-semibold"
+                            : ""
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wider font-bold">
+                          Express Delivery
+                        </span>
+                        <span className="text-xs font-light mt-1">
+                          {activeService.expressTurnaround} (+R{" "}
+                          {formatZAR(activeService.expressAddon)} /{" "}
+                          {activeService.unit})
+                        </span>
+                      </Button>
+                    </div>
+                  </div>
 
                   {/* Active service subtotal */}
                   <div className="flex justify-between items-baseline border-t border-slate-100 dark:border-zinc-900/80 pt-3">

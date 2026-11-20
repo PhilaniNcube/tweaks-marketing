@@ -559,7 +559,7 @@ export function SettingsClient({
                                 }
                                 className="w-12 px-1 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-center"
                               />
-                              <span className="text-[10px] text-slate-400">days</span>
+                              <span className="text-[10px] text-slate-400">working days</span>
                             </div>
                           </td>
 

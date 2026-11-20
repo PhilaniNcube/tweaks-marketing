@@ -275,7 +275,7 @@ matches the journal&apos;s standards.
                         Standard Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        7 - 10 Days Included
+                        7 - 10 Working Days Included
                       </span>
                     </button>
                     <button

@@ -97,7 +97,7 @@ export interface TurnaroundSummary {
   maxDays: number;
   expressMinHours: number;
   expressMaxHours: number;
-  /** Minimum calendar days to add to expectedSendDate for date validation */
+  /** Minimum working days to add to expectedSendDate for date calculation */
   minimumReturnOffsetDays: number;
   displayLabel: string;
 }
@@ -485,28 +485,30 @@ export function calculateQuoteFromCatalog(
 
   // Turnaround calculation: services are worked through one after another,
   // so each selected service adds its own time (they do not run in parallel).
-  const sumBy = (
-    pick: (svc: Service) => number,
-    fallback: number
-  ): number =>
-    matchedServices.length > 0
-      ? matchedServices.reduce((total, svc) => total + pick(svc), 0)
-      : fallback;
+  const sumBy = (pick: (svc: Service) => number): number =>
+    matchedServices.reduce((total, svc) => total + pick(svc), 0);
 
-  const minDays = sumBy((s) => s.standardTurnaroundMinDays, 3);
-  const maxDays = sumBy((s) => s.standardTurnaroundMaxDays, 5);
-  const expressMinHours = sumBy((s) => s.expressTurnaroundMinHours, 24);
-  const expressMaxHours = sumBy((s) => s.expressTurnaroundMaxHours, 48);
+  const minDays = sumBy((s) => s.standardTurnaroundMinDays);
+  const maxDays = sumBy((s) => s.standardTurnaroundMaxDays);
+  const expressMinHours = sumBy((s) => s.expressTurnaroundMinHours);
+  const expressMaxHours = sumBy((s) => s.expressTurnaroundMaxHours);
 
   const minimumReturnOffsetDays = isExpress
     ? Math.ceil(expressMinHours / 24)
     : minDays;
 
-  const displayLabel = isExpress
-    ? expressMinHours === expressMaxHours
-      ? `${expressMinHours} hours (Express)`
-      : `${expressMinHours} to ${expressMaxHours} hours (Express)`
-    : `${minDays} to ${maxDays} days (Standard)`;
+  const displayLabel =
+    matchedServices.length === 0
+      ? isExpress
+        ? "Select services for express turnaround"
+        : "Select services for standard turnaround (working days)"
+      : isExpress
+        ? expressMinHours === expressMaxHours
+          ? `${expressMinHours} hours (Express)`
+          : `${expressMinHours} to ${expressMaxHours} hours (Express)`
+        : minDays === maxDays
+          ? `${minDays} working days (Standard)`
+          : `${minDays} to ${maxDays} working days (Standard)`;
 
   return {
     items,
