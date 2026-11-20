@@ -485,19 +485,21 @@ export function calculateQuoteFromCatalog(
     }
   }
 
-  // Turnaround calculation: services are worked through one after another,
-  // so each selected service adds its own time (they do not run in parallel).
-  const sumBy = (pick: (svc: Service) => number): number =>
-    matchedServices.reduce((total, svc) => total + pick(svc), 0);
+  // Turnaround calculation: the overall turnaround is governed by the selected
+  // service(s) within the chosen category (longest turnaround among selected services).
+  const maxBy = (pick: (svc: Service) => number): number =>
+    matchedServices.length > 0
+      ? Math.max(...matchedServices.map(pick))
+      : 0;
 
-  const minDays = sumBy((s) => s.standardTurnaroundMinDays);
-  const maxDays = sumBy((s) => s.standardTurnaroundMaxDays);
-  const expressMinHours = sumBy((s) => s.expressTurnaroundMinHours);
-  const expressMaxHours = sumBy((s) => s.expressTurnaroundMaxHours);
-  const expressMinDays = sumBy((s) =>
+  const minDays = maxBy((s) => s.standardTurnaroundMinDays);
+  const maxDays = maxBy((s) => s.standardTurnaroundMaxDays);
+  const expressMinHours = maxBy((s) => s.expressTurnaroundMinHours);
+  const expressMaxHours = maxBy((s) => s.expressTurnaroundMaxHours);
+  const expressMinDays = maxBy((s) =>
     Math.max(1, Math.ceil(s.expressTurnaroundMinHours / 24))
   );
-  const expressMaxDays = sumBy((s) =>
+  const expressMaxDays = maxBy((s) =>
     Math.max(1, Math.ceil(s.expressTurnaroundMaxHours / 24))
   );
 

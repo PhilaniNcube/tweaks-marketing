@@ -275,7 +275,7 @@ matches the journal&apos;s standards.
                         Standard Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        7 - 10 Working Days Included
+                        5 Working Days Included
                       </span>
                     </button>
                     <button
@@ -291,7 +291,7 @@ matches the journal&apos;s standards.
                         Express Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        2 - 3 Working Days (+R1,500 / article)
+                        3 Working Days (+R1,500 / article)
                       </span>
                     </button>
                   </div>

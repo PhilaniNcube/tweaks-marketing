@@ -1158,6 +1158,8 @@ export async function updateServiceRateCardItem(input: {
   expressSurchargeRands: number;
   standardTurnaroundMinDays: number;
   standardTurnaroundMaxDays: number;
+  expressTurnaroundMinDays?: number;
+  expressTurnaroundMaxDays?: number;
   quickbooksItemId?: string;
   isActive: boolean;
 }) {
@@ -1170,6 +1172,22 @@ export async function updateServiceRateCardItem(input: {
         expressSurchargeCents: Math.round(input.expressSurchargeRands * 100),
         standardTurnaroundMinDays: input.standardTurnaroundMinDays,
         standardTurnaroundMaxDays: input.standardTurnaroundMaxDays,
+        ...(input.expressTurnaroundMinDays !== undefined
+          ? {
+              expressTurnaroundMinHours: Math.max(
+                1,
+                Math.round(input.expressTurnaroundMinDays)
+              ) * 24,
+            }
+          : {}),
+        ...(input.expressTurnaroundMaxDays !== undefined
+          ? {
+              expressTurnaroundMaxHours: Math.max(
+                1,
+                Math.round(input.expressTurnaroundMaxDays)
+              ) * 24,
+            }
+          : {}),
         quickbooksItemId: input.quickbooksItemId?.trim() || null,
         isActive: input.isActive,
         updatedAt: new Date().toISOString(),

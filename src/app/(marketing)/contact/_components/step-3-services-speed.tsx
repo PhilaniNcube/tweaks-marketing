@@ -41,6 +41,15 @@ function getBasisLabel(svc: Service): string {
   return "flat per document";
 }
 
+function formatStandardWorkingDays(svc: Service, rangeSeparator = "–"): string {
+  const minDays = svc.standardTurnaroundMinDays;
+  const maxDays = svc.standardTurnaroundMaxDays;
+  if (minDays === maxDays) {
+    return `${minDays} ${minDays === 1 ? "working day" : "working days"}`;
+  }
+  return `${minDays}${rangeSeparator}${maxDays} working days`;
+}
+
 function formatExpressWorkingDays(svc: Service, rangeSeparator = "–"): string {
   const minDays = Math.max(1, Math.ceil(svc.expressTurnaroundMinHours / 24));
   const maxDays = Math.max(1, Math.ceil(svc.expressTurnaroundMaxHours / 24));
@@ -244,8 +253,7 @@ export function Step3ServicesSpeed({
                           </p>
                         )}
                         <p className="text-[11px] text-muted-foreground">
-                          Standard: {svc.standardTurnaroundMinDays}–
-                          {svc.standardTurnaroundMaxDays} working days | Express:{" "}
+                          Standard: {formatStandardWorkingDays(svc)} | Express:{" "}
                           {formatExpressWorkingDays(svc)} (+
                           {formatZarFromCents(svc.expressSurchargeCents, false)}{" "}
                           {basisLabel})
@@ -298,8 +306,7 @@ export function Step3ServicesSpeed({
                             </FieldDescription>
                           )}
                           <FieldDescription className="text-[11px]">
-                            Standard: {svc.standardTurnaroundMinDays}–
-                            {svc.standardTurnaroundMaxDays} working days | Express:{" "}
+                            Standard: {formatStandardWorkingDays(svc)} | Express:{" "}
                             {formatExpressWorkingDays(svc)} (+
                             {formatZarFromCents(
                               svc.expressSurchargeCents,
@@ -366,16 +373,14 @@ export function Step3ServicesSpeed({
                     <>
                       {liveQuote.turnaround.minDays ===
                       liveQuote.turnaround.maxDays
-                        ? `${liveQuote.turnaround.minDays} working days`
+                        ? `${liveQuote.turnaround.minDays} ${liveQuote.turnaround.minDays === 1 ? "working day" : "working days"}`
                         : `${liveQuote.turnaround.minDays} to ${liveQuote.turnaround.maxDays} working days`}{" "}
-                      in total for the services selected — we work through them
-                      one after another. Standard rate card applies.
+                      for the services selected. Standard rate card applies.
                     </>
                   ) : (
                     <>
                       Turnaround in working days is determined by the services
-                      you select above — we work through them one after another.
-                      Standard rate card applies.
+                      you select above. Standard rate card applies.
                     </>
                   )}
                 </FieldDescription>
@@ -409,14 +414,12 @@ export function Step3ServicesSpeed({
                       liveQuote.turnaround.expressMaxDays
                         ? `${liveQuote.turnaround.expressMinDays} ${liveQuote.turnaround.expressMinDays === 1 ? "working day" : "working days"}`
                         : `${liveQuote.turnaround.expressMinDays} to ${liveQuote.turnaround.expressMaxDays} working days`}{" "}
-                      in total, working through each selected service in
-                      priority sequence. Express surcharge applies.
+                      for the services selected. Express surcharge applies.
                     </>
                   ) : (
                     <>
                       Priority turnaround in working days is determined by the
-                      services you select above, working through each selected
-                      service in priority sequence. Express surcharge applies.
+                      services you select above. Express surcharge applies.
                     </>
                   )}
                 </FieldDescription>

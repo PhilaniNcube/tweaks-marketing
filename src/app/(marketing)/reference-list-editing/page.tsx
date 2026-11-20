@@ -280,7 +280,7 @@ export default function ReferenceListEditing() {
                         Standard Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        2 - 4 Working Days Included
+                        10 Working Days Included
                       </span>
                     </button>
                     <button
@@ -296,7 +296,7 @@ export default function ReferenceListEditing() {
                         Express Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        1 Working Day (+R25 / page)
+                        7 Working Days (+R25 / page)
                       </span>
                     </button>
                   </div>

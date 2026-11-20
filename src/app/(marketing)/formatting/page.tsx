@@ -281,7 +281,7 @@ export default function Formatting() {
                         Standard Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        5 - 7 Working Days Included
+                        10 Working Days Included
                       </span>
                     </button>
                     <button
@@ -297,7 +297,7 @@ export default function Formatting() {
                         Express Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        2 - 3 Working Days (+R800 / document)
+                        7 Working Days (+R800 / document)
                       </span>
                     </button>
                   </div>

@@ -277,7 +277,7 @@ export default function ReferenceChecking() {
                         Standard Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        3 - 5 Working Days Included
+                        10 Working Days Included
                       </span>
                     </button>
                     <button
@@ -293,7 +293,7 @@ export default function ReferenceChecking() {
                         Express Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        1 - 2 Working Days (+R3 / page)
+                        7 Working Days (+R3 / page)
                       </span>
                     </button>
                   </div>

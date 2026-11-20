@@ -235,7 +235,7 @@ export default function AcademicEditing() {
                       }`}
                     >
                       <span className="text-xs uppercase tracking-wider font-bold">Standard Delivery</span>
-                      <span className="text-xs font-light mt-1">3 - 5 Working Days Included</span>
+                      <span className="text-xs font-light mt-1">10 Working Days Included</span>
                     </button>
                     <button
                       type="button"
@@ -247,7 +247,7 @@ export default function AcademicEditing() {
                       }`}
                     >
                       <span className="text-xs uppercase tracking-wider font-bold">Express Delivery</span>
-                      <span className="text-xs font-light mt-1">1 - 2 Working Days (+R15 / page)</span>
+                      <span className="text-xs font-light mt-1">7 Working Days (+R15 / page)</span>
                     </button>
                   </div>
                 </div>

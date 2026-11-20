@@ -8,6 +8,16 @@ import type {
 
 /**
  * Default Service Catalog & Rate Card (Website as Source of Truth)
+ *
+ * Turnarounds are agreed per service category and are always quoted to clients
+ * in working days (Monday–Friday):
+ *   - Thesis Editing:       10 standard | 7 express
+ *   - Dissertation Editing: 14 standard | 10 express
+ *   - Journal Article:       5 standard | 3 express
+ *   - Proposal:              5 standard | 3 express
+ *
+ * Express turnaround is persisted in hours (working days × 24) because of the
+ * existing column shape; it is always displayed in working days.
  */
 export const DEFAULT_SERVICES: NewService[] = [
   // 1. Thesis Editing
@@ -21,10 +31,10 @@ export const DEFAULT_SERVICES: NewService[] = [
     standardRateCents: 4500, // R45.00 per page
     expressSurchargeCents: 1500, // +R15.00 per page
     hasExpressOption: true,
-    standardTurnaroundMinDays: 3,
-    standardTurnaroundMaxDays: 5,
-    expressTurnaroundMinHours: 24,
-    expressTurnaroundMaxHours: 48,
+    standardTurnaroundMinDays: 10,
+    standardTurnaroundMaxDays: 10,
+    expressTurnaroundMinHours: 7 * 24,
+    expressTurnaroundMaxHours: 7 * 24,
     includesReferencingReport: false,
     sortOrder: 1,
     isActive: true,
@@ -39,10 +49,10 @@ export const DEFAULT_SERVICES: NewService[] = [
     standardRateCents: 750, // R7.50 per page
     expressSurchargeCents: 300, // +R3.00 per page
     hasExpressOption: true,
-    standardTurnaroundMinDays: 3,
-    standardTurnaroundMaxDays: 5,
-    expressTurnaroundMinHours: 24,
-    expressTurnaroundMaxHours: 48,
+    standardTurnaroundMinDays: 10,
+    standardTurnaroundMaxDays: 10,
+    expressTurnaroundMinHours: 7 * 24,
+    expressTurnaroundMaxHours: 7 * 24,
     includesReferencingReport: true,
     sortOrder: 2,
     isActive: true,
@@ -57,10 +67,10 @@ export const DEFAULT_SERVICES: NewService[] = [
     standardRateCents: 5000, // R50.00 per reference page
     expressSurchargeCents: 2500, // +R25.00 per reference page
     hasExpressOption: true,
-    standardTurnaroundMinDays: 2,
-    standardTurnaroundMaxDays: 4,
-    expressTurnaroundMinHours: 24,
-    expressTurnaroundMaxHours: 24,
+    standardTurnaroundMinDays: 10,
+    standardTurnaroundMaxDays: 10,
+    expressTurnaroundMinHours: 7 * 24,
+    expressTurnaroundMaxHours: 7 * 24,
     includesReferencingReport: true,
     sortOrder: 3,
     isActive: true,
@@ -75,10 +85,10 @@ export const DEFAULT_SERVICES: NewService[] = [
     standardRateCents: 150000, // R1,500.00 flat per document
     expressSurchargeCents: 80000, // +R800.00 flat per document
     hasExpressOption: true,
-    standardTurnaroundMinDays: 5,
-    standardTurnaroundMaxDays: 7,
-    expressTurnaroundMinHours: 48,
-    expressTurnaroundMaxHours: 72,
+    standardTurnaroundMinDays: 10,
+    standardTurnaroundMaxDays: 10,
+    expressTurnaroundMinHours: 7 * 24,
+    expressTurnaroundMaxHours: 7 * 24,
     includesReferencingReport: false,
     sortOrder: 4,
     isActive: true,
@@ -95,10 +105,10 @@ export const DEFAULT_SERVICES: NewService[] = [
     standardRateCents: 4500, // R45.00 per page
     expressSurchargeCents: 1500, // +R15.00 per page
     hasExpressOption: true,
-    standardTurnaroundMinDays: 3,
-    standardTurnaroundMaxDays: 5,
-    expressTurnaroundMinHours: 24,
-    expressTurnaroundMaxHours: 48,
+    standardTurnaroundMinDays: 14,
+    standardTurnaroundMaxDays: 14,
+    expressTurnaroundMinHours: 10 * 24,
+    expressTurnaroundMaxHours: 10 * 24,
     includesReferencingReport: false,
     sortOrder: 5,
     isActive: true,
@@ -113,10 +123,10 @@ export const DEFAULT_SERVICES: NewService[] = [
     standardRateCents: 750, // R7.50 per page
     expressSurchargeCents: 300, // +R3.00 per page
     hasExpressOption: true,
-    standardTurnaroundMinDays: 3,
-    standardTurnaroundMaxDays: 5,
-    expressTurnaroundMinHours: 24,
-    expressTurnaroundMaxHours: 48,
+    standardTurnaroundMinDays: 14,
+    standardTurnaroundMaxDays: 14,
+    expressTurnaroundMinHours: 10 * 24,
+    expressTurnaroundMaxHours: 10 * 24,
     includesReferencingReport: true,
     sortOrder: 6,
     isActive: true,
@@ -131,10 +141,10 @@ export const DEFAULT_SERVICES: NewService[] = [
     standardRateCents: 5000, // R50.00 per reference page
     expressSurchargeCents: 2500, // +R25.00 per reference page
     hasExpressOption: true,
-    standardTurnaroundMinDays: 2,
-    standardTurnaroundMaxDays: 4,
-    expressTurnaroundMinHours: 24,
-    expressTurnaroundMaxHours: 24,
+    standardTurnaroundMinDays: 14,
+    standardTurnaroundMaxDays: 14,
+    expressTurnaroundMinHours: 10 * 24,
+    expressTurnaroundMaxHours: 10 * 24,
     includesReferencingReport: true,
     sortOrder: 7,
     isActive: true,
@@ -149,10 +159,10 @@ export const DEFAULT_SERVICES: NewService[] = [
     standardRateCents: 150000, // R1,500.00 flat per document
     expressSurchargeCents: 80000, // +R800.00 flat per document
     hasExpressOption: true,
-    standardTurnaroundMinDays: 5,
-    standardTurnaroundMaxDays: 7,
-    expressTurnaroundMinHours: 48,
-    expressTurnaroundMaxHours: 72,
+    standardTurnaroundMinDays: 14,
+    standardTurnaroundMaxDays: 14,
+    expressTurnaroundMinHours: 10 * 24,
+    expressTurnaroundMaxHours: 10 * 24,
     includesReferencingReport: false,
     sortOrder: 8,
     isActive: true,
@@ -169,10 +179,10 @@ export const DEFAULT_SERVICES: NewService[] = [
     standardRateCents: 220000, // R2,200.00 flat per article
     expressSurchargeCents: 150000, // +R1,500.00 flat per article
     hasExpressOption: true,
-    standardTurnaroundMinDays: 7,
-    standardTurnaroundMaxDays: 10,
-    expressTurnaroundMinHours: 48,
-    expressTurnaroundMaxHours: 72,
+    standardTurnaroundMinDays: 5,
+    standardTurnaroundMaxDays: 5,
+    expressTurnaroundMinHours: 3 * 24,
+    expressTurnaroundMaxHours: 3 * 24,
     includesReferencingReport: false,
     sortOrder: 9,
     isActive: true,
@@ -189,10 +199,10 @@ export const DEFAULT_SERVICES: NewService[] = [
     standardRateCents: 220000, // R2,200.00 flat per proposal
     expressSurchargeCents: 150000, // +R1,500.00 flat per proposal
     hasExpressOption: true,
-    standardTurnaroundMinDays: 7,
-    standardTurnaroundMaxDays: 10,
-    expressTurnaroundMinHours: 48,
-    expressTurnaroundMaxHours: 72,
+    standardTurnaroundMinDays: 5,
+    standardTurnaroundMaxDays: 5,
+    expressTurnaroundMinHours: 3 * 24,
+    expressTurnaroundMaxHours: 3 * 24,
     includesReferencingReport: false,
     sortOrder: 10,
     isActive: true,

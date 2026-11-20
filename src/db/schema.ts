@@ -91,6 +91,11 @@ export const services = sqliteTable("services", {
     .notNull(),
   standardTurnaroundMinDays: integer("standard_turnaround_min_days").notNull(),
   standardTurnaroundMaxDays: integer("standard_turnaround_max_days").notNull(),
+  /**
+   * Express turnaround is always quoted to clients in working days. It is stored
+   * as hours (working days × 24) so the column keeps its original shape; read it
+   * with `Math.ceil(hours / 24)` to get the working-day value.
+   */
   expressTurnaroundMinHours: integer("express_turnaround_min_hours").notNull(),
   expressTurnaroundMaxHours: integer("express_turnaround_max_hours").notNull(),
   /** Whether purchasing this service includes a Referencing Report in the handover package */

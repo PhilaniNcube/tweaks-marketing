@@ -139,6 +139,8 @@ export function SettingsClient({
         expressSurchargeRands: number;
         minDays: number;
         maxDays: number;
+        expressMinDays: number;
+        expressMaxDays: number;
         qbItemId: string;
         isActive: boolean;
       }
@@ -151,6 +153,8 @@ export function SettingsClient({
         expressSurchargeRands: number;
         minDays: number;
         maxDays: number;
+        expressMinDays: number;
+        expressMaxDays: number;
         qbItemId: string;
         isActive: boolean;
       }
@@ -161,6 +165,8 @@ export function SettingsClient({
         expressSurchargeRands: s.expressSurchargeCents / 100,
         minDays: s.standardTurnaroundMinDays,
         maxDays: s.standardTurnaroundMaxDays,
+        expressMinDays: Math.max(1, Math.ceil(s.expressTurnaroundMinHours / 24)),
+        expressMaxDays: Math.max(1, Math.ceil(s.expressTurnaroundMaxHours / 24)),
         qbItemId: s.quickbooksItemId || "",
         isActive: s.isActive,
       };
@@ -223,6 +229,8 @@ export function SettingsClient({
         expressSurchargeRands: Number(d.expressSurchargeRands),
         standardTurnaroundMinDays: Number(d.minDays),
         standardTurnaroundMaxDays: Number(d.maxDays),
+        expressTurnaroundMinDays: Number(d.expressMinDays),
+        expressTurnaroundMaxDays: Number(d.expressMaxDays),
         quickbooksItemId: d.qbItemId,
         isActive: d.isActive,
       });
@@ -420,7 +428,7 @@ export function SettingsClient({
                 <th className="py-2.5 px-3">Pricing Basis</th>
                 <th className="py-2.5 px-3">Standard Rate (ZAR)</th>
                 <th className="py-2.5 px-3">Express Surcharge (ZAR)</th>
-                <th className="py-2.5 px-3">Standard Turnaround</th>
+                <th className="py-2.5 px-3">Turnaround (Working Days)</th>
                 <th className="py-2.5 px-3">QB Item ID</th>
                 <th className="py-2.5 px-3">Active</th>
                 <th className="py-2.5 px-3 text-right">Action</th>
@@ -454,6 +462,14 @@ export function SettingsClient({
                         expressSurchargeRands: svc.expressSurchargeCents / 100,
                         minDays: svc.standardTurnaroundMinDays,
                         maxDays: svc.standardTurnaroundMaxDays,
+                        expressMinDays: Math.max(
+                          1,
+                          Math.ceil(svc.expressTurnaroundMinHours / 24),
+                        ),
+                        expressMaxDays: Math.max(
+                          1,
+                          Math.ceil(svc.expressTurnaroundMaxHours / 24),
+                        ),
                         qbItemId: svc.quickbooksItemId || "",
                         isActive: svc.isActive,
                       };
@@ -529,37 +545,85 @@ export function SettingsClient({
                           </td>
 
                           <td className="py-3 px-3">
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                value={draft.minDays}
-                                onChange={(e) =>
-                                  setSvcDrafts((prev) => ({
-                                    ...prev,
-                                    [svc.id]: {
-                                      ...draft,
-                                      minDays: parseInt(e.target.value) || 0,
-                                    },
-                                  }))
-                                }
-                                className="w-12 px-1 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-center"
-                              />
-                              <span className="text-slate-400">-</span>
-                              <input
-                                type="number"
-                                value={draft.maxDays}
-                                onChange={(e) =>
-                                  setSvcDrafts((prev) => ({
-                                    ...prev,
-                                    [svc.id]: {
-                                      ...draft,
-                                      maxDays: parseInt(e.target.value) || 0,
-                                    },
-                                  }))
-                                }
-                                className="w-12 px-1 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-center"
-                              />
-                              <span className="text-[10px] text-slate-400">working days</span>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1">
+                                <span className="w-14 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                  Standard
+                                </span>
+                                <input
+                                  type="number"
+                                  value={draft.minDays}
+                                  onChange={(e) =>
+                                    setSvcDrafts((prev) => ({
+                                      ...prev,
+                                      [svc.id]: {
+                                        ...draft,
+                                        minDays: parseInt(e.target.value) || 0,
+                                      },
+                                    }))
+                                  }
+                                  className="w-12 px-1 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-center"
+                                />
+                                <span className="text-slate-400">-</span>
+                                <input
+                                  type="number"
+                                  value={draft.maxDays}
+                                  onChange={(e) =>
+                                    setSvcDrafts((prev) => ({
+                                      ...prev,
+                                      [svc.id]: {
+                                        ...draft,
+                                        maxDays: parseInt(e.target.value) || 0,
+                                      },
+                                    }))
+                                  }
+                                  className="w-12 px-1 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-center"
+                                />
+                                <span className="text-[10px] text-slate-400">
+                                  days
+                                </span>
+                              </div>
+                              {svc.hasExpressOption && (
+                                <div className="flex items-center gap-1">
+                                  <span className="w-14 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                    Express
+                                  </span>
+                                  <input
+                                    type="number"
+                                    value={draft.expressMinDays}
+                                    onChange={(e) =>
+                                      setSvcDrafts((prev) => ({
+                                        ...prev,
+                                        [svc.id]: {
+                                          ...draft,
+                                          expressMinDays:
+                                            parseInt(e.target.value) || 0,
+                                        },
+                                      }))
+                                    }
+                                    className="w-12 px-1 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-center"
+                                  />
+                                  <span className="text-slate-400">-</span>
+                                  <input
+                                    type="number"
+                                    value={draft.expressMaxDays}
+                                    onChange={(e) =>
+                                      setSvcDrafts((prev) => ({
+                                        ...prev,
+                                        [svc.id]: {
+                                          ...draft,
+                                          expressMaxDays:
+                                            parseInt(e.target.value) || 0,
+                                        },
+                                      }))
+                                    }
+                                    className="w-12 px-1 py-1 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-mono text-center"
+                                  />
+                                  <span className="text-[10px] text-slate-400">
+                                    days
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </td>
 

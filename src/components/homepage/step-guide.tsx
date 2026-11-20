@@ -38,8 +38,8 @@ const services: ServiceDef[] = [
     numberMax: 1000,
     basePrice: 45.0,
     expressAddon: 15.0,
-    standardTurnaround: "3 - 5 Working Days",
-    expressTurnaround: "1 - 2 Working Days",
+    standardTurnaround: "10 Working Days",
+    expressTurnaround: "7 Working Days",
     wordsPerPage: 300,
   },
   {
@@ -52,8 +52,8 @@ const services: ServiceDef[] = [
     numberMax: 1000,
     basePrice: 7.5,
     expressAddon: 3.0,
-    standardTurnaround: "3 - 5 Working Days",
-    expressTurnaround: "1 - 2 Working Days",
+    standardTurnaround: "10 Working Days",
+    expressTurnaround: "7 Working Days",
     wordsPerPage: 300,
   },
   {
@@ -66,8 +66,8 @@ const services: ServiceDef[] = [
     numberMax: 500,
     basePrice: 50.0,
     expressAddon: 25.0,
-    standardTurnaround: "2 - 4 Working Days",
-    expressTurnaround: "1 Working Day",
+    standardTurnaround: "10 Working Days",
+    expressTurnaround: "7 Working Days",
     wordsPerPage: 300,
   },
   {
@@ -80,8 +80,8 @@ const services: ServiceDef[] = [
     numberMax: 1,
     basePrice: 1500.0,
     expressAddon: 800.0,
-    standardTurnaround: "5 - 7 Working Days",
-    expressTurnaround: "2 - 3 Working Days",
+    standardTurnaround: "10 Working Days",
+    expressTurnaround: "7 Working Days",
     flat: true,
   },
 ];
