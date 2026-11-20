@@ -67,6 +67,7 @@ export const PAYMENT_OPTION_LABELS: Record<PaymentOption, string> = {
   full_payment: "Option 1: Full Payment",
   payment_plan: "Option 2: 50% Deposit + Plan",
   institutional_funding: "Option 3: Institutional PO",
+  deposit_and_completion: "Option 4: 50% Deposit + 50% on Completion",
 };
 
 export const QUOTE_OUTCOME_LABELS: Record<QuoteOutcome, string> = {

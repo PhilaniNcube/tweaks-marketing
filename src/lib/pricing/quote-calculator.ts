@@ -443,26 +443,25 @@ export function calculateQuoteFromCatalog(
   // Option 1 (full_payment): 100% upfront
   // Option 2 (payment_plan): 50% deposit upfront, balance split over selectedInstalmentMonths
   // Option 3 (institutional_funding): 0% deposit, 100% paid on invoice against PO
-  const depositPercentage =
-    input.paymentOption === "payment_plan"
-      ? 50
-      : input.paymentOption === "institutional_funding"
-        ? 0
-        : 100;
+  // Option 4 (deposit_and_completion): 50% deposit upfront, remaining 50% due on completion
+  const isDepositOption =
+    input.paymentOption === "payment_plan" ||
+    input.paymentOption === "deposit_and_completion";
 
-  const depositRequiredCents =
-    input.paymentOption === "payment_plan"
-      ? Math.round(totalFeeCents * 0.5)
-      : input.paymentOption === "institutional_funding"
-        ? 0
-        : totalFeeCents;
+  const depositPercentage = isDepositOption
+    ? 50
+    : input.paymentOption === "institutional_funding"
+      ? 0
+      : 100;
+
+  const depositRequiredCents = isDepositOption
+    ? Math.round(totalFeeCents * 0.5)
+    : input.paymentOption === "institutional_funding"
+      ? 0
+      : totalFeeCents;
 
   const remainingBalanceAfterDepositCents =
-    input.paymentOption === "payment_plan"
-      ? totalFeeCents - depositRequiredCents
-      : input.paymentOption === "institutional_funding"
-        ? totalFeeCents
-        : 0;
+    totalFeeCents - depositRequiredCents;
 
   const instalmentAmountsCents: number[] = [];
   if (

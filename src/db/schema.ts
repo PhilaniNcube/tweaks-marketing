@@ -351,6 +351,7 @@ export const paymentOptionValues = [
   "full_payment",
   "payment_plan",
   "institutional_funding",
+  "deposit_and_completion",
 ] as const;
 export type PaymentOption = (typeof paymentOptionValues)[number];
 
@@ -459,7 +460,7 @@ export const projects = sqliteTable(
     assignedEditorId: text("assigned_editor_id").references(() => editors.id, {
       onDelete: "set null",
     }),
-    /** Gate: true only when balance == 0 (Options 1 & 2) OR when PO number is recorded (Option 3) */
+    /** Gate: true only when balance == 0 (Options 1, 2 & 4) OR when PO number is recorded (Option 3) */
     releaseWork: integer("release_work", { mode: "boolean" })
       .default(false)
       .notNull(),
@@ -565,7 +566,7 @@ export const quotes = sqliteTable(
     selectedInstalmentMonths: integer("selected_instalment_months")
       .default(2)
       .notNull(),
-    /** 50% on payment_plan, 100% on full_payment, 0% on institutional_funding */
+    /** 50% on payment_plan and deposit_and_completion, 100% on full_payment, 0% on institutional_funding */
     depositPercentage: integer("deposit_percentage").default(100).notNull(),
     depositRequiredCents: integer("deposit_required_cents").notNull(),
     paidToDateCents: integer("paid_to_date_cents").default(0).notNull(),

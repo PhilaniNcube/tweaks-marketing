@@ -367,7 +367,7 @@ export async function recalculateQuoteAndProjectFromPayments(
     .returning();
 
   // Check releaseWork gate on project:
-  // Options 1 & 2: releaseWork is true ONLY when balanceCents === 0
+  // Options 1, 2 & 4: releaseWork is true ONLY when balanceCents === 0
   // Option 3 (institutional_funding): releaseWork is true when poNumber is present OR balanceCents === 0
   const [project] = await db
     .select()

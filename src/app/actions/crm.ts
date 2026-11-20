@@ -181,6 +181,10 @@ export async function acceptQuoteAndSelectOption(input: {
       return { success: false as const, error: "Quote not found." };
     }
 
+    const isDepositOption =
+      input.paymentOption === "payment_plan" ||
+      input.paymentOption === "deposit_and_completion";
+
     const cappedMonths =
       input.paymentOption === "payment_plan"
         ? Math.min(
@@ -190,21 +194,21 @@ export async function acceptQuoteAndSelectOption(input: {
               input.selectedInstalmentMonths || quote.selectedInstalmentMonths
             )
           )
-        : quote.maxInstalmentMonths;
-
-    const depositPercentage =
-      input.paymentOption === "payment_plan"
-        ? 50
-        : input.paymentOption === "institutional_funding"
+        : input.paymentOption === "deposit_and_completion"
           ? 0
-          : 100;
+          : quote.maxInstalmentMonths;
 
-    const depositRequiredCents =
-      input.paymentOption === "payment_plan"
-        ? Math.round(quote.totalFeeCents * 0.5)
-        : input.paymentOption === "institutional_funding"
-          ? 0
-          : quote.totalFeeCents;
+    const depositPercentage = isDepositOption
+      ? 50
+      : input.paymentOption === "institutional_funding"
+        ? 0
+        : 100;
+
+    const depositRequiredCents = isDepositOption
+      ? Math.round(quote.totalFeeCents * 0.5)
+      : input.paymentOption === "institutional_funding"
+        ? 0
+        : quote.totalFeeCents;
 
     const remAfterDeposit = quote.totalFeeCents - depositRequiredCents;
     const baseInst =

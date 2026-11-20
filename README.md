@@ -23,9 +23,10 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 ## Payments (Paystack)
 
 Online payments use [Paystack](https://paystack.com) with a redirect checkout
-flow and a signed webhook backstop. The flow supports full payment, 50% deposit
-plus instalments, and balance payments. Institutional quotes are invoiced by
-purchase order and never go through Paystack.
+flow and a signed webhook backstop. The flow supports four payment options:
+full payment, a 50% deposit plus instalments, a 50% deposit with the remaining
+50% due on completion, and balance payments. Institutional quotes are invoiced
+by purchase order and never go through Paystack.
 
 ### 1. Environment variables
 

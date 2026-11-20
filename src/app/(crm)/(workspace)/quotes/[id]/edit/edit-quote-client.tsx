@@ -529,6 +529,9 @@ export function EditQuoteClient({
                   <option value="institutional_funding">
                     Option 3: Institutional PO
                   </option>
+                  <option value="deposit_and_completion">
+                    Option 4: 50% Deposit + 50% on Completion
+                  </option>
                 </select>
               </div>
 

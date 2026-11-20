@@ -147,12 +147,15 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
       ? `${window.location.origin}/quote/${quote.token}`
       : `https://www.tweaks.co.za/quote/${quote.token}`;
 
-  const depositCents =
-    paymentOption === "payment_plan"
-      ? Math.round(quote.totalFeeCents * 0.5)
-      : paymentOption === "institutional_funding"
-        ? 0
-        : quote.totalFeeCents;
+  const isDepositOption =
+    paymentOption === "payment_plan" ||
+    paymentOption === "deposit_and_completion";
+
+  const depositCents = isDepositOption
+    ? Math.round(quote.totalFeeCents * 0.5)
+    : paymentOption === "institutional_funding"
+      ? 0
+      : quote.totalFeeCents;
 
   const remainingAfterDepositCents = quote.totalFeeCents - depositCents;
   const monthlyInstalmentCents =
@@ -162,7 +165,7 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
 
   const nextPayableAmountCents =
     quote.paidToDateCents === 0
-      ? paymentOption === "payment_plan"
+      ? isDepositOption
         ? depositCents
         : quote.totalFeeCents
       : quote.balanceCents;
@@ -871,7 +874,7 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
 
             {/* Payment Option Picker (editable before first payment) */}
             {quote.paidToDateCents === 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <label
                   className={`p-4 border cursor-pointer ${
                     paymentOption === "full_payment"
@@ -930,6 +933,29 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
                     University finance office pays against a Purchase Order.
+                  </p>
+                </label>
+
+                <label
+                  className={`p-4 border cursor-pointer ${
+                    paymentOption === "deposit_and_completion"
+                      ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                      : "border-slate-200 dark:border-zinc-800"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 font-bold text-sm">
+                    <input
+                      type="radio"
+                      checked={paymentOption === "deposit_and_completion"}
+                      onChange={() =>
+                        setPaymentOption("deposit_and_completion")
+                      }
+                    />
+                    <span>4. 50% Deposit + 50% on Completion</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Pay {formatZarFromCents(depositCents)} now, then the
+                    remaining 50% when your editing is complete.
                   </p>
                 </label>
               </div>
@@ -994,6 +1020,28 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
                     )}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Option 4: 50% Deposit + 50% on Completion */}
+            {paymentOption === "deposit_and_completion" && (
+              <div className="p-4 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-xs space-y-1.5">
+                <div className="flex justify-between gap-2">
+                  <span className="text-slate-500">50% Deposit Due Now:</span>
+                  <strong>{formatZarFromCents(depositCents)}</strong>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-slate-500">
+                    Remaining 50% Due on Completion:
+                  </span>
+                  <strong>
+                    {formatZarFromCents(remainingAfterDepositCents)}
+                  </strong>
+                </div>
+                <p className="text-[11px] text-slate-500 pt-1">
+                  Your edited files are released once the completion balance
+                  clears.
+                </p>
               </div>
             )}
 
@@ -1081,8 +1129,7 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
                       ) : (
                         <CreditCard className="h-4 w-4 mr-2" />
                       )}
-                      {quote.paidToDateCents === 0 &&
-                      paymentOption === "payment_plan"
+                      {quote.paidToDateCents === 0 && isDepositOption
                         ? `Accept & Pay 50% Deposit (${formatZarFromCents(
                             depositCents
                           )})`

@@ -270,13 +270,18 @@ export function Step5DatesPayment({
             setValue(
               "paymentOption",
               value as
-                "full_payment" | "payment_plan" | "institutional_funding",
+                | "full_payment"
+                | "payment_plan"
+                | "institutional_funding"
+                | "deposit_and_completion",
               { shouldValidate: true },
             )
           }
           aria-invalid={!!errors.paymentOption}
           className={`grid grid-cols-1 gap-4 ${
-            showInstitutionalFunding ? "md:grid-cols-3" : "md:grid-cols-2"
+            showInstitutionalFunding
+              ? "md:grid-cols-2 xl:grid-cols-4"
+              : "md:grid-cols-3"
           }`}
         >
           <FieldLabel
@@ -356,6 +361,30 @@ export function Step5DatesPayment({
               </Field>
             </FieldLabel>
           )}
+
+          <FieldLabel
+            htmlFor="paymentOption-deposit-completion"
+            className={`w-full cursor-pointer border transition-colors ${
+              watchedPaymentOption === "deposit_and_completion"
+                ? "border-tweaks-blue bg-blue-50/40 dark:bg-blue-950/20"
+                : "border-border hover:border-muted-foreground/40"
+            }`}
+          >
+            <Field orientation="horizontal" className="items-start">
+              <RadioGroupItem
+                id="paymentOption-deposit-completion"
+                value="deposit_and_completion"
+                className="mt-0.5"
+              />
+              <FieldContent>
+                <FieldTitle>4. 50% Deposit + 50% on Completion</FieldTitle>
+                <FieldDescription>
+                  Pay 50% now to start, then the remaining 50% once your
+                  editing is complete and before files are released.
+                </FieldDescription>
+              </FieldContent>
+            </Field>
+          </FieldLabel>
         </RadioGroup>
         <FieldError errors={[errors.paymentOption]} />
       </FieldSet>
@@ -523,6 +552,23 @@ export function Step5DatesPayment({
                     <strong className="text-white">
                       {formatZarFromCents(
                         liveQuote.instalmentAmountsCents[0] || 0,
+                      )}
+                    </strong>
+                  </div>
+                </>
+              ) : watchedPaymentOption === "deposit_and_completion" ? (
+                <>
+                  <div>
+                    50% Deposit Due:{" "}
+                    <strong className="text-white">
+                      {formatZarFromCents(liveQuote.depositRequiredCents)}
+                    </strong>
+                  </div>
+                  <div>
+                    Remaining 50% on completion:{" "}
+                    <strong className="text-white">
+                      {formatZarFromCents(
+                        liveQuote.remainingBalanceAfterDepositCents,
                       )}
                     </strong>
                   </div>

@@ -316,7 +316,9 @@ export function ContactNotificationEmail({
                     ? "Full payment"
                     : data.paymentOption === "payment_plan"
                       ? "Payment plan (50% deposit)"
-                      : `Institutional funding (${data.department} — ${data.billingContactName} <${data.billingContactEmail}>)`}
+                      : data.paymentOption === "deposit_and_completion"
+                        ? "50% deposit + 50% on completion"
+                        : `Institutional funding (${data.department} — ${data.billingContactName} <${data.billingContactEmail}>)`}
                 </Column>
               </Row>
             </Section>

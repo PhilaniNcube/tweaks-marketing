@@ -235,7 +235,12 @@ export const contactSchema = v.pipe(
     supervisorName: v.optional(v.string()),
     supervisorEmail: v.optional(v.string()),
     paymentOption: v.picklist(
-      ["full_payment", "payment_plan", "institutional_funding"],
+      [
+        "full_payment",
+        "payment_plan",
+        "institutional_funding",
+        "deposit_and_completion",
+      ],
       "Please select a payment / funding option"
     ),
     selectedInstalmentMonths: v.optional(

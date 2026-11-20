@@ -21,6 +21,7 @@ const PAYMENT_OPTIONS = [
   "full_payment",
   "payment_plan",
   "institutional_funding",
+  "deposit_and_completion",
 ] as const;
 
 /**
@@ -143,19 +144,21 @@ export async function POST(request: NextRequest) {
         ? selectedInstalmentMonths
         : quote.selectedInstalmentMonths;
 
+    const isDepositOption =
+      effectiveOption === "payment_plan" ||
+      effectiveOption === "deposit_and_completion";
+
     const cappedMonths =
       effectiveOption === "payment_plan"
-        ? Math.min(
-            quote.maxInstalmentMonths,
-            Math.max(2, requestedMonths)
-          )
-        : quote.maxInstalmentMonths;
+        ? Math.min(quote.maxInstalmentMonths, Math.max(2, requestedMonths))
+        : effectiveOption === "deposit_and_completion"
+          ? 0
+          : quote.maxInstalmentMonths;
 
-    const depositPercentage = effectiveOption === "payment_plan" ? 50 : 100;
-    const depositRequiredCents =
-      effectiveOption === "payment_plan"
-        ? Math.round(quote.totalFeeCents * 0.5)
-        : quote.totalFeeCents;
+    const depositPercentage = isDepositOption ? 50 : 100;
+    const depositRequiredCents = isDepositOption
+      ? Math.round(quote.totalFeeCents * 0.5)
+      : quote.totalFeeCents;
 
     const nowIso = new Date().toISOString();
 
@@ -203,7 +206,7 @@ export async function POST(request: NextRequest) {
     // Determine exact amount to charge now
     const resolvedPaymentType: PaymentType =
       paymentType ||
-      (effectiveOption === "payment_plan" && quote.paidToDateCents === 0
+      (isDepositOption && quote.paidToDateCents === 0
         ? "deposit"
         : quote.paidToDateCents === 0
           ? "full_payment"
