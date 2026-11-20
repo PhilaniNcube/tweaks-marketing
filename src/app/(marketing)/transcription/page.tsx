@@ -288,7 +288,7 @@ export default function Transcription() {
                         Express Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        24 - 48 Hours (+R5 / minute)
+                        1 - 2 Working Days (+R5 / minute)
                       </span>
                     </button>
                   </div>

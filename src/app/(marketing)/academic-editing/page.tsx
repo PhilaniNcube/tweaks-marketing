@@ -247,7 +247,7 @@ export default function AcademicEditing() {
                       }`}
                     >
                       <span className="text-xs uppercase tracking-wider font-bold">Express Delivery</span>
-                      <span className="text-xs font-light mt-1">24 - 48 Hours (+R15 / page)</span>
+                      <span className="text-xs font-light mt-1">1 - 2 Working Days (+R15 / page)</span>
                     </button>
                   </div>
                 </div>

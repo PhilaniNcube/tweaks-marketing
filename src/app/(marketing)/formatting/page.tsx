@@ -297,7 +297,7 @@ export default function Formatting() {
                         Express Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        48 - 72 Hours (+R800 / document)
+                        2 - 3 Working Days (+R800 / document)
                       </span>
                     </button>
                   </div>

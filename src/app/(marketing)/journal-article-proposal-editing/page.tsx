@@ -291,7 +291,7 @@ matches the journal&apos;s standards.
                         Express Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        48 - 72 Hours (+R1,500 / article)
+                        2 - 3 Working Days (+R1,500 / article)
                       </span>
                     </button>
                   </div>

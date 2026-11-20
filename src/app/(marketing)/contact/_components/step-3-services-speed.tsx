@@ -41,6 +41,15 @@ function getBasisLabel(svc: Service): string {
   return "flat per document";
 }
 
+function formatExpressWorkingDays(svc: Service, rangeSeparator = "–"): string {
+  const minDays = Math.max(1, Math.ceil(svc.expressTurnaroundMinHours / 24));
+  const maxDays = Math.max(1, Math.ceil(svc.expressTurnaroundMaxHours / 24));
+  if (minDays === maxDays) {
+    return `${minDays} ${minDays === 1 ? "working day" : "working days"}`;
+  }
+  return `${minDays}${rangeSeparator}${maxDays} working days`;
+}
+
 export function Step3ServicesSpeed({
   catalog,
   liveQuote,
@@ -237,11 +246,7 @@ export function Step3ServicesSpeed({
                         <p className="text-[11px] text-muted-foreground">
                           Standard: {svc.standardTurnaroundMinDays}–
                           {svc.standardTurnaroundMaxDays} working days | Express:{" "}
-                          {svc.expressTurnaroundMinHours ===
-                          svc.expressTurnaroundMaxHours
-                            ? `${svc.expressTurnaroundMinHours} hours`
-                            : `${svc.expressTurnaroundMinHours}–${svc.expressTurnaroundMaxHours} hours`}{" "}
-                          (+
+                          {formatExpressWorkingDays(svc)} (+
                           {formatZarFromCents(svc.expressSurchargeCents, false)}{" "}
                           {basisLabel})
                         </p>
@@ -295,11 +300,7 @@ export function Step3ServicesSpeed({
                           <FieldDescription className="text-[11px]">
                             Standard: {svc.standardTurnaroundMinDays}–
                             {svc.standardTurnaroundMaxDays} working days | Express:{" "}
-                            {svc.expressTurnaroundMinHours ===
-                            svc.expressTurnaroundMaxHours
-                              ? `${svc.expressTurnaroundMinHours} hours`
-                              : `${svc.expressTurnaroundMinHours}–${svc.expressTurnaroundMaxHours} hours`}{" "}
-                            (+
+                            {formatExpressWorkingDays(svc)} (+
                             {formatZarFromCents(
                               svc.expressSurchargeCents,
                               false,
@@ -404,18 +405,18 @@ export function Step3ServicesSpeed({
                 <FieldDescription>
                   {liveQuote.items.length > 0 ? (
                     <>
-                      {liveQuote.turnaround.expressMinHours ===
-                      liveQuote.turnaround.expressMaxHours
-                        ? `${liveQuote.turnaround.expressMinHours} hours`
-                        : `${liveQuote.turnaround.expressMinHours} to ${liveQuote.turnaround.expressMaxHours} hours`}{" "}
+                      {liveQuote.turnaround.expressMinDays ===
+                      liveQuote.turnaround.expressMaxDays
+                        ? `${liveQuote.turnaround.expressMinDays} ${liveQuote.turnaround.expressMinDays === 1 ? "working day" : "working days"}`
+                        : `${liveQuote.turnaround.expressMinDays} to ${liveQuote.turnaround.expressMaxDays} working days`}{" "}
                       in total, working through each selected service in
                       priority sequence. Express surcharge applies.
                     </>
                   ) : (
                     <>
-                      Priority turnaround is determined by the services you
-                      select above, working through each selected service in
-                      priority sequence. Express surcharge applies.
+                      Priority turnaround in working days is determined by the
+                      services you select above, working through each selected
+                      service in priority sequence. Express surcharge applies.
                     </>
                   )}
                 </FieldDescription>

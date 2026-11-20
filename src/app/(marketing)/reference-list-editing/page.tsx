@@ -296,7 +296,7 @@ export default function ReferenceListEditing() {
                         Express Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        24 Hours (+R25 / page)
+                        1 Working Day (+R25 / page)
                       </span>
                     </button>
                   </div>

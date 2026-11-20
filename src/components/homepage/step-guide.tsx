@@ -39,7 +39,7 @@ const services: ServiceDef[] = [
     basePrice: 45.0,
     expressAddon: 15.0,
     standardTurnaround: "3 - 5 Working Days",
-    expressTurnaround: "24 - 48 Hours",
+    expressTurnaround: "1 - 2 Working Days",
     wordsPerPage: 300,
   },
   {
@@ -53,7 +53,7 @@ const services: ServiceDef[] = [
     basePrice: 7.5,
     expressAddon: 3.0,
     standardTurnaround: "3 - 5 Working Days",
-    expressTurnaround: "24 - 48 Hours",
+    expressTurnaround: "1 - 2 Working Days",
     wordsPerPage: 300,
   },
   {
@@ -67,7 +67,7 @@ const services: ServiceDef[] = [
     basePrice: 50.0,
     expressAddon: 25.0,
     standardTurnaround: "2 - 4 Working Days",
-    expressTurnaround: "24 Hours",
+    expressTurnaround: "1 Working Day",
     wordsPerPage: 300,
   },
   {
@@ -81,7 +81,7 @@ const services: ServiceDef[] = [
     basePrice: 1500.0,
     expressAddon: 800.0,
     standardTurnaround: "5 - 7 Working Days",
-    expressTurnaround: "48 - 72 Hours",
+    expressTurnaround: "2 - 3 Working Days",
     flat: true,
   },
 ];

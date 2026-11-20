@@ -95,6 +95,8 @@ export interface CalculatedQuoteLineItem {
 export interface TurnaroundSummary {
   minDays: number;
   maxDays: number;
+  expressMinDays: number;
+  expressMaxDays: number;
   expressMinHours: number;
   expressMaxHours: number;
   /** Minimum working days to add to expectedSendDate for date calculation */
@@ -492,22 +494,26 @@ export function calculateQuoteFromCatalog(
   const maxDays = sumBy((s) => s.standardTurnaroundMaxDays);
   const expressMinHours = sumBy((s) => s.expressTurnaroundMinHours);
   const expressMaxHours = sumBy((s) => s.expressTurnaroundMaxHours);
+  const expressMinDays = sumBy((s) =>
+    Math.max(1, Math.ceil(s.expressTurnaroundMinHours / 24))
+  );
+  const expressMaxDays = sumBy((s) =>
+    Math.max(1, Math.ceil(s.expressTurnaroundMaxHours / 24))
+  );
 
-  const minimumReturnOffsetDays = isExpress
-    ? Math.ceil(expressMinHours / 24)
-    : minDays;
+  const minimumReturnOffsetDays = isExpress ? expressMinDays : minDays;
 
   const displayLabel =
     matchedServices.length === 0
       ? isExpress
-        ? "Select services for express turnaround"
+        ? "Select services for express turnaround (working days)"
         : "Select services for standard turnaround (working days)"
       : isExpress
-        ? expressMinHours === expressMaxHours
-          ? `${expressMinHours} hours (Express)`
-          : `${expressMinHours} to ${expressMaxHours} hours (Express)`
+        ? expressMinDays === expressMaxDays
+          ? `${expressMinDays} ${expressMinDays === 1 ? "working day" : "working days"} (Express)`
+          : `${expressMinDays} to ${expressMaxDays} working days (Express)`
         : minDays === maxDays
-          ? `${minDays} working days (Standard)`
+          ? `${minDays} ${minDays === 1 ? "working day" : "working days"} (Standard)`
           : `${minDays} to ${maxDays} working days (Standard)`;
 
   return {
@@ -527,6 +533,8 @@ export function calculateQuoteFromCatalog(
     turnaround: {
       minDays,
       maxDays,
+      expressMinDays,
+      expressMaxDays,
       expressMinHours,
       expressMaxHours,
       minimumReturnOffsetDays,

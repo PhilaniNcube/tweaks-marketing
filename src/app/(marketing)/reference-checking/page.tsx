@@ -293,7 +293,7 @@ export default function ReferenceChecking() {
                         Express Delivery
                       </span>
                       <span className="text-xs font-light mt-1">
-                        24 - 48 Hours (+R3 / page)
+                        1 - 2 Working Days (+R3 / page)
                       </span>
                     </button>
                   </div>
