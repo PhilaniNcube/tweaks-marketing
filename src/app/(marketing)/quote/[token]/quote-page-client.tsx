@@ -800,6 +800,49 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
             </div>
           </div>
 
+          {/* EFT Banking Details (printed on unpaid quotes/invoices) */}
+          {quote.balanceCents > 0 && (
+            <div className="border-t border-slate-200 dark:border-zinc-800 pt-5 space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                EFT / Bank Transfer Details
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-1.5 text-xs font-mono">
+                <div>
+                  <span className="text-slate-400">Bank:</span> FNB
+                </div>
+                <div>
+                  <span className="text-slate-400">Account Name:</span>{" "}
+                  TWEAKS SA (PTY) LTD
+                </div>
+                <div>
+                  <span className="text-slate-400">Account Number:</span>{" "}
+                  62855338143
+                </div>
+                <div>
+                  <span className="text-slate-400">Branch Code:</span> 210517
+                </div>
+                <div>
+                  <span className="text-slate-400">Branch Name:</span>{" "}
+                  Kempston Road
+                </div>
+                <div>
+                  <span className="text-slate-400">SWIFT Code:</span> FIRNZAJJ
+                </div>
+              </div>
+              <p className="text-xs text-slate-500">
+                Use your quote number <strong>{quote.quoteNumber}</strong> as the
+                payment reference and email proof of payment to{" "}
+                <a
+                  href="mailto:hello@tweaks.co.za"
+                  className="text-tweaks-blue underline"
+                >
+                  hello@tweaks.co.za
+                </a>
+                .
+              </p>
+            </div>
+          )}
+
           {/* Recorded Payments / Receipts Table */}
           {payments.length > 0 && (
             <div className="pt-6 border-t border-slate-200 dark:border-zinc-800 space-y-3">
@@ -1180,13 +1223,28 @@ export function QuotePageClient({ token, initialData }: QuotePageClientProps) {
                   </p>
                   <div className="p-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 space-y-1 font-mono">
                     <div>
+                      <strong>Bank:</strong> FNB
+                    </div>
+                    <div>
+                      <strong>Account Name:</strong> TWEAKS SA (PTY) LTD
+                    </div>
+                    <div>
+                      <strong>Account Number:</strong> 62855338143
+                    </div>
+                    <div>
+                      <strong>Branch Code:</strong> 210517
+                    </div>
+                    <div>
+                      <strong>Branch Name:</strong> Kempston Road
+                    </div>
+                    <div>
+                      <strong>SWIFT Code:</strong> FIRNZAJJ
+                    </div>
+                    <div>
                       <strong>Payment Reference:</strong>{" "}
                       <span className="text-tweaks-red font-bold">
                         {quote.quoteNumber}
                       </span>
-                    </div>
-                    <div>
-                      <strong>Account Name:</strong> Tweaks Academic Editing
                     </div>
                     <div>
                       <strong>Amount (ZAR):</strong>{" "}
