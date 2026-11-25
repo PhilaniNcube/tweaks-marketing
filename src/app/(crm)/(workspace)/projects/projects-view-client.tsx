@@ -55,7 +55,12 @@ import {
   type ProjectSortOrder,
   type ProjectViewMode,
 } from "@/lib/crm/projects-view-atoms";
-import type { ProjectStage, Editor } from "@/db/schema";
+import type {
+  ProjectStage,
+  QuoteOutcome,
+  WhyLost,
+  Editor,
+} from "@/db/schema";
 import type { getAdminCrmDashboardData } from "@/app/actions/crm";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -66,6 +71,8 @@ type EnrichedProjectRow = DashboardData["rows"][number];
 type OptimisticStageUpdate = {
   projectId: string;
   stage: ProjectStage;
+  quoteOutcome?: QuoteOutcome;
+  whyLost?: WhyLost | null;
 };
 
 type DropTarget = {
@@ -158,6 +165,9 @@ export function ProjectsViewClient({
   const [editorFilter, setEditorFilter] = useState<string>("all");
   const [institutionFilter, setInstitutionFilter] = useState<string>("all");
   const [isRejectedBinOpen, setIsRejectedBinOpen] = useState<boolean>(false);
+  const [isDragOverRejectedBin, setIsDragOverRejectedBin] =
+    useState<boolean>(false);
+  const [decliningCardId, setDecliningCardId] = useState<string | null>(null);
 
   const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<ProjectStage | null>(null);
@@ -174,6 +184,7 @@ export function ProjectsViewClient({
     setDragOverStage(null);
     setDropTarget(null);
     setDraggedCardHeight(0);
+    setIsDragOverRejectedBin(false);
   };
 
   useIsomorphicLayoutEffect(() => {
@@ -223,7 +234,20 @@ export function ProjectsViewClient({
   >(rows, (currentRows, update) =>
     currentRows.map((row) =>
       row.project.id === update.projectId
-        ? { ...row, project: { ...row.project, stage: update.stage } }
+        ? {
+            ...row,
+            project: { ...row.project, stage: update.stage },
+            quote: row.quote
+              ? {
+                  ...row.quote,
+                  outcome: update.quoteOutcome ?? row.quote.outcome,
+                  whyLost:
+                    update.whyLost !== undefined
+                      ? update.whyLost
+                      : row.quote.whyLost,
+                }
+              : row.quote,
+          }
         : row
     )
   );
@@ -393,7 +417,11 @@ export function ProjectsViewClient({
   const handleStageDrop = (
     projectId: string,
     targetStage: ProjectStage,
-    beforeId: string | null = null
+    beforeId: string | null = null,
+    declineOptions?: {
+      quoteOutcome?: QuoteOutcome;
+      whyLost?: WhyLost;
+    }
   ) => {
     const current = optimisticRows.find((row) => row.project.id === projectId);
     if (!current) {
@@ -455,16 +483,41 @@ export function ProjectsViewClient({
       // Apply the stage swap, the new slot and the drag cleanup together in
       // the same transition. If any of these landed in an earlier render the
       // gap would collapse and the cards below would visibly jump.
-      applyOptimisticStage({ projectId, stage: targetStage });
+      const nextQuoteOutcome: QuoteOutcome | undefined =
+        declineOptions?.quoteOutcome ??
+        (targetStage === "lost"
+          ? "declined"
+          : targetStage === "enquiry" || targetStage === "quote_sent"
+            ? "awaiting_reply"
+            : undefined);
+
+      applyOptimisticStage({
+        projectId,
+        stage: targetStage,
+        quoteOutcome: nextQuoteOutcome,
+        whyLost:
+          targetStage === "lost"
+            ? (declineOptions?.whyLost ?? null)
+            : targetStage === "enquiry" || targetStage === "quote_sent"
+              ? null
+              : undefined,
+      });
       setBoardOrder(reorder);
+      setDecliningCardId(null);
       clearDragState();
 
       const res = await updateProjectStageQuickAction({
         projectId,
         stage: targetStage,
+        quoteOutcome: declineOptions?.quoteOutcome,
+        whyLost: declineOptions?.whyLost,
       });
       if (res.success) {
-        toast.success(`Moved project to ${STAGE_LABELS[targetStage]}`);
+        toast.success(
+          targetStage === "lost"
+            ? "Moved quote to Rejected Quotes Bin"
+            : `Moved project to ${STAGE_LABELS[targetStage]}`
+        );
       } else {
         // Roll the manual order back so the card returns to its source column.
         setBoardOrder(previousOrder);
@@ -541,14 +594,39 @@ export function ProjectsViewClient({
             <button
               type="button"
               onClick={() => setIsRejectedBinOpen((prev) => !prev)}
-              className={`px-3 py-2 text-xs font-bold border flex items-center gap-1.5 cursor-pointer transition-colors ${
-                isRejectedBinOpen
-                  ? "bg-red-700 text-white border-red-700"
-                  : "bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:border-red-500"
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (!draggedProjectId || dropHandledRef.current) return;
+                setIsDragOverRejectedBin(true);
+              }}
+              onDragLeave={() => {
+                if (dropHandledRef.current) return;
+                setIsDragOverRejectedBin(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (!draggedProjectId) return;
+                dropHandledRef.current = true;
+                setIsDragOverRejectedBin(false);
+                handleStageDrop(draggedProjectId, "lost", null, {
+                  quoteOutcome: "declined",
+                });
+              }}
+              title="Click to view rejected quotes, or drag a Kanban card here to mark it as declined"
+              className={`px-3 py-2 text-xs font-bold border flex items-center gap-1.5 cursor-pointer transition-all ${
+                isDragOverRejectedBin
+                  ? "bg-red-600 text-white border-red-600 ring-2 ring-red-400 scale-105"
+                  : isRejectedBinOpen
+                    ? "bg-red-700 text-white border-red-700"
+                    : draggedProjectId
+                      ? "bg-red-50 dark:bg-red-950/40 border-dashed border-red-500 text-red-700 dark:text-red-300"
+                      : "bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:border-red-500"
               }`}
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Rejected Quotes Bin ({rejectedBinRows.length})
+              {isDragOverRejectedBin
+                ? "Drop to Decline Quote"
+                : `Rejected Quotes Bin (${rejectedBinRows.length})`}
               {isRejectedBinOpen ? (
                 <ChevronUp className="h-3.5 w-3.5" />
               ) : (
@@ -571,7 +649,37 @@ export function ProjectsViewClient({
 
       {/* Collapsible Rejected / Declined Quotes Bin */}
       {isAdmin && isRejectedBinOpen && (
-        <div className="bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/60 p-4 space-y-3">
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!draggedProjectId || dropHandledRef.current) return;
+            setIsDragOverRejectedBin(true);
+          }}
+          onDragLeave={(e) => {
+            if (dropHandledRef.current) return;
+            if (
+              e.relatedTarget &&
+              e.currentTarget.contains(e.relatedTarget as Node)
+            ) {
+              return;
+            }
+            setIsDragOverRejectedBin(false);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (!draggedProjectId) return;
+            dropHandledRef.current = true;
+            setIsDragOverRejectedBin(false);
+            handleStageDrop(draggedProjectId, "lost", null, {
+              quoteOutcome: "declined",
+            });
+          }}
+          className={`border p-4 space-y-3 transition-colors ${
+            isDragOverRejectedBin
+              ? "bg-red-100/70 dark:bg-red-950/40 border-red-500 border-dashed"
+              : "bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-900/60"
+          }`}
+        >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-red-200/70 dark:border-red-900/50 pb-2.5">
             <div>
               <h2 className="text-xs font-black uppercase tracking-wider text-red-900 dark:text-red-200 flex items-center gap-1.5">
@@ -1184,15 +1292,98 @@ export function ProjectsViewClient({
                                 : row.project.referencingStyle}
                             </span>
                           </div>
-                          <Link
-                            href={`/projects/${row.project.id}`}
-                            draggable={false}
-                            className="px-2.5 py-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-bold hover:bg-tweaks-blue dark:hover:bg-tweaks-blue dark:hover:text-white transition-colors inline-flex items-center gap-1 shrink-0"
-                          >
-                            Open Project
-                            <ArrowRight className="h-3 w-3" />
-                          </Link>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isAdmin &&
+                              (col.stage === "enquiry" ||
+                                col.stage === "quote_sent" ||
+                                col.stage === "accepted") && (
+                                <button
+                                  type="button"
+                                  disabled={isPending}
+                                  onClick={() =>
+                                    setDecliningCardId((prev) =>
+                                      prev === row.project.id
+                                        ? null
+                                        : row.project.id
+                                    )
+                                  }
+                                  title="Mark quote as Declined / Move to Rejected Bin"
+                                  className={`px-2 py-1 border text-[10px] font-bold transition-colors inline-flex items-center gap-1 cursor-pointer ${
+                                    decliningCardId === row.project.id
+                                      ? "bg-red-600 text-white border-red-600"
+                                      : "border-slate-200 dark:border-zinc-700 text-slate-500 hover:text-red-600 hover:border-red-400"
+                                  }`}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  Decline
+                                </button>
+                              )}
+                            <Link
+                              href={`/projects/${row.project.id}`}
+                              draggable={false}
+                              className="px-2.5 py-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-bold hover:bg-tweaks-blue dark:hover:bg-tweaks-blue dark:hover:text-white transition-colors inline-flex items-center gap-1 shrink-0"
+                            >
+                              Open Project
+                              <ArrowRight className="h-3 w-3" />
+                            </Link>
+                          </div>
                         </div>
+
+                        {/* Quick Inline Reason Picker when "Decline" is clicked on a Kanban Card */}
+                        {isAdmin && decliningCardId === row.project.id && (
+                          <div className="pt-2.5 border-t border-red-200 dark:border-red-900/60 bg-red-50/70 dark:bg-red-950/30 -mx-3.5 -mb-3.5 p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-red-800 dark:text-red-300">
+                                Decline Quote — Reason:
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setDecliningCardId(null)}
+                                className="text-[10px] font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {(
+                                [
+                                  { value: "price", label: "Price / Budget" },
+                                  { value: "turnaround", label: "Turnaround" },
+                                  {
+                                    value: "went_elsewhere",
+                                    label: "Went Elsewhere",
+                                  },
+                                  { value: "no_reply", label: "No Reply" },
+                                  {
+                                    value: "scope_changed",
+                                    label: "Scope Changed",
+                                  },
+                                  { value: "other", label: "Other / Bin" },
+                                ] as Array<{ value: WhyLost; label: string }>
+                              ).map((reason) => (
+                                <button
+                                  key={reason.value}
+                                  type="button"
+                                  disabled={isPending}
+                                  onClick={() =>
+                                    handleStageDrop(
+                                      row.project.id,
+                                      "lost",
+                                      null,
+                                      {
+                                        quoteOutcome: "declined",
+                                        whyLost: reason.value,
+                                      }
+                                    )
+                                  }
+                                  className="px-2 py-1 text-[10px] font-bold bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 hover:bg-red-600 hover:text-white hover:border-red-600 transition-colors text-left truncate cursor-pointer"
+                                >
+                                  {reason.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                         </motion.div>
                       </React.Fragment>
