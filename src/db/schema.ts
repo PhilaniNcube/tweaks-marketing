@@ -338,6 +338,7 @@ export const projectStageValues = [
   "enquiry",
   "quote_sent",
   "accepted",
+  "pre_editing",
   "in_progress",
   "work_ready",
   "review",
@@ -483,6 +484,13 @@ export const projects = sqliteTable(
     /** Non-null when an admin archives the project out of the active pipeline */
     archivedAt: text("archived_at"),
     internalNotes: text("internal_notes"),
+    /** Pre-edited files uploaded by the assigned editor for admin's final editing pass */
+    preEditedFileName: text("pre_edited_file_name"),
+    preEditedFileUrl: text("pre_edited_file_url"),
+    /** Notes left by the assigned editor for admin regarding formatting or manuscript issues */
+    editorNotes: text("editor_notes"),
+    /** Stamped when the assigned editor submits their pre-edited files to admin */
+    preEditingSubmittedAt: text("pre_editing_submitted_at"),
     createdAt: text("created_at")
       .default(sql`(CURRENT_TIMESTAMP)`)
       .notNull(),

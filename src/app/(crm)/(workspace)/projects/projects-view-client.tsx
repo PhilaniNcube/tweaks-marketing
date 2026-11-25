@@ -25,6 +25,10 @@ import {
   ExternalLink,
   UserCheck,
   ArrowRight,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
 } from "lucide-react";
 import {
   formatZarFromCents,
@@ -153,6 +157,7 @@ export function ProjectsViewClient({
   >("all");
   const [editorFilter, setEditorFilter] = useState<string>("all");
   const [institutionFilter, setInstitutionFilter] = useState<string>("all");
+  const [isRejectedBinOpen, setIsRejectedBinOpen] = useState<boolean>(false);
 
   const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<ProjectStage | null>(null);
@@ -229,9 +234,14 @@ export function ProjectsViewClient({
       if (row.project.archivedAt) {
         return false;
       }
+      const isRejectedOrLost =
+        row.project.stage === "lost" ||
+        row.quote?.outcome === "declined" ||
+        row.quote?.outcome === "expired";
+
       if (
         stageFilter === "all" &&
-        (row.project.stage === "closed" || row.project.stage === "lost")
+        (row.project.stage === "closed" || isRejectedOrLost)
       ) {
         return false;
       }
@@ -319,6 +329,19 @@ export function ProjectsViewClient({
     });
     return copy;
   }, [activeRows, sortBy]);
+
+  // Rejected / Declined Quotes Bin (unarchived projects where stage === "lost" or quote outcome is declined/expired)
+  const rejectedBinRows = useMemo(() => {
+    if (!isAdmin) return [];
+    return optimisticRows.filter((row) => {
+      if (row.project.archivedAt) return false;
+      return (
+        row.project.stage === "lost" ||
+        row.quote?.outcome === "declined" ||
+        row.quote?.outcome === "expired"
+      );
+    });
+  }, [optimisticRows, isAdmin]);
 
   // Group the visible rows into their kanban columns, then apply any manual
   // ordering the user has created by dragging cards. Ids missing from the
@@ -515,6 +538,26 @@ export function ProjectsViewClient({
           </div>
 
           {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setIsRejectedBinOpen((prev) => !prev)}
+              className={`px-3 py-2 text-xs font-bold border flex items-center gap-1.5 cursor-pointer transition-colors ${
+                isRejectedBinOpen
+                  ? "bg-red-700 text-white border-red-700"
+                  : "bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:border-red-500"
+              }`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Rejected Quotes Bin ({rejectedBinRows.length})
+              {isRejectedBinOpen ? (
+                <ChevronUp className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5" />
+              )}
+            </button>
+          )}
+
+          {isAdmin && (
             <Link
               href="/projects/new"
               className="px-4 py-2 text-xs font-bold bg-tweaks-blue hover:bg-tweaks-red text-white flex items-center gap-1.5 transition-colors"
@@ -525,6 +568,112 @@ export function ProjectsViewClient({
           )}
         </div>
       </div>
+
+      {/* Collapsible Rejected / Declined Quotes Bin */}
+      {isAdmin && isRejectedBinOpen && (
+        <div className="bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/60 p-4 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-red-200/70 dark:border-red-900/50 pb-2.5">
+            <div>
+              <h2 className="text-xs font-black uppercase tracking-wider text-red-900 dark:text-red-200 flex items-center gap-1.5">
+                <Trash2 className="h-4 w-4 text-red-600" />
+                Rejected &amp; Expired Quotes Bin ({rejectedBinRows.length})
+              </h2>
+              <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5">
+                Projects whose quotes were marked Declined or Expired are moved out of the active pipeline into this bin. You can reopen a quote if the client returns, or archive/delete the record.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsRejectedBinOpen(false)}
+              className="text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white self-start sm:self-center cursor-pointer"
+            >
+              Hide Bin
+            </button>
+          </div>
+
+          {rejectedBinRows.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {rejectedBinRows.map((row) => (
+                <div
+                  key={row.project.id}
+                  className="bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-900/60 p-3.5 space-y-2.5 shadow-2xs"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <Link
+                        href={`/projects/${row.project.id}`}
+                        className="text-xs font-bold text-slate-900 dark:text-white hover:text-tweaks-blue"
+                      >
+                        {row.client
+                          ? `${row.client.firstName} ${row.client.surname}`
+                          : "Client"}
+                      </Link>
+                      <p className="text-[10px] font-mono text-slate-400">
+                        {row.quote?.quoteNumber} •{" "}
+                        {formatZarFromCents(row.quote?.totalFeeCents)}
+                      </p>
+                    </div>
+                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 shrink-0">
+                      {row.quote?.whyLost
+                        ? `Declined: ${row.quote.whyLost.replace(/_/g, " ")}`
+                        : row.quote?.outcome === "expired"
+                          ? "Quote Expired"
+                          : "Declined"}
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-600 dark:text-zinc-400 line-clamp-2">
+                    {row.project.researchTitle}
+                  </p>
+
+                  <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() =>
+                          handleStageDrop(row.project.id, "quote_sent")
+                        }
+                        title="Restore to Quote Sent column"
+                        className="px-2 py-1 border border-slate-200 dark:border-zinc-700 text-[10px] font-bold text-slate-600 dark:text-zinc-300 hover:border-tweaks-blue hover:text-tweaks-blue inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Restore
+                      </button>
+                      <ProjectAdminActions
+                        projectId={row.project.id}
+                        archived={!!row.project.archivedAt}
+                        isAdmin={isAdmin}
+                        compact
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {row.quote && (
+                        <Link
+                          href={`/quotes/${row.quote.id}/edit`}
+                          className="px-2 py-1 border border-slate-300 dark:border-zinc-700 text-[10px] font-bold hover:bg-slate-50 dark:hover:bg-zinc-800"
+                        >
+                          Revise Quote
+                        </Link>
+                      )}
+                      <Link
+                        href={`/projects/${row.project.id}`}
+                        className="px-2.5 py-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[10px] font-bold hover:bg-tweaks-blue transition-colors"
+                      >
+                        Open
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500 py-4 text-center">
+              No rejected or declined quotes in the bin.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Filter & Sorting Bar */}
       <div

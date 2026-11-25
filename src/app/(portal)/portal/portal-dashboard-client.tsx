@@ -46,7 +46,7 @@ const ACCEPTED_EXTENSIONS = ".docx,.doc,.pdf,.txt,.rtf,.odt";
 const PORTAL_STAGE_STEPS = [
   { key: "enquiry", label: "1. Quote Issued" },
   { key: "accepted", label: "2. Accepted & Booked" },
-  { key: "in_progress", label: "3. Editing in Progress" },
+  { key: "pre_editing", label: "3. Editing in Progress" },
   { key: "work_ready", label: "4. Work Ready" },
   { key: "complete", label: "5. Complete & Certified" },
 ] as const;
@@ -55,6 +55,7 @@ const STAGE_ORDER = [
   "enquiry",
   "quote_sent",
   "accepted",
+  "pre_editing",
   "in_progress",
   "work_ready",
   "review",

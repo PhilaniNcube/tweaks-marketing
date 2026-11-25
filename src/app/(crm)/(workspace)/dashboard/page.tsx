@@ -285,8 +285,8 @@ export default async function DashboardPage() {
         </div>
 
         <div
-          className={`grid grid-cols-2 sm:grid-cols-3 ${
-            isAdmin ? "lg:grid-cols-7" : "lg:grid-cols-5"
+          className={`grid grid-cols-2 sm:grid-cols-4 ${
+            isAdmin ? "lg:grid-cols-8" : "lg:grid-cols-6"
           } gap-3`}
         >
           {visibleKanbanStages.map((st) => {

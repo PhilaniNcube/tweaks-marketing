@@ -13,6 +13,7 @@ export const STAGE_LABELS: Record<ProjectStage, string> = {
   enquiry: "Enquiry",
   quote_sent: "Quote Sent",
   accepted: "Awaiting Payment / Files",
+  pre_editing: "Pre-Editing",
   in_progress: "Editing in Progress",
   work_ready: "Quality Check / Work Ready",
   review: "72h Review Window",
@@ -34,9 +35,14 @@ export const KANBAN_STAGES: Array<{
     subtitle: "Accepted quote",
   },
   {
+    stage: "pre_editing",
+    title: "Pre-Editing",
+    subtitle: "With assigned editor",
+  },
+  {
     stage: "in_progress",
     title: "Editing",
-    subtitle: "Active editorial work",
+    subtitle: "Final editorial pass",
   },
   {
     stage: "work_ready",
@@ -57,7 +63,8 @@ export const EDITORIAL_KANBAN_STAGES = KANBAN_STAGES.filter(
 
 export const EDITORIAL_STAGE_LABELS: Partial<Record<ProjectStage, string>> = {
   accepted: "Assigned / Ready to Start",
-  in_progress: "Editing in Progress",
+  pre_editing: "Pre-Editing in Progress",
+  in_progress: "Pre-Edit Submitted / Final Edit",
   work_ready: "Quality Check / Work Ready",
   review: "72h Review Window",
   complete: "Complete",

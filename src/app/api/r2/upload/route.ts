@@ -17,6 +17,7 @@ const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 export type R2ProjectUploadSlot =
   | "clientBrief"
+  | "preEditedDoc"
   | "editedDoc"
   | "editingReport"
   | "referencingReport"
@@ -154,6 +155,31 @@ export async function POST(request: NextRequest) {
       const serialized = serializeClientSourceDocuments(nextDocs);
       updatePayload.uploadedFileName = serialized.uploadedFileName;
       updatePayload.uploadedFileUrl = serialized.uploadedFileUrl;
+    } else if (slot === "preEditedDoc") {
+      const [latestProject] = await db
+        .select({
+          preEditedFileName: projects.preEditedFileName,
+          preEditedFileUrl: projects.preEditedFileUrl,
+        })
+        .from(projects)
+        .where(eq(projects.id, projectId))
+        .limit(1);
+
+      const existingDocs = parseClientSourceDocuments(
+        latestProject?.preEditedFileName ?? project.preEditedFileName,
+        latestProject?.preEditedFileUrl ?? project.preEditedFileUrl
+      );
+      const nextDocs = [
+        ...existingDocs,
+        {
+          name: file.name,
+          url: downloadPath,
+          uploadedAt: nowIso,
+        },
+      ];
+      const serialized = serializeClientSourceDocuments(nextDocs);
+      updatePayload.preEditedFileName = serialized.uploadedFileName;
+      updatePayload.preEditedFileUrl = serialized.uploadedFileUrl;
     } else if (slot === "editedDoc") {
       updatePayload.editedDocUrl = downloadPath;
     } else if (slot === "editingReport") {

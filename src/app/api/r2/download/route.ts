@@ -37,6 +37,16 @@ export async function GET(request: NextRequest) {
 
     // 2. If not a CRM staff member, verify Client Token or Client Session ownership
     if (!isAdminOrEditor) {
+      if (
+        slot === "preEditedDoc" ||
+        key.startsWith(`projects/${projectId}/preEditedDoc/`)
+      ) {
+        return NextResponse.json(
+          { error: "Pre-edited internal files are restricted to CRM staff." },
+          { status: 403 }
+        );
+      }
+
       const [project] = await db
         .select()
         .from(projects)

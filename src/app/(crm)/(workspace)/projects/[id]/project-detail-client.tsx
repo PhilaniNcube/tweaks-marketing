@@ -22,6 +22,9 @@ import {
   Upload,
   Download,
   Pencil,
+  Send,
+  Trash2,
+  MessageSquareText,
 } from "lucide-react";
 import {
   formatZarFromCents,
@@ -38,6 +41,8 @@ import {
   recordInstitutionalPurchaseOrder,
   assignProjectEditorAction,
   resolveDuplicateProjectFlag,
+  submitPreEditedWorkAction,
+  removePreEditedDocumentAction,
 } from "@/app/actions/crm";
 import type {
   ProjectStage,
@@ -84,6 +89,9 @@ export function ProjectDetailClient({
   const [internalNotes, setInternalNotes] = useState(
     project.internalNotes || ""
   );
+  const [editorNotes, setEditorNotes] = useState(
+    project.editorNotes || ""
+  );
   const [quoteOutcome, setQuoteOutcome] = useState<QuoteOutcome>(
     quote?.outcome || "awaiting_reply"
   );
@@ -116,6 +124,7 @@ export function ProjectDetailClient({
   const handleR2Upload = async (
     slot:
       | "clientBrief"
+      | "preEditedDoc"
       | "editedDoc"
       | "editingReport"
       | "referencingReport"
@@ -170,6 +179,11 @@ export function ProjectDetailClient({
     project.uploadedFileUrl
   );
 
+  const preEditedDocuments = parseClientSourceDocuments(
+    project.preEditedFileName,
+    project.preEditedFileUrl
+  );
+
   const schedule = getReturnScheduleStatus(
     project.requestedReturnDate,
     project.stage
@@ -198,14 +212,67 @@ export function ProjectDetailClient({
         referencingReportUrl,
         walkthroughVideoUrl,
         internalNotes,
+        editorNotes,
         quoteOutcome,
         whyLost: whyLost ? (whyLost as WhyLost) : undefined,
       });
       if (res.success) {
+        if (res.effectiveStage && res.effectiveStage !== stage) {
+          setStage(res.effectiveStage);
+        }
         toast.success("Project workspace updated");
         router.refresh();
       } else {
         toast.error(res.error || "Failed to update project");
+      }
+    });
+  };
+
+  const handleSubmitPreEditedWork = (
+    e: React.FormEvent,
+    notifyAndAdvance: boolean
+  ) => {
+    e.preventDefault();
+    if (notifyAndAdvance && preEditedDocuments.length === 0) {
+      toast.error(
+        "Please upload your pre-edited file(s) first before notifying the admin."
+      );
+      return;
+    }
+    startTransition(async () => {
+      const res = await submitPreEditedWorkAction({
+        projectId: project.id,
+        editorNotes,
+        advanceToEditing: notifyAndAdvance,
+        notifyAdmin: notifyAndAdvance,
+      });
+      if (res.success) {
+        if (res.stage && res.stage !== stage) {
+          setStage(res.stage);
+        }
+        toast.success(
+          notifyAndAdvance
+            ? "Pre-edited files & notes submitted! Admin has been notified."
+            : "Pre-editing notes saved."
+        );
+        router.refresh();
+      } else {
+        toast.error(res.error || "Failed to save pre-editing work");
+      }
+    });
+  };
+
+  const handleRemovePreEditedDoc = (fileUrl: string) => {
+    startTransition(async () => {
+      const res = await removePreEditedDocumentAction({
+        projectId: project.id,
+        fileUrl,
+      });
+      if (res.success) {
+        toast.success("Pre-edited file removed");
+        router.refresh();
+      } else {
+        toast.error(res.error || "Failed to remove file");
       }
     });
   };
@@ -987,7 +1054,7 @@ export function ProjectDetailClient({
           )}
         </div>
 
-        {/* COLUMN 3: Work Release Gatekeeper, Handover Package & Certificate */}
+        {/* COLUMN 3: Work Release Gatekeeper, Pre-Editing Submission, Handover Package & Certificate */}
         <div className="space-y-6">
           {/* Work Release Gatekeeper Status Banner (Admin only) */}
           {isAdmin && (
@@ -1021,49 +1088,228 @@ export function ProjectDetailClient({
             </div>
           )}
 
-          {/* Workflow Stage & Handover Package Form */}
+          {/* Pre-Editing Files & Editor Notes Card (Primary workspace for Editors; Handover inbox for Admin) */}
           <form
-            onSubmit={handleSaveWorkflow}
+            onSubmit={(e) => handleSubmitPreEditedWork(e, true)}
             className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-5 space-y-4"
           >
-            <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-zinc-800 pb-2">
-              Handover Package &amp; Stage Control
-            </h2>
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 pb-2 gap-2">
+              <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
+                <MessageSquareText className="h-4 w-4 text-tweaks-blue" />
+                {isAdmin
+                  ? "Pre-Editing Files & Editor Notes"
+                  : "Pre-Editing Submission & Notes"}
+              </h2>
+              {project.preEditingSubmittedAt && (
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
+                  Submitted{" "}
+                  {new Date(project.preEditingSubmittedAt).toLocaleDateString(
+                    "en-ZA"
+                  )}
+                </span>
+              )}
+            </div>
 
-            <div
-              className={`grid grid-cols-1 ${
-                isAdmin ? "sm:grid-cols-2" : ""
-              } gap-3 text-xs`}
-            >
+            {!isAdmin && (
               <div>
                 <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
-                  Project Stage
+                  Editorial Stage
                 </label>
                 <select
                   value={stage}
                   onChange={(e) => setStage(e.target.value as ProjectStage)}
-                  className="w-full px-2.5 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-bold"
+                  className="w-full px-2.5 py-2 text-xs border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-bold"
                 >
-                  {Object.entries(
-                    isAdmin ? STAGE_LABELS : EDITORIAL_STAGE_LABELS
-                  ).map(([k, label]) => (
+                  {Object.entries(EDITORIAL_STAGE_LABELS).map(([k, label]) => (
                     <option key={k} value={k}>
                       {label}
                     </option>
                   ))}
                 </select>
               </div>
+            )}
 
-              {isAdmin && (
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-[10px] font-bold uppercase text-slate-500">
+                  Pre-Edited Files
+                  {preEditedDocuments.length > 0
+                    ? ` (${preEditedDocuments.length})`
+                    : ""}
+                </label>
+                <label className="px-2.5 py-1 border border-slate-300 dark:border-zinc-700 text-[11px] font-bold inline-flex items-center gap-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800">
+                  <Upload className="h-3 w-3 text-tweaks-blue" />
+                  {uploadingSlot === "preEditedDoc"
+                    ? "Uploading..."
+                    : "Upload Pre-Edited File(s)"}
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    disabled={uploadingSlot !== null}
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        void handleR2Upload("preEditedDoc", files);
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+
+              {preEditedDocuments.length > 0 ? (
+                <div className="space-y-1.5">
+                  {preEditedDocuments.map((doc, idx) => (
+                    <div
+                      key={`${doc.name}-${doc.url}-${idx}`}
+                      className="flex items-center gap-1.5"
+                    >
+                      {doc.url ? (
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 px-2.5 py-1.5 bg-slate-900 dark:bg-zinc-800 text-white text-[11px] font-bold flex items-center justify-between gap-2 hover:bg-tweaks-blue transition-colors min-w-0"
+                        >
+                          <span className="inline-flex items-center gap-1.5 truncate">
+                            <Download className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{doc.name}</span>
+                          </span>
+                          {doc.uploadedAt && (
+                            <span className="text-[10px] opacity-80 shrink-0">
+                              {new Date(doc.uploadedAt).toLocaleDateString(
+                                "en-ZA"
+                              )}
+                            </span>
+                          )}
+                        </a>
+                      ) : (
+                        <div className="flex-1 text-[11px] text-slate-500">
+                          {doc.name}
+                        </div>
+                      )}
+                      {doc.url && (
+                        <button
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => handleRemovePreEditedDoc(doc.url!)}
+                          title="Remove pre-edited file"
+                          className="p-1.5 border border-slate-200 dark:border-zinc-700 text-slate-400 hover:text-red-600 cursor-pointer shrink-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-400 py-1.5 px-2.5 border border-dashed border-slate-200 dark:border-zinc-800">
+                  No pre-edited files uploaded yet.
+                </p>
+              )}
+            </div>
+
+            <div className="text-xs">
+              <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                {isAdmin
+                  ? `Editor Notes (${row.assignedEditor ? row.assignedEditor.name : "Pre-Editor"})`
+                  : "Editor Notes for Final Edit (Formatting, Structure & Observations)"}
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Write notes about formatting issues, citation quirks, or anything Chengetai should know before the final edit..."
+                value={editorNotes}
+                onChange={(e) => setEditorNotes(e.target.value)}
+                className="w-full px-2.5 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-xs"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={(e) => handleSubmitPreEditedWork(e, false)}
+                className="px-3 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-slate-50 text-xs font-bold uppercase tracking-wider cursor-pointer"
+              >
+                Save Notes Only
+              </button>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="flex-1 py-2 px-3 bg-tweaks-blue hover:bg-tweaks-red text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+              >
+                {isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Send className="h-3.5 w-3.5" />
+                )}
+                Submit Pre-Edited Files &amp; Notify Admin
+              </button>
+            </div>
+          </form>
+
+          {/* Workflow Stage & Handover Package Form (Admin Final Edit & Client Handover) */}
+          {isAdmin && (
+            <form
+              onSubmit={handleSaveWorkflow}
+              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-5 space-y-4"
+            >
+              <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white border-b border-slate-100 dark:border-zinc-800 pb-2">
+                Handover Package &amp; Stage Control
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    Project Stage
+                  </label>
+                  <select
+                    value={stage}
+                    onChange={(e) => {
+                      const nextStage = e.target.value as ProjectStage;
+                      setStage(nextStage);
+                      if (
+                        nextStage === "lost" &&
+                        quoteOutcome !== "declined" &&
+                        quoteOutcome !== "expired"
+                      ) {
+                        setQuoteOutcome("declined");
+                      }
+                    }}
+                    className="w-full px-2.5 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-bold"
+                  >
+                    {Object.entries(STAGE_LABELS).map(([k, label]) => (
+                      <option key={k} value={k}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
                     Quote Outcome
                   </label>
                   <select
                     value={quoteOutcome}
-                    onChange={(e) =>
-                      setQuoteOutcome(e.target.value as QuoteOutcome)
-                    }
+                    onChange={(e) => {
+                      const nextOutcome = e.target.value as QuoteOutcome;
+                      setQuoteOutcome(nextOutcome);
+                      if (
+                        nextOutcome === "declined" ||
+                        nextOutcome === "expired"
+                      ) {
+                        setStage("lost");
+                      } else if (
+                        nextOutcome === "accepted" &&
+                        (stage === "enquiry" ||
+                          stage === "quote_sent" ||
+                          stage === "lost")
+                      ) {
+                        setStage("accepted");
+                      }
+                    }}
                     className="w-full px-2.5 py-2 border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 font-semibold"
                   >
                     {Object.entries(QUOTE_OUTCOME_LABELS).map(([k, label]) => (
@@ -1073,8 +1319,7 @@ export function ProjectDetailClient({
                     ))}
                   </select>
                 </div>
-              )}
-            </div>
+              </div>
 
             {isAdmin &&
               (quoteOutcome === "declined" ||
@@ -1253,6 +1498,7 @@ export function ProjectDetailClient({
               Save Workspace &amp; Handover Links
             </button>
           </form>
+          )}
 
           {/* Completion Certificate Status */}
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-5 space-y-3">

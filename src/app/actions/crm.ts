@@ -31,6 +31,11 @@ import { requireAdminSession, requireCrmSession } from "@/lib/auth-server";
 import { recordBriefAndGenerateQuote } from "@/lib/crm/submit-brief";
 import { calculateQuote } from "@/lib/pricing/quote-calculator.server";
 import { sendClientPortalUploadInvitationEmail } from "@/lib/crm/portal-notification";
+import { sendPreEditSubmittedNotificationEmail } from "@/lib/crm/pre-edit-notification";
+import {
+  parseClientSourceDocuments,
+  serializeClientSourceDocuments,
+} from "@/lib/crm/client-documents";
 
 /**
  * Fetches everything needed for the interactive client Quote, Payment, Status & Handover page (/quote/[token]).
@@ -323,6 +328,7 @@ export async function recordClientOpenedPackage(quoteToken: string) {
 
 const EDITORIAL_STAGES: ProjectStage[] = [
   "accepted",
+  "pre_editing",
   "in_progress",
   "work_ready",
   "review",
@@ -410,6 +416,23 @@ export async function getAdminCrmDashboardData() {
     }
     for (const s of allSettings) {
       settingsMap[s.key] = s.value;
+    }
+
+    // Reconcile any project whose quote was already marked declined or expired
+    // while the project stage remained in enquiry / quote_sent.
+    for (const proj of allProjects) {
+      const q = allQuotes.find((item) => item.projectId === proj.id);
+      if (
+        q &&
+        (q.outcome === "declined" || q.outcome === "expired") &&
+        (proj.stage === "enquiry" || proj.stage === "quote_sent")
+      ) {
+        proj.stage = "lost";
+        await db
+          .update(projects)
+          .set({ stage: "lost", updatedAt: new Date().toISOString() })
+          .where(eq(projects.id, proj.id));
+      }
     }
 
     const enrichedProjects = allProjects.map((proj) => {
@@ -511,6 +534,7 @@ export async function getAdminCrmDashboardData() {
 
     const liveStages: ProjectStage[] = [
       "accepted",
+      "pre_editing",
       "in_progress",
       "work_ready",
       "review",
@@ -525,6 +549,7 @@ export async function getAdminCrmDashboardData() {
       enquiry: 0,
       quote_sent: 0,
       accepted: 0,
+      pre_editing: 0,
       in_progress: 0,
       work_ready: 0,
       review: 0,
@@ -691,6 +716,7 @@ export async function getAdminCrmDashboardData() {
           enquiry: 0,
           quote_sent: 0,
           accepted: 0,
+          pre_editing: 0,
           in_progress: 0,
           work_ready: 0,
           review: 0,
@@ -718,6 +744,7 @@ export async function updateAdminProjectWorkflow(input: {
   referencingReportUrl?: string;
   walkthroughVideoUrl?: string;
   internalNotes?: string;
+  editorNotes?: string;
   quoteOutcome?: QuoteOutcome;
   whyLost?: WhyLost;
 }) {
@@ -763,14 +790,33 @@ export async function updateAdminProjectWorkflow(input: {
       now.getTime() + 30 * 24 * 60 * 60 * 1000
     ).toISOString();
 
+    // Auto-sync Project Stage when Quote Outcome is marked Declined or Expired
+    let effectiveStage: ProjectStage = input.stage;
+    if (isAdmin && input.quoteOutcome) {
+      if (
+        (input.quoteOutcome === "declined" ||
+          input.quoteOutcome === "expired") &&
+        effectiveStage !== "closed"
+      ) {
+        effectiveStage = "lost";
+      } else if (
+        input.quoteOutcome === "accepted" &&
+        (effectiveStage === "enquiry" ||
+          effectiveStage === "quote_sent" ||
+          effectiveStage === "lost")
+      ) {
+        effectiveStage = "accepted";
+      }
+    }
+
     const isBecomingWorkReady = input.workReady && !project.workReady;
     const isBecomingComplete =
-      input.stage === "complete" && project.stage !== "complete";
+      effectiveStage === "complete" && project.stage !== "complete";
 
     await db
       .update(projects)
       .set({
-        stage: input.stage,
+        stage: effectiveStage,
         workReady: input.workReady,
         workReadyAt: isBecomingWorkReady
           ? nowIso
@@ -780,6 +826,9 @@ export async function updateAdminProjectWorkflow(input: {
         referencingReportUrl: input.referencingReportUrl?.trim() || null,
         walkthroughVideoUrl: input.walkthroughVideoUrl?.trim() || null,
         internalNotes: input.internalNotes?.trim() || null,
+        ...(input.editorNotes !== undefined
+          ? { editorNotes: input.editorNotes.trim() || null }
+          : {}),
         completedAt: isBecomingComplete
           ? nowIso
           : project.completedAt,
@@ -791,39 +840,49 @@ export async function updateAdminProjectWorkflow(input: {
       })
       .where(eq(projects.id, project.id));
 
-    if (isAdmin && input.quoteOutcome) {
-      const existingQuotes =
-        input.quoteOutcome === "accepted"
-          ? await db
-              .select()
-              .from(quotes)
-              .where(eq(quotes.projectId, project.id))
-          : [];
+    if (isAdmin && (input.quoteOutcome || effectiveStage === "lost")) {
+      const effectiveOutcome: QuoteOutcome | undefined =
+        input.quoteOutcome === "awaiting_reply" && effectiveStage === "lost"
+          ? "declined"
+          : input.quoteOutcome;
 
-      await db
-        .update(quotes)
-        .set({
-          outcome: input.quoteOutcome,
-          whyLost: input.whyLost || null,
-          updatedAt: nowIso,
-        })
-        .where(eq(quotes.projectId, project.id));
+      if (effectiveOutcome) {
+        const existingQuotes =
+          effectiveOutcome === "accepted"
+            ? await db
+                .select()
+                .from(quotes)
+                .where(eq(quotes.projectId, project.id))
+            : [];
 
-      for (const q of existingQuotes) {
-        if (
-          q.outcome !== "accepted" &&
-          q.paymentOption === "institutional_funding"
-        ) {
-          await sendClientPortalUploadInvitationEmail({
-            quoteId: q.id,
-            trigger: "institutional_accepted",
-          });
+        await db
+          .update(quotes)
+          .set({
+            outcome: effectiveOutcome,
+            whyLost:
+              effectiveOutcome === "declined" || effectiveOutcome === "expired"
+                ? input.whyLost || null
+                : null,
+            updatedAt: nowIso,
+          })
+          .where(eq(quotes.projectId, project.id));
+
+        for (const q of existingQuotes) {
+          if (
+            q.outcome !== "accepted" &&
+            q.paymentOption === "institutional_funding"
+          ) {
+            await sendClientPortalUploadInvitationEmail({
+              quoteId: q.id,
+              trigger: "institutional_accepted",
+            });
+          }
         }
       }
     }
 
     // Automatically issue Completion Certificate when stage reaches "complete"
-    if (input.stage === "complete") {
+    if (effectiveStage === "complete") {
       const [existingCert] = await db
         .select()
         .from(certificates)
@@ -877,12 +936,185 @@ export async function updateAdminProjectWorkflow(input: {
       }
     }
 
-    return { success: true as const };
+    refresh();
+
+    return {
+      success: true as const,
+      effectiveStage,
+    };
   } catch (error) {
     console.error("Error updating project workflow:", error);
     return {
       success: false as const,
       error: "Failed to update project.",
+    };
+  }
+}
+
+/**
+ * Editor or Admin action: saves pre-editing notes, optionally advances the project
+ * from Pre-Editing to Editing (in_progress), stamps preEditingSubmittedAt, and
+ * sends an email notification to the admin team that pre-edited files are ready.
+ */
+export async function submitPreEditedWorkAction(input: {
+  projectId: string;
+  editorNotes: string;
+  advanceToEditing?: boolean;
+  notifyAdmin?: boolean;
+}) {
+  const session = await requireCrmSession();
+  const isAdmin = (session.user as { role?: string }).role === "admin";
+  const userEmail = (session.user.email || "").trim().toLowerCase();
+
+  try {
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, input.projectId))
+      .limit(1);
+
+    if (!project) {
+      return { success: false as const, error: "Project not found." };
+    }
+
+    let editorName = session.user.name || userEmail.split("@")[0] || "Editor";
+    let editorEmail = userEmail;
+
+    if (!isAdmin) {
+      const [editorRecord] = await db
+        .select()
+        .from(editors)
+        .where(eq(editors.email, userEmail))
+        .limit(1);
+
+      if (!editorRecord || project.assignedEditorId !== editorRecord.id) {
+        return {
+          success: false as const,
+          error: "You can only submit pre-edited files for projects assigned to you.",
+        };
+      }
+      editorName = editorRecord.name;
+      editorEmail = editorRecord.email;
+    } else if (project.assignedEditorId) {
+      const [assignedEd] = await db
+        .select()
+        .from(editors)
+        .where(eq(editors.id, project.assignedEditorId))
+        .limit(1);
+      if (assignedEd) {
+        editorName = assignedEd.name;
+        editorEmail = assignedEd.email;
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const shouldAdvance =
+      input.advanceToEditing &&
+      (project.stage === "accepted" || project.stage === "pre_editing");
+    const nextStage: ProjectStage = shouldAdvance
+      ? "in_progress"
+      : project.stage;
+
+    await db
+      .update(projects)
+      .set({
+        editorNotes: input.editorNotes.trim() || null,
+        stage: nextStage,
+        preEditingSubmittedAt:
+          input.notifyAdmin || shouldAdvance
+            ? nowIso
+            : project.preEditingSubmittedAt,
+        updatedAt: nowIso,
+      })
+      .where(eq(projects.id, project.id));
+
+    let emailSent = false;
+    if (input.notifyAdmin) {
+      const mailRes = await sendPreEditSubmittedNotificationEmail({
+        projectId: project.id,
+        editorName,
+        editorEmail,
+      });
+      emailSent = mailRes.sent;
+    }
+
+    refresh();
+
+    return {
+      success: true as const,
+      stage: nextStage,
+      emailSent,
+    };
+  } catch (error) {
+    console.error("Error submitting pre-edited work:", error);
+    return {
+      success: false as const,
+      error: "Failed to save pre-editing submission.",
+    };
+  }
+}
+
+/**
+ * Removes a single pre-edited file from a project's pre-edited documents list.
+ */
+export async function removePreEditedDocumentAction(input: {
+  projectId: string;
+  fileUrl: string;
+}) {
+  const session = await requireCrmSession();
+  const isAdmin = (session.user as { role?: string }).role === "admin";
+  const userEmail = (session.user.email || "").trim().toLowerCase();
+
+  try {
+    const [project] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, input.projectId))
+      .limit(1);
+
+    if (!project) {
+      return { success: false as const, error: "Project not found." };
+    }
+
+    if (!isAdmin) {
+      const [editorRecord] = await db
+        .select()
+        .from(editors)
+        .where(eq(editors.email, userEmail))
+        .limit(1);
+
+      if (!editorRecord || project.assignedEditorId !== editorRecord.id) {
+        return {
+          success: false as const,
+          error: "You can only modify files on projects assigned to you.",
+        };
+      }
+    }
+
+    const existingDocs = parseClientSourceDocuments(
+      project.preEditedFileName,
+      project.preEditedFileUrl
+    );
+    const remainingDocs = existingDocs.filter((d) => d.url !== input.fileUrl);
+    const serialized = serializeClientSourceDocuments(remainingDocs);
+
+    await db
+      .update(projects)
+      .set({
+        preEditedFileName: serialized.uploadedFileName,
+        preEditedFileUrl: serialized.uploadedFileUrl,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(projects.id, project.id));
+
+    refresh();
+
+    return { success: true as const };
+  } catch (error) {
+    console.error("Error removing pre-edited document:", error);
+    return {
+      success: false as const,
+      error: "Failed to remove pre-edited file.",
     };
   }
 }
@@ -1297,6 +1529,35 @@ export async function updateProjectStageQuickAction(input: {
             quoteId: q.id,
             trigger: "institutional_accepted",
           });
+        }
+      }
+    } else if (isAdmin) {
+      // Keep quote outcome in sync when moving a project into or out of "lost"
+      if (input.stage === "lost") {
+        await db
+          .update(quotes)
+          .set({ outcome: "declined", updatedAt: nowIso })
+          .where(eq(quotes.projectId, input.projectId));
+      } else if (input.stage === "enquiry" || input.stage === "quote_sent") {
+        const [existingQuote] = await db
+          .select()
+          .from(quotes)
+          .where(eq(quotes.projectId, input.projectId))
+          .limit(1);
+        if (
+          existingQuote &&
+          (existingQuote.outcome === "declined" ||
+            existingQuote.outcome === "expired")
+        ) {
+          await db
+            .update(quotes)
+            .set({
+              outcome: "awaiting_reply",
+              whyLost: null,
+              whyLostNotes: null,
+              updatedAt: nowIso,
+            })
+            .where(eq(quotes.id, existingQuote.id));
         }
       }
     }
